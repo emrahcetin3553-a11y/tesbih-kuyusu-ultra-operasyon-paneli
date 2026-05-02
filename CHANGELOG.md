@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-05-02 21:34 - V6.4.4 Ultra panel tek merkez düzeltmesi
+
+- Ayrı `topluSiparisPaneli.html` aktif akıştan kaldırıldı; çoklu sipariş, Ultra paneldeki `Yeni sipariş ekle` blokları ve backend `topluUltraSiparisKaydet` üzerinden çalışır.
+- Telefon alanı yazım sırasında normalize edilmeyecek şekilde düzeltildi; normalizasyon blur/kayıt öncesinde `+905xxxxxxxxx` formatına kapanır.
+- Kargo bilgileri ödeme ve fatura/cari varsayılanlarını besleyecek şekilde güçlendirildi; operatörün elle dokunduğu alanlar otomatik olarak ezilmez.
+- Fatura/Cari bölümüne `Fatura_Eposta` eklendi ve `06_FATURA_GRUPLARI` Sheet sözleşmesine işlendi.
+- Panel içine görünür `Cari seç / ara` ve `Cari oluştur` akışı eklendi; canlı cari oluşturma kapısı kapalıysa payload üretilir, POST yapılmaz.
+- `Kontrol et` ve `Kaydet ve ERP güncelle` akışı kayıt öncesi telefon/ad-soyad/kargo/ödeme/fatura doğrulamasını sıkılaştırdı; sahte OK vermeyecek şekilde mock kapısı güncellendi.
+- Canlı Apps Script projesine yalnız V6.4.4 core ve aktif HTML dosyaları yüklendi; remote core SHA256 lokal ile doğrulandı.
+
 ## 2026-05-02 16:31 - V6.4.3 gerçek panel düzeltmesi
 
 - Ultra Sipariş Paneli tek merkez akışına göre yeniden güçlendirildi.

@@ -2,13 +2,14 @@
 
 ## 1. Apps Script'e Yüklenecek Dosyalar
 
-- `03_APPS_SCRIPT_KOD/tesbih_kuyusu_v6_4_2_ultra_operasyon_core.gs`
+- `03_APPS_SCRIPT_KOD/tesbih_kuyusu_v6_4_4_ultra_operasyon_core.gs`
 - `03_APPS_SCRIPT_KOD/ultraSiparisPaneli.html`
-- `03_APPS_SCRIPT_KOD/topluSiparisPaneli.html`
 - `03_APPS_SCRIPT_KOD/cariSecDialog.html`
 - `03_APPS_SCRIPT_KOD/urunEkleDialog.html`
 - `03_APPS_SCRIPT_KOD/odemeEkleDialog.html`
 - `03_APPS_SCRIPT_KOD/kargoBilgisiDialog.html`
+
+Not: Ayrı `topluSiparisPaneli.html` V6.4.4 aktif akışından kaldırıldı. Çoklu sipariş, Ultra panel içindeki `Yeni sipariş ekle` bloklarıyla yapılır.
 
 ## 2. Script Properties Kontrol Listesi
 
@@ -30,7 +31,7 @@ Secret değerler dokümana veya GitHub'a yazılmaz.
 2. Menü görünmüyorsa Apps Script'te `onOpen()` çalıştır.
 3. `sistemKolonlariniHazirla()`
 4. `otomatikGorunumuDuzenle()`
-5. `v642GercekSheetKabulKontrolu()`
+5. `v644GercekSheetKabulKontrolu()`
 6. `parasutApiBaglantiTestiTam()`
 
 ## 4. Test Siparişi Senaryoları

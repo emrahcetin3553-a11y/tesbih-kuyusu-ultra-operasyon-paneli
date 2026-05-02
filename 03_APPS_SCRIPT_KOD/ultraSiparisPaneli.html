@@ -127,13 +127,20 @@
     return String(v || "").trim().replace(/\s+/g, " ").split(" ").filter(Boolean)
       .map(x => x.charAt(0).toLocaleUpperCase("tr-TR") + x.slice(1).toLocaleLowerCase("tr-TR")).join(" ");
   }
-  function phoneTR(v) {
+  function phoneDigits(v) {
     const d = String(v || "").replace(/\D/g, "");
+    return d;
+  }
+  function completePhoneTR(v) {
+    const d = phoneDigits(v);
     if (!d) return "";
     if (d.length === 10 && d[0] === "5") return "+90" + d;
-    if (d.length === 11 && d[0] === "0") return "+90" + d.slice(1);
-    if (d.length === 12 && d.startsWith("90")) return "+" + d;
-    return d.startsWith("+") ? d : "+" + d;
+    if (d.length === 11 && d[0] === "0" && d[1] === "5") return "+90" + d.slice(1);
+    if (d.length === 12 && d.startsWith("90") && d[2] === "5") return "+" + d;
+    return "";
+  }
+  function phoneTR(v) {
+    return completePhoneTR(v) || String(v || "").trim();
   }
   function cityTR(v) { return titleCaseTR(v); }
   function num(v) { return Number(String(v || "").replace(/\./g, "").replace(",", ".")) || 0; }
@@ -173,33 +180,49 @@
 
   function bindCard(card) {
     card.querySelectorAll("input, textarea, select").forEach(el => {
-      el.addEventListener("input", () => { el.dataset.touched = "1"; if (el.classList.contains("odemeYapan")) rebuildInvoiceBlocks(card); });
+      el.addEventListener("input", () => {
+        el.dataset.touched = "1";
+        delete el.dataset.auto;
+        if (el.classList.contains("odemeYapan")) {
+          syncPaymentDefaults(card);
+          rebuildInvoiceBlocks(card);
+        }
+      });
       el.addEventListener("blur", () => normalizeField(card, el));
     });
     field(card, "whatsAppTel").addEventListener("input", () => applyCustomerDefaults(card));
     field(card, "siparisSahibi").addEventListener("input", () => applyCustomerDefaults(card));
-    ["il", "ilce", "adres", "kargoTel"].forEach(name => field(card, name).addEventListener("input", () => rebuildInvoiceBlocks(card)));
+    ["kargoAlicisi", "il", "ilce", "adres", "kargoTel"].forEach(name => field(card, name).addEventListener("input", () => {
+      syncPaymentDefaults(card);
+      rebuildInvoiceBlocks(card);
+    }));
   }
 
   function normalizeField(card, el) {
     if (el.dataset.role === "person") el.value = titleCaseTR(el.value);
-    if (el.dataset.role === "phone") el.value = phoneTR(el.value);
+    if (el.dataset.role === "phone") {
+      const phone = completePhoneTR(el.value);
+      if (phone) el.value = phone;
+    }
     if (el.dataset.role === "city") el.value = cityTR(el.value);
+    if (["kargoAlicisi", "kargoTel", "il", "ilce", "adres"].includes(el.dataset.field)) {
+      syncPaymentDefaults(card);
+      rebuildInvoiceBlocks(card);
+    }
     if (el.classList.contains("odemeYapan")) rebuildInvoiceBlocks(card);
     if (el.classList.contains("odemeYapan") || el.classList.contains("odemeTutari")) refreshPayerOptions(card);
   }
 
   function applyCustomerDefaults(card) {
     const owner = titleCaseTR(value(card, "siparisSahibi"));
-    const phone = phoneTR(value(card, "whatsAppTel"));
+    const phone = completePhoneTR(value(card, "whatsAppTel"));
     if (owner) {
-      field(card, "siparisSahibi").value = owner;
       setValue(card, "kargoAlicisi", owner, false);
     }
     if (phone) {
-      field(card, "whatsAppTel").value = phone;
       setValue(card, "kargoTel", phone, false);
     }
+    syncPaymentDefaults(card);
     rebuildInvoiceBlocks(card);
     if (!phone) return;
     card.querySelector(".status").textContent = "Müşteri hafızası kontrol ediliyor...";
@@ -208,17 +231,45 @@
       if (!owner && res.owner) setValue(card, "siparisSahibi", res.owner, false);
       if (res.cargo) {
         setValue(card, "kargoAlicisi", res.cargo.receiver || owner, false);
-        setValue(card, "kargoTel", res.cargo.phone || phone, false);
+        setValue(card, "kargoTel", completePhoneTR(res.cargo.phone || "") || phone, false);
         setValue(card, "il", res.cargo.city || "", false);
         setValue(card, "ilce", res.cargo.district || "", false);
         setValue(card, "adres", res.cargo.address || "", false);
-        setValue(card, "kargoFirmasi", res.cargo.company || "", false);
+        if (res.cargo.company) {
+          const cargoCompany = field(card, "kargoFirmasi");
+          if (cargoCompany && cargoCompany.dataset.touched !== "1") cargoCompany.value = res.cargo.company;
+        }
       }
       if (res.openOrder && res.openOrder.id) card.dataset.openId = res.openOrder.id;
+      syncPaymentDefaults(card);
       rebuildInvoiceBlocks(card);
       refreshOrderTitles();
       card.querySelector(".status").textContent = res.openOrder ? `Açık sipariş bulundu: ${res.openOrder.id}` : "Müşteri hafızası kontrol edildi.";
     }).getUltraPanelHazirlik(phone);
+  }
+
+  function setAutoInput(row, selector, val) {
+    const el = row.querySelector(selector);
+    if (!el || !val) return;
+    if (el.dataset.touched === "1") return;
+    if (!el.value || el.dataset.auto === "1") {
+      el.value = val;
+      el.dataset.auto = "1";
+    }
+  }
+
+  function syncPaymentDefaults(card) {
+    const phone = completePhoneTR(value(card, "kargoTel")) || completePhoneTR(value(card, "whatsAppTel"));
+    const city = cityTR(value(card, "il"));
+    const district = cityTR(value(card, "ilce"));
+    const address = value(card, "adres");
+    card.querySelectorAll(".payments .line").forEach(row => {
+      setAutoInput(row, ".odemeYapanTel", phone);
+      setAutoInput(row, ".odemeYapanTcknVkn", "11111111111");
+      setAutoInput(row, ".odemeYapanIl", city);
+      setAutoInput(row, ".odemeYapanIlce", district);
+      setAutoInput(row, ".odemeYapanAdres", address);
+    });
   }
 
   function payerNames(card) {
@@ -303,7 +354,7 @@
         <div class="c2"><label>Tarih</label><input type="date" class="odemeTarihi" value="${esc(data.odemeTarihi || meta.today)}"></div>
         <div class="c2"><label>Kaynak</label><select class="odemeTeyitKaynagi">${optionList(meta.paymentSources)}</select></div>
         <div class="c3"><label>Dekont</label><input class="dekontReferans" value="${esc(data.dekontReferans || "")}"></div>
-        <div class="c2"><label>Ödeme_Yapan_Tel</label><input class="odemeYapanTel" value="${esc(data.odemeYapanTel || value(card, "whatsAppTel"))}"></div>
+        <div class="c2"><label>Ödeme_Yapan_Tel</label><input class="odemeYapanTel" value="${esc(data.odemeYapanTel || completePhoneTR(value(card, "whatsAppTel")) || "")}"></div>
         <div class="c2"><label>Ödeme_Yapan_TCKN_VKN</label><input class="odemeYapanTcknVkn" value="${esc(data.odemeYapanTcknVkn || "11111111111")}"></div>
         <div class="c2"><label>Ödeme_Yapan_İl</label><input class="odemeYapanIl" value="${esc(data.odemeYapanIl || value(card, "il"))}"></div>
         <div class="c2"><label>Ödeme_Yapan_İlçe</label><input class="odemeYapanIlce" value="${esc(data.odemeYapanIlce || value(card, "ilce"))}"></div>
@@ -313,9 +364,25 @@
     card.querySelector(".payments").appendChild(wrap);
     wrap.querySelector(".odemeTeyitKaynagi").value = data.odemeTeyitKaynagi || "Manuel";
     wrap.querySelectorAll("input,select").forEach(el => {
-      el.addEventListener("input", () => { if (el.classList.contains("odemeYapan")) el.value = titleCaseTR(el.value); rebuildInvoiceBlocks(card); refreshPayerOptions(card); });
-      el.addEventListener("blur", () => { if (el.classList.contains("odemeYapanTel")) el.value = phoneTR(el.value); if (el.classList.contains("odemeYapanIl") || el.classList.contains("odemeYapanIlce")) el.value = cityTR(el.value); rebuildInvoiceBlocks(card); refreshPayerOptions(card); });
+      el.addEventListener("input", () => {
+        el.dataset.touched = "1";
+        delete el.dataset.auto;
+        syncPaymentDefaults(card);
+        rebuildInvoiceBlocks(card);
+        refreshPayerOptions(card);
+      });
+      el.addEventListener("blur", () => {
+        if (el.classList.contains("odemeYapan")) el.value = titleCaseTR(el.value);
+        if (el.classList.contains("odemeYapanTel")) {
+          const phone = completePhoneTR(el.value);
+          if (phone) el.value = phone;
+        }
+        if (el.classList.contains("odemeYapanIl") || el.classList.contains("odemeYapanIlce")) el.value = cityTR(el.value);
+        rebuildInvoiceBlocks(card);
+        refreshPayerOptions(card);
+      });
     });
+    syncPaymentDefaults(card);
     rebuildInvoiceBlocks(card);
     refreshPayerOptions(card);
   }
@@ -338,6 +405,7 @@
   }
 
   function rebuildInvoiceBlocks(card) {
+    syncPaymentDefaults(card);
     const prior = existingInvoiceValues(card);
     const area = card.querySelector(".invoice-blocks");
     area.innerHTML = "";
@@ -349,6 +417,7 @@
       const city = saved.faturaIl || (pLine && pLine.querySelector(".odemeYapanIl").value) || value(card, "il");
       const district = saved.faturaIlce || (pLine && pLine.querySelector(".odemeYapanIlce").value) || value(card, "ilce");
       const address = saved.faturaAdres || (pLine && pLine.querySelector(".odemeYapanAdres").value) || value(card, "adres");
+      const email = saved.faturaEmail || "";
       const block = document.createElement("div");
       block.className = "line invoice-line";
       block.innerHTML = `
@@ -357,6 +426,7 @@
           <div class="c3"><label>Fatura_Kişisi</label><input class="faturaKisisi readonly" readonly value="${esc(payer)}"></div>
           <div class="c2"><label>Cari_Tipi</label><select class="cariTipi"><option>Gerçek Kişi</option><option>Tüzel Kişi</option></select></div>
           <div class="c2"><label>Fatura_Tel</label><input class="faturaTel" value="${esc(phoneTR(tel))}"></div>
+          <div class="c2"><label>Fatura_Eposta</label><input class="faturaEmail" value="${esc(email)}"></div>
           <div class="c2"><label>Fatura_TCKN_VKN</label><input class="faturaTcknVkn" value="${esc(tax || "11111111111")}"></div>
           <div class="c3"><label>Fatura_Vergi_Dairesi</label><input class="faturaVergiDairesi" value="${esc(saved.faturaVergiDairesi || "")}"></div>
           <div class="c2"><label>Fatura_İl</label><input class="faturaIl" value="${esc(cityTR(city))}"></div>
@@ -367,14 +437,29 @@
           <div class="c3"><label>Cari_Eşleşme_Durumu</label><input class="cariDurum readonly" readonly value="${esc(saved.cariDurum || "Cari çözümü gerekli")}"></div>
           <div class="c4"><label>Cari_Aksiyon</label><input class="cariAksiyon readonly" readonly value="${esc(saved.cariAksiyon || "Kaydet sırasında aday aranacak")}"></div>
           <div class="c8"><label>Fatura_Adres</label><input class="faturaAdres" value="${esc(address)}"></div>
+          <div class="c2"><button type="button" class="secondary cari-auto">Cari seç / ara</button></div>
+          <div class="c2"><button type="button" class="secondary cari-create">Cari oluştur</button></div>
         </div>`;
       block.querySelector(".cariTipi").value = saved.cariTipi || "Gerçek Kişi";
+      block.querySelectorAll("input,select").forEach(el => {
+        el.addEventListener("input", () => { el.dataset.touched = "1"; });
+        el.addEventListener("blur", () => {
+          if (el.classList.contains("faturaTel")) {
+            const phone = completePhoneTR(el.value);
+            if (phone) el.value = phone;
+          }
+          if (el.classList.contains("faturaIl") || el.classList.contains("faturaIlce")) el.value = cityTR(el.value);
+        });
+      });
+      block.querySelector(".cari-auto").addEventListener("click", () => resolveCari(card, block, "auto"));
+      block.querySelector(".cari-create").addEventListener("click", () => resolveCari(card, block, "create"));
       area.appendChild(block);
     });
     refreshPayerOptions(card);
   }
 
   function collectOrder(card) {
+    syncPaymentDefaults(card);
     const urunler = [...card.querySelectorAll(".products .line")].map(row => ({
       urunAdi: row.querySelector(".urunAdi").value,
       odemeYapan: row.querySelector(".productPayer").value,
@@ -393,7 +478,7 @@
       odemeTarihi: row.querySelector(".odemeTarihi").value,
       odemeTeyitKaynagi: row.querySelector(".odemeTeyitKaynagi").value,
       dekontReferans: row.querySelector(".dekontReferans").value,
-      odemeYapanTel: row.querySelector(".odemeYapanTel").value,
+      odemeYapanTel: phoneTR(row.querySelector(".odemeYapanTel").value),
       odemeYapanTcknVkn: row.querySelector(".odemeYapanTcknVkn").value || "11111111111",
       odemeYapanAdres: row.querySelector(".odemeYapanAdres").value,
       odemeYapanIl: row.querySelector(".odemeYapanIl").value,
@@ -402,7 +487,8 @@
     const faturalar = [...card.querySelectorAll(".invoice-line")].map(row => ({
       faturaKisisi: row.querySelector(".faturaKisisi").value,
       cariTipi: row.querySelector(".cariTipi").value,
-      faturaTel: row.querySelector(".faturaTel").value,
+      faturaTel: phoneTR(row.querySelector(".faturaTel").value),
+      faturaEmail: row.querySelector(".faturaEmail").value,
       faturaTcknVkn: row.querySelector(".faturaTcknVkn").value || "11111111111",
       faturaVergiDairesi: row.querySelector(".faturaVergiDairesi").value,
       faturaIl: row.querySelector(".faturaIl").value,
@@ -413,7 +499,7 @@
     }));
     return {
       openId: card.dataset.openId || "",
-      whatsAppTel: value(card, "whatsAppTel"),
+      whatsAppTel: phoneTR(value(card, "whatsAppTel")),
       siparisSahibi: value(card, "siparisSahibi"),
       hamWhatsappMesaji: value(card, "hamWhatsappMesaji"),
       hizliUrunGirisi: value(card, "hizliUrunGirisi"),
@@ -422,7 +508,7 @@
       urunler, odemeler, faturalar,
       kargo: {
         kargoAlicisi: value(card, "kargoAlicisi"),
-        kargoTel: value(card, "kargoTel"),
+        kargoTel: phoneTR(value(card, "kargoTel")),
         il: value(card, "il"),
         ilce: value(card, "ilce"),
         adres: value(card, "adres"),
@@ -430,6 +516,26 @@
         paketNotu: value(card, "paketNotu")
       }
     };
+  }
+
+  function resolveCari(card, line, mode) {
+    const openId = card.dataset.openId || "";
+    if (!openId) {
+      setCardStatus(card, "Cari çözümü için önce Kaydet ve ERP güncelle çalıştırılmalı.");
+      return;
+    }
+    const payer = line.querySelector(".faturaKisisi").value;
+    const contactId = line.querySelector(".parasutCariId").value;
+    setCardStatus(card, `${payer} için cari çözümü çalışıyor...`);
+    google.script.run.withSuccessHandler(res => {
+      if (res.contactId) line.querySelector(".parasutCariId").value = res.contactId;
+      if (res.score) line.querySelector(".cariPuan").value = res.score;
+      if (res.status) line.querySelector(".cariDurum").value = res.status;
+      line.querySelector(".cariAksiyon").value = res.ok ? "Cari bağlı" : (res.status || "Operatör onayı gerekli");
+      const liveInfo = res.livePost ? `\nCanlı cari POST: ${res.livePost}` : "";
+      setCardStatus(card, `${payer}: ${res.status || "Cari sonucu alındı"}${liveInfo}`);
+    }).withFailureHandler(err => setCardStatus(card, "HATA: " + (err.message || err)))
+      .parasutCariPanelAksiyonu(openId, payer, mode, contactId);
   }
 
   function cards() { return [...document.querySelectorAll(".order-card")]; }

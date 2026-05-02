@@ -1,13 +1,14 @@
 # Tesbih Kuyusu Ultra Operasyon Paneli
 
-Tesbih Kuyusu V6.4.2 Ultra Operasyon Paneli, Google Sheets ve Apps Script üzerinde sipariş girişini, ürün kalemlerini, ödeme teyidini, fatura gruplarını, Paraşüt satış faturası taslak hazırlığını, kargo paketini, müşteri hafızasını ve kontrol merkezini tek operasyon akışında yönetmek için hazırlanmıştır.
+Tesbih Kuyusu V6.4.4 Ultra Operasyon Paneli, Google Sheets ve Apps Script üzerinde sipariş girişini, ürün kalemlerini, ödeme teyidini, fatura gruplarını, Paraşüt satış faturası taslak hazırlığını, kargo paketini, müşteri hafızasını ve kontrol merkezini tek operasyon akışında yönetmek için hazırlanmıştır.
 
 ## Güncel Sürüm
 
-- Aktif üretim adayı: V6.4.2 Ultra Operasyon
-- Ana Apps Script core: `03_APPS_SCRIPT_KOD/tesbih_kuyusu_v6_4_2_ultra_operasyon_core.gs`
-- Aktif Sheet dosyası: `02_SHEET_SISTEM/Tesbih_Kuyusu_V6_4_2_Ultra_Operasyon_Sheet.xlsx`
+- Aktif üretim adayı: V6.4.4 Ultra Operasyon
+- Ana Apps Script core: `03_APPS_SCRIPT_KOD/tesbih_kuyusu_v6_4_4_ultra_operasyon_core.gs`
+- Aktif Sheet dosyası: `02_SHEET_SISTEM/Tesbih_Kuyusu_V6_4_4_Ultra_Operasyon_Sheet.xlsx`
 - Canlı gönderim kapıları varsayılan: kapalı
+- Günlük ana akış: Ultra sipariş paneli; çoklu sipariş aynı panelde `Yeni sipariş ekle` ile yürür
 
 ## İş Mantığı
 
