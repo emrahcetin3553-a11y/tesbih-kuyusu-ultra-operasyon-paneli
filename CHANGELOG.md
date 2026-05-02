@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-05-02 16:31 - V6.4.3 gerçek panel düzeltmesi
+
+- Ultra Sipariş Paneli tek merkez akışına göre yeniden güçlendirildi.
+- Müşteri telefonu/adı girilince kargo varsayılanları, ödeme yapan girilince fatura/cari bloğu otomatik oluşacak şekilde düzeltildi.
+- TCKN boş gerçek kişi için `11111111111` ve `e-Arşiv` varsayılanı güçlendirildi.
+- Kontrol Et sahte OK vermeyecek şekilde gerçek `12_KONTROL_MERKEZI` sonucuna bağlandı.
+- Kargo açık sipariş hazırlık blokajı ile son gönderim kapanış kontrolü ayrıldı.
+- Canlı Apps Script projesine V6.4.3 core ve güncel panel dosyaları yüklendi.
+
 ## 2026-05-02 15:30 - V6.4.2 üretim kabul hazırlığı
 
 - V6.4.2 core ve Sheet aday dosyaları V6.4.1 korunarak ayrı üretildi.
