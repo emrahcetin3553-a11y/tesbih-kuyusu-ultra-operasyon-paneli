@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-05-02 23:45 - V6.4.5 panel varsayılan akış düzeltmesi
+
+- Kargo_Alıcısı alanının Sipariş_Sahibi yazılırken ilk harfte kilitlenmesine neden olan otomatik alan davranışı düzeltildi.
+- Otomatik doldurulan alanlar `auto` olarak izlenir; operatör elle değiştirmediyse tam ad-soyad yazıldıkça güncellenir.
+- Sipariş_Sahibi tam ad-soyad olduğunda Ödeme_Yapan, ödeme/fatura telefonu, adresi, il/ilçesi ve Fatura_Kişisi varsayılan olarak aynı panel içinde akar.
+- Birleşik yaygın ad-soyad girişleri için panel tarafı normalizasyon yardımcısı eklendi: `mehmetnuriçetin`, `nimeçetin`, `bedihaçetin`, `yaşarçetin`, `emrahçetin`.
+- V6.4.5 core ve güncel Ultra panel canlı Apps Script projesine yüklendi; remote core SHA256 lokal ile doğrulandı.
+
 ## 2026-05-02 21:34 - V6.4.4 Ultra panel tek merkez düzeltmesi
 
 - Ayrı `topluSiparisPaneli.html` aktif akıştan kaldırıldı; çoklu sipariş, Ultra paneldeki `Yeni sipariş ekle` blokları ve backend `topluUltraSiparisKaydet` üzerinden çalışır.

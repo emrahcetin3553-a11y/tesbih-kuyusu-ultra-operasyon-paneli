@@ -113,8 +113,13 @@
     const el = field(card, name);
     if (!el) return;
     if (!force && el.dataset.touched === "1") return;
-    if (!force && el.value) return;
+    if (!force && el.value && el.dataset.auto !== "1") return;
     el.value = val || "";
+    if (force) {
+      delete el.dataset.auto;
+      return;
+    }
+    if (val) el.dataset.auto = "1";
   }
   function optionList(rows, valueKey, labelKey) {
     return (rows || []).map(r => {
@@ -124,8 +129,30 @@
     }).join("");
   }
   function titleCaseTR(v) {
-    return String(v || "").trim().replace(/\s+/g, " ").split(" ").filter(Boolean)
+    const expanded = expandJoinedPersonNameTR(String(v || "").trim());
+    return expanded.replace(/\s+/g, " ").split(" ").filter(Boolean)
       .map(x => x.charAt(0).toLocaleUpperCase("tr-TR") + x.slice(1).toLocaleLowerCase("tr-TR")).join(" ");
+  }
+  function expandJoinedPersonNameTR(v) {
+    const raw = String(v || "").trim().replace(/\s+/g, " ");
+    if (!raw || raw.includes(" ")) return raw;
+    const key = raw.toLocaleLowerCase("tr-TR");
+    const known = {
+      "mehmetnuriçetin": "mehmet nuri çetin",
+      "mehmetnuricetin": "mehmet nuri çetin",
+      "nimeçetin": "nime çetin",
+      "nimecetin": "nime çetin",
+      "bedihaçetin": "bediha çetin",
+      "bedihacetin": "bediha çetin",
+      "yaşarçetin": "yaşar çetin",
+      "yasarcetin": "yaşar çetin",
+      "emrahçetin": "emrah çetin",
+      "emrahcetin": "emrah çetin"
+    };
+    return known[key] || raw;
+  }
+  function personReadyTR(v) {
+    return titleCaseTR(v).split(/\s+/).filter(Boolean).length >= 2;
   }
   function phoneDigits(v) {
     const d = String(v || "").replace(/\D/g, "");
@@ -216,7 +243,7 @@
   function applyCustomerDefaults(card) {
     const owner = titleCaseTR(value(card, "siparisSahibi"));
     const phone = completePhoneTR(value(card, "whatsAppTel"));
-    if (owner) {
+    if (owner && personReadyTR(owner)) {
       setValue(card, "kargoAlicisi", owner, false);
     }
     if (phone) {
@@ -259,11 +286,13 @@
   }
 
   function syncPaymentDefaults(card) {
+    const owner = titleCaseTR(value(card, "siparisSahibi"));
     const phone = completePhoneTR(value(card, "kargoTel")) || completePhoneTR(value(card, "whatsAppTel"));
     const city = cityTR(value(card, "il"));
     const district = cityTR(value(card, "ilce"));
     const address = value(card, "adres");
     card.querySelectorAll(".payments .line").forEach(row => {
+      if (owner && personReadyTR(owner)) setAutoInput(row, ".odemeYapan", owner);
       setAutoInput(row, ".odemeYapanTel", phone);
       setAutoInput(row, ".odemeYapanTcknVkn", "11111111111");
       setAutoInput(row, ".odemeYapanIl", city);
