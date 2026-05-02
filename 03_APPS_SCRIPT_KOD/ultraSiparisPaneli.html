@@ -4,36 +4,49 @@
   <base target="_top">
   <meta charset="utf-8">
   <style>
-    :root { --line:#d7e2ee; --ink:#0f233f; --soft:#f5f8fc; --brand:#0f766e; --bad:#b91c1c; --warn:#b45309; }
+    :root {
+      --line:#d7e2ee;
+      --ink:#0f233f;
+      --muted:#526478;
+      --soft:#f3f7fb;
+      --panel:#ffffff;
+      --brand:#0f766e;
+      --bad:#b91c1c;
+      --warn:#b45309;
+    }
     * { box-sizing:border-box; }
-    html, body { margin:0; height:100%; font-family:Arial, sans-serif; color:var(--ink); background:#eef3f8; }
-    .shell { width:100vw; height:100vh; padding:14px; display:flex; flex-direction:column; gap:10px; }
-    .topbar { display:flex; align-items:center; justify-content:space-between; gap:10px; }
-    h2 { margin:0; font-size:24px; }
-    .orders { flex:1; overflow:auto; padding-bottom:84px; }
-    .order-card { background:#fff; border:1px solid var(--line); border-radius:8px; margin:0 0 14px; padding:14px; }
+    html, body { margin:0; width:100%; height:100%; font-family:Arial, sans-serif; color:var(--ink); background:#eef3f8; }
+    .shell { width:100vw; height:100vh; padding:14px 18px 86px; display:flex; flex-direction:column; gap:12px; overflow:hidden; }
+    .topbar { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    h2 { margin:0; font-size:25px; }
+    .orders { flex:1; overflow:auto; padding-right:6px; }
+    .order-card { background:var(--panel); border:1px solid var(--line); border-radius:8px; margin:0 0 14px; padding:14px; }
     .order-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; }
-    .order-title { font-weight:800; color:#0f766e; }
-    section { border:1px solid #e5edf6; border-radius:8px; padding:12px; margin:10px 0; background:#fbfdff; }
-    h3 { margin:0 0 10px; color:#0f766e; font-size:16px; }
+    .order-title { font-weight:800; color:var(--brand); font-size:18px; }
+    section { border:1px solid #e3edf7; border-radius:8px; padding:12px; margin:10px 0; background:#fbfdff; }
+    h3 { margin:0 0 10px; color:var(--brand); font-size:16px; }
     label { display:block; font-weight:700; font-size:12px; margin:0 0 5px; }
     input, select, textarea { width:100%; border:1px solid #c8d4e3; border-radius:6px; padding:9px; font-size:13px; background:#fff; }
-    textarea { min-height:58px; resize:vertical; }
+    textarea { min-height:60px; resize:vertical; }
     .grid { display:grid; grid-template-columns:repeat(12, minmax(0, 1fr)); gap:10px; align-items:end; }
     .c1 { grid-column:span 1; } .c2 { grid-column:span 2; } .c3 { grid-column:span 3; } .c4 { grid-column:span 4; }
-    .c5 { grid-column:span 5; } .c6 { grid-column:span 6; } .c8 { grid-column:span 8; } .c12 { grid-column:span 12; }
+    .c5 { grid-column:span 5; } .c6 { grid-column:span 6; } .c7 { grid-column:span 7; } .c8 { grid-column:span 8; } .c12 { grid-column:span 12; }
     .line { border:1px solid #dde8f4; border-radius:8px; padding:10px; margin:8px 0; background:#fff; }
+    .footer { position:fixed; left:0; right:0; bottom:0; background:#f8fafc; border-top:1px solid var(--line); padding:12px 18px; display:flex; justify-content:flex-end; gap:10px; }
     button { border:0; border-radius:7px; padding:10px 13px; font-weight:700; cursor:pointer; }
-    .primary { background:#0f766e; color:#fff; }
+    .primary { background:var(--brand); color:#fff; }
     .secondary { background:#e8eef6; color:#10233f; }
     .danger { background:#fee2e2; color:#991b1b; }
-    .footer { position:fixed; left:0; right:0; bottom:0; background:#f8fafc; border-top:1px solid var(--line); padding:12px 16px; display:flex; justify-content:flex-end; gap:10px; }
-    .status { white-space:pre-wrap; border:1px solid var(--line); border-radius:8px; padding:10px; background:#fff; min-height:72px; }
+    .status { white-space:pre-wrap; border:1px solid var(--line); border-radius:8px; padding:10px; background:#fff; min-height:74px; }
     .badge { display:inline-block; padding:3px 7px; border-radius:999px; background:#e8eef6; margin-right:6px; font-size:12px; }
+    .muted { color:var(--muted); font-size:12px; }
     .readonly { background:#f4f7fb; }
     .silver { display:none; }
     .line.is-silver .silver { display:block; }
-    @media (max-width:1100px) { .grid { grid-template-columns:repeat(6, minmax(0, 1fr)); } .c8,.c6,.c5,.c4,.c3,.c2,.c1 { grid-column:span 6; } }
+    @media (max-width:1180px) {
+      .grid { grid-template-columns:repeat(6, minmax(0, 1fr)); }
+      .c8,.c7,.c6,.c5,.c4,.c3,.c2,.c1 { grid-column:span 6; }
+    }
   </style>
 </head>
 <body>
@@ -95,14 +108,26 @@
       <div class="invoice-blocks"></div>
     </section>
     <section>
-      <h3>Kontrol Özeti</h3>
-      <div class="status">Kontrol bekleniyor.</div>
+      <h3>Adres geçmişi</h3>
+      <div class="grid">
+        <div class="c8"><label>Kayıtlı adresler</label><select class="address-history"></select></div>
+        <div class="c2"><button type="button" class="secondary" onclick="applySelectedAddress(cardOf(this))">Adresi uygula</button></div>
+        <div class="c2"><span class="muted">Yeni adres kayıtta geçmişe eklenir.</span></div>
+      </div>
+    </section>
+    <section>
+      <h3>Müşteri hafızası</h3>
+      <div class="status memory-status">Telefon girildiğinde müşteri hafızası aranır.</div>
+    </section>
+    <section>
+      <h3>Kontrol özeti</h3>
+      <div class="status control-status">Kontrol bekleniyor.</div>
     </section>
   </div>
 </template>
 
 <script>
-  let meta = { products: [], paymentSources: [], cargoCompanies: [], today: "" };
+  let meta = { products: [], paymentSources: [], cargoCompanies: [], today: "", editOrders: [] };
   let orderSeq = 0;
 
   function esc(v) { return String(v == null ? "" : v).replace(/[&<>"']/g, s => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[s])); }
@@ -128,36 +153,61 @@
       return `<option value="${esc(value)}">${esc(label)}</option>`;
     }).join("");
   }
+  function asciiKey(v) {
+    return String(v || "").toLocaleLowerCase("tr-TR")
+      .replace(/ı/g, "i").replace(/ğ/g, "g").replace(/ü/g, "u")
+      .replace(/ş/g, "s").replace(/ö/g, "o").replace(/ç/g, "c")
+      .replace(/[^a-z0-9]+/g, "");
+  }
+  function expandJoinedPersonNameTR(v) {
+    const raw = String(v || "").trim().replace(/\s+/g, " ");
+    if (!raw || raw.includes(" ")) return raw;
+    const direct = {
+      mehmetnuricetin: "mehmet nuri çetin",
+      nimecetin: "nimet çetin",
+      nimetcetin: "nimet çetin",
+      bedihacetin: "bediha çetin",
+      yasarcetin: "yaşar çetin",
+      emrahcagri: "emrah çağrı",
+      hasanalbayrak: "hasan albayrak"
+    };
+    const key = asciiKey(raw);
+    if (direct[key]) return direct[key];
+    const surnames = ["çetin", "albayrak", "yılmaz", "demir", "kaya", "şahin", "arslan", "aydin", "aydın", "öztürk", "kılıç", "koç"];
+    const names = ["mehmet", "nuri", "nimet", "bediha", "yaşar", "yasar", "emrah", "çağrı", "cagri", "hasan", "ali", "ayşe", "ayse", "zeynep", "fatma", "murat", "ahmet", "mustafa"];
+    for (const surname of surnames) {
+      const sk = asciiKey(surname);
+      if (key.endsWith(sk) && key.length > sk.length) {
+        const prefix = key.slice(0, -sk.length);
+        const given = splitJoinedGivenNamesTR(prefix, names);
+        if (given.length) return [...given, surname].join(" ");
+      }
+    }
+    return raw;
+  }
+  function splitJoinedGivenNamesTR(key, names) {
+    let rest = key;
+    const out = [];
+    while (rest) {
+      let hit = "";
+      for (const name of names) {
+        const nk = asciiKey(name);
+        if (rest.indexOf(nk) === 0 && nk.length > hit.length) hit = nk;
+      }
+      if (!hit) return [];
+      const original = names.find(n => asciiKey(n) === hit) || hit;
+      out.push(original === "yasar" ? "yaşar" : original === "ayse" ? "ayşe" : original === "cagri" ? "çağrı" : original);
+      rest = rest.slice(hit.length);
+    }
+    return out;
+  }
   function titleCaseTR(v) {
     const expanded = expandJoinedPersonNameTR(String(v || "").trim());
     return expanded.replace(/\s+/g, " ").split(" ").filter(Boolean)
       .map(x => x.charAt(0).toLocaleUpperCase("tr-TR") + x.slice(1).toLocaleLowerCase("tr-TR")).join(" ");
   }
-  function expandJoinedPersonNameTR(v) {
-    const raw = String(v || "").trim().replace(/\s+/g, " ");
-    if (!raw || raw.includes(" ")) return raw;
-    const key = raw.toLocaleLowerCase("tr-TR");
-    const known = {
-      "mehmetnuriçetin": "mehmet nuri çetin",
-      "mehmetnuricetin": "mehmet nuri çetin",
-      "nimeçetin": "nime çetin",
-      "nimecetin": "nime çetin",
-      "bedihaçetin": "bediha çetin",
-      "bedihacetin": "bediha çetin",
-      "yaşarçetin": "yaşar çetin",
-      "yasarcetin": "yaşar çetin",
-      "emrahçetin": "emrah çetin",
-      "emrahcetin": "emrah çetin"
-    };
-    return known[key] || raw;
-  }
-  function personReadyTR(v) {
-    return titleCaseTR(v).split(/\s+/).filter(Boolean).length >= 2;
-  }
-  function phoneDigits(v) {
-    const d = String(v || "").replace(/\D/g, "");
-    return d;
-  }
+  function personReadyTR(v) { return titleCaseTR(v).split(/\s+/).filter(Boolean).length >= 2; }
+  function phoneDigits(v) { return String(v || "").replace(/\D/g, ""); }
   function completePhoneTR(v) {
     const d = phoneDigits(v);
     if (!d) return "";
@@ -166,28 +216,43 @@
     if (d.length === 12 && d.startsWith("90") && d[2] === "5") return "+" + d;
     return "";
   }
-  function phoneTR(v) {
-    return completePhoneTR(v) || String(v || "").trim();
-  }
+  function phoneTR(v) { return completePhoneTR(v) || String(v || "").trim(); }
   function cityTR(v) { return titleCaseTR(v); }
   function num(v) { return Number(String(v || "").replace(/\./g, "").replace(",", ".")) || 0; }
-  function fmt(v) { return v ? Number(v).toFixed(2) : ""; }
+  function fmt(v) { return v || v === 0 ? Number(v).toFixed(2) : ""; }
   function productByName(name) { return (meta.products || []).find(p => p.name === name) || {}; }
 
   function addOrder(data = {}) {
     const tpl = document.getElementById("orderTemplate").content.cloneNode(true);
     const card = tpl.querySelector(".order-card");
     card.dataset.orderNo = String(++orderSeq);
-    card.querySelector(".order-title").textContent = `${orderSeq}. Müşteri Siparişi`;
+    if (data.openId) card.dataset.openId = data.openId;
     card.querySelector(".cargo-company").innerHTML = optionList(meta.cargoCompanies || []);
     card.querySelector(".cargo-company").value = "Aras Kargo";
     document.getElementById("orders").appendChild(card);
     bindCard(card);
-    addPaymentLine(card, data.odeme || {});
-    addProductLine(card, data.urun || {});
-    if (data.whatsAppTel) field(card, "whatsAppTel").value = data.whatsAppTel;
-    if (data.siparisSahibi) field(card, "siparisSahibi").value = data.siparisSahibi;
+    setValue(card, "whatsAppTel", data.whatsAppTel || "", true);
+    setValue(card, "siparisSahibi", data.siparisSahibi || "", true);
+    setValue(card, "hamWhatsappMesaji", data.hamWhatsappMesaji || "", true);
+    setValue(card, "hizliUrunGirisi", data.hizliUrunGirisi || "", true);
+    setValue(card, "hizliOdemeGirisi", data.hizliOdemeGirisi || "", true);
+    setValue(card, "hizliKargoGirisi", data.hizliKargoGirisi || "", true);
+    if (data.kargo) {
+      setValue(card, "kargoAlicisi", data.kargo.kargoAlicisi || "", true);
+      setValue(card, "kargoTel", data.kargo.kargoTel || "", true);
+      setValue(card, "il", data.kargo.il || "", true);
+      setValue(card, "ilce", data.kargo.ilce || "", true);
+      setValue(card, "adres", data.kargo.adres || "", true);
+      setValue(card, "paketNotu", data.kargo.paketNotu || "", true);
+      if (data.kargo.kargoFirmasi) field(card, "kargoFirmasi").value = data.kargo.kargoFirmasi;
+    }
+    const payments = data.odemeler && data.odemeler.length ? data.odemeler : [{}];
+    payments.forEach(row => addPaymentLine(card, row));
+    const products = data.urunler && data.urunler.length ? data.urunler : [{}];
+    products.forEach(row => addProductLine(card, row));
+    renderAddressHistory(card, data.addresses || []);
     applyCustomerDefaults(card);
+    rebuildInvoiceBlocks(card, data.faturalar || []);
     refreshOrderTitles();
     return card;
   }
@@ -197,14 +262,12 @@
     if (document.querySelectorAll(".order-card").length > 1) card.remove();
     refreshOrderTitles();
   }
-
   function refreshOrderTitles() {
     [...document.querySelectorAll(".order-card")].forEach((card, i) => {
       card.querySelector(".order-title").textContent = `${i + 1}. Müşteri Siparişi${card.dataset.openId ? " | " + card.dataset.openId : ""}`;
       card.querySelector(".remove-order").style.display = document.querySelectorAll(".order-card").length > 1 ? "" : "none";
     });
   }
-
   function bindCard(card) {
     card.querySelectorAll("input, textarea, select").forEach(el => {
       el.addEventListener("input", () => {
@@ -219,12 +282,11 @@
     });
     field(card, "whatsAppTel").addEventListener("input", () => applyCustomerDefaults(card));
     field(card, "siparisSahibi").addEventListener("input", () => applyCustomerDefaults(card));
-    ["kargoAlicisi", "il", "ilce", "adres", "kargoTel"].forEach(name => field(card, name).addEventListener("input", () => {
+    ["kargoAlicisi", "kargoTel", "il", "ilce", "adres"].forEach(name => field(card, name).addEventListener("input", () => {
       syncPaymentDefaults(card);
       rebuildInvoiceBlocks(card);
     }));
   }
-
   function normalizeField(card, el) {
     if (el.dataset.role === "person") el.value = titleCaseTR(el.value);
     if (el.dataset.role === "phone") {
@@ -239,20 +301,17 @@
     if (el.classList.contains("odemeYapan")) rebuildInvoiceBlocks(card);
     if (el.classList.contains("odemeYapan") || el.classList.contains("odemeTutari")) refreshPayerOptions(card);
   }
-
   function applyCustomerDefaults(card) {
     const owner = titleCaseTR(value(card, "siparisSahibi"));
     const phone = completePhoneTR(value(card, "whatsAppTel"));
     if (owner && personReadyTR(owner)) {
       setValue(card, "kargoAlicisi", owner, false);
     }
-    if (phone) {
-      setValue(card, "kargoTel", phone, false);
-    }
+    if (phone) setValue(card, "kargoTel", phone, false);
     syncPaymentDefaults(card);
     rebuildInvoiceBlocks(card);
     if (!phone) return;
-    card.querySelector(".status").textContent = "Müşteri hafızası kontrol ediliyor...";
+    card.querySelector(".memory-status").textContent = "Müşteri hafızası kontrol ediliyor...";
     google.script.run.withSuccessHandler(res => {
       if (!res || !res.ok) return;
       if (!owner && res.owner) setValue(card, "siparisSahibi", res.owner, false);
@@ -267,14 +326,40 @@
           if (cargoCompany && cargoCompany.dataset.touched !== "1") cargoCompany.value = res.cargo.company;
         }
       }
+      renderAddressHistory(card, res.addresses || []);
       if (res.openOrder && res.openOrder.id) card.dataset.openId = res.openOrder.id;
       syncPaymentDefaults(card);
       rebuildInvoiceBlocks(card);
       refreshOrderTitles();
-      card.querySelector(".status").textContent = res.openOrder ? `Açık sipariş bulundu: ${res.openOrder.id}` : "Müşteri hafızası kontrol edildi.";
+      const lines = [];
+      if (res.openOrder && res.openOrder.id) lines.push("Açık sipariş bulundu: " + res.openOrder.id);
+      if (res.cargo && res.cargo.address) lines.push("Kayıtlı adres önerildi.");
+      if (res.payers && res.payers.length) lines.push("Geçmiş ödeme yapan kişiler: " + res.payers.join(", "));
+      if (res.riskNote) lines.push("Risk notu: " + res.riskNote);
+      card.querySelector(".memory-status").textContent = lines.length ? lines.join("\n") : "Hafıza kaydı bulunmadı; girilen bilgiler kayıtta hafızaya yazılır.";
     }).getUltraPanelHazirlik(phone);
   }
-
+  function renderAddressHistory(card, addresses) {
+    card._addresses = addresses || [];
+    const sel = card.querySelector(".address-history");
+    if (!sel) return;
+    sel.innerHTML = card._addresses.length
+      ? card._addresses.map((a, i) => `<option value="${i}">${esc([a.Kargo_Alıcısı, a.İl, a.İlçe, a.Adres].filter(Boolean).join(" | "))}</option>`).join("")
+      : `<option value="">Kayıtlı adres yok</option>`;
+  }
+  function applySelectedAddress(card) {
+    const idx = Number(card.querySelector(".address-history").value);
+    const a = (card._addresses || [])[idx];
+    if (!a) return;
+    setValue(card, "kargoAlicisi", a.Kargo_Alıcısı || "", true);
+    setValue(card, "kargoTel", a.Kargo_Tel || "", true);
+    setValue(card, "il", a.İl || "", true);
+    setValue(card, "ilce", a.İlçe || "", true);
+    setValue(card, "adres", a.Adres || "", true);
+    if (a.Kargo_Firması) field(card, "kargoFirmasi").value = a.Kargo_Firması;
+    syncPaymentDefaults(card);
+    rebuildInvoiceBlocks(card);
+  }
   function setAutoInput(row, selector, val) {
     const el = row.querySelector(selector);
     if (!el || !val) return;
@@ -284,7 +369,6 @@
       el.dataset.auto = "1";
     }
   }
-
   function syncPaymentDefaults(card) {
     const owner = titleCaseTR(value(card, "siparisSahibi"));
     const phone = completePhoneTR(value(card, "kargoTel")) || completePhoneTR(value(card, "whatsAppTel"));
@@ -299,8 +383,8 @@
       setAutoInput(row, ".odemeYapanIlce", district);
       setAutoInput(row, ".odemeYapanAdres", address);
     });
+    refreshPayerOptions(card);
   }
-
   function payerNames(card) {
     return [...new Set([...card.querySelectorAll(".odemeYapan")].map(x => titleCaseTR(x.value)).filter(Boolean))];
   }
@@ -316,7 +400,6 @@
       if (!current && names.length === 1) sel.value = names[0];
     });
   }
-
   function addProductLine(card, data = {}) {
     const wrap = document.createElement("div");
     wrap.className = "line";
@@ -333,9 +416,9 @@
         <div class="c2"><label>Toplam</label><input class="toplamKdvDahil readonly" readonly></div>
         <div class="c2"><label>Paraşüt ürün ID</label><input class="parasutUrunId readonly" readonly></div>
         <div class="c12 silver"><div class="grid">
-          <div class="c2"><label>Gram</label><input class="gumusGram"></div>
-          <div class="c2"><label>Alış fiyatı</label><input class="gumusAlisBirim"></div>
-          <div class="c2"><label>Satış fiyatı</label><input class="gumusSatisBirim"></div>
+          <div class="c2"><label>Gram</label><input class="gumusGram" value="${esc(data.gumusGram || "")}"></div>
+          <div class="c2"><label>Alış fiyatı</label><input class="gumusAlisBirim" value="${esc(data.gumusAlisBirim || "")}"></div>
+          <div class="c2"><label>Satış fiyatı</label><input class="gumusSatisBirim" value="${esc(data.gumusSatisBirim || "")}"></div>
           <div class="c2"><label>KDV modeli</label><select class="kdvModeli"><option>Standart KDV</option><option>KDV 0</option><option>11 katmanı karar verecek</option></select></div>
           <div class="c2"><label>Marj</label><input class="gumusMarj readonly" readonly></div>
         </div></div>
@@ -343,12 +426,12 @@
       </div>`;
     card.querySelector(".products").appendChild(wrap);
     wrap.querySelector(".urunAdi").value = data.urunAdi || "Tesbih";
+    wrap.querySelector(".productPayer").value = data.odemeYapan || "";
     wrap.querySelector(".urunAdi").addEventListener("change", () => productChanged(wrap));
-    wrap.querySelectorAll("input").forEach(el => el.addEventListener("blur", () => calcProduct(wrap)));
+    wrap.querySelectorAll("input,select").forEach(el => el.addEventListener("blur", () => calcProduct(wrap)));
     productChanged(wrap);
     refreshPayerOptions(card);
   }
-
   function productChanged(row) {
     const name = row.querySelector(".urunAdi").value;
     const cfg = productByName(name);
@@ -358,7 +441,6 @@
     row.querySelector(".parasutUrunId").value = cfg.productId || "";
     calcProduct(row);
   }
-
   function calcProduct(row) {
     const qty = num(row.querySelector(".miktar").value) || 1;
     const unit = num(row.querySelector(".birimFiyatKdvDahil").value);
@@ -372,7 +454,6 @@
     const cost = num(row.querySelector(".gumusAlisBirim") && row.querySelector(".gumusAlisBirim").value);
     if (row.querySelector(".gumusMarj")) row.querySelector(".gumusMarj").value = gram && cost ? fmt(gross - gram * cost) : "";
   }
-
   function addPaymentLine(card, data = {}) {
     const wrap = document.createElement("div");
     wrap.className = "line";
@@ -415,14 +496,12 @@
     rebuildInvoiceBlocks(card);
     refreshPayerOptions(card);
   }
-
   function removePaymentLine(btn) {
     const card = cardOf(btn);
     btn.closest(".line").remove();
     rebuildInvoiceBlocks(card);
     refreshPayerOptions(card);
   }
-
   function existingInvoiceValues(card) {
     const out = {};
     card.querySelectorAll(".invoice-line").forEach(line => {
@@ -432,10 +511,29 @@
     });
     return out;
   }
-
-  function rebuildInvoiceBlocks(card) {
+  function rebuildInvoiceBlocks(card, sourceRows = []) {
     syncPaymentDefaults(card);
-    const prior = existingInvoiceValues(card);
+    const fromSource = {};
+    (sourceRows || []).forEach(row => {
+      const name = titleCaseTR(row.faturaKisisi || row.odemeYapan || "");
+      if (!name) return;
+      fromSource[name] = {
+        cariTipi: row.cariTipi,
+        faturaTel: row.faturaTel,
+        faturaEmail: row.faturaEmail,
+        faturaTcknVkn: row.faturaTcknVkn,
+        faturaVergiDairesi: row.faturaVergiDairesi,
+        faturaIl: row.faturaIl,
+        faturaIlce: row.faturaIlce,
+        faturaAdres: row.faturaAdres,
+        eBelgeTipi: row.eBelgeTipi,
+        parasutCariId: row.parasutCariId,
+        cariPuan: row.cariPuan,
+        cariDurum: row.cariDurum,
+        cariAksiyon: row.cariAksiyon
+      };
+    });
+    const prior = Object.assign({}, fromSource, existingInvoiceValues(card));
     const area = card.querySelector(".invoice-blocks");
     area.innerHTML = "";
     payerNames(card).forEach((payer, idx) => {
@@ -446,7 +544,6 @@
       const city = saved.faturaIl || (pLine && pLine.querySelector(".odemeYapanIl").value) || value(card, "il");
       const district = saved.faturaIlce || (pLine && pLine.querySelector(".odemeYapanIlce").value) || value(card, "ilce");
       const address = saved.faturaAdres || (pLine && pLine.querySelector(".odemeYapanAdres").value) || value(card, "adres");
-      const email = saved.faturaEmail || "";
       const block = document.createElement("div");
       block.className = "line invoice-line";
       block.innerHTML = `
@@ -455,12 +552,12 @@
           <div class="c3"><label>Fatura_Kişisi</label><input class="faturaKisisi readonly" readonly value="${esc(payer)}"></div>
           <div class="c2"><label>Cari_Tipi</label><select class="cariTipi"><option>Gerçek Kişi</option><option>Tüzel Kişi</option></select></div>
           <div class="c2"><label>Fatura_Tel</label><input class="faturaTel" value="${esc(phoneTR(tel))}"></div>
-          <div class="c2"><label>Fatura_Eposta</label><input class="faturaEmail" value="${esc(email)}"></div>
+          <div class="c2"><label>Fatura_Eposta</label><input class="faturaEmail" value="${esc(saved.faturaEmail || "")}"></div>
           <div class="c2"><label>Fatura_TCKN_VKN</label><input class="faturaTcknVkn" value="${esc(tax || "11111111111")}"></div>
           <div class="c3"><label>Fatura_Vergi_Dairesi</label><input class="faturaVergiDairesi" value="${esc(saved.faturaVergiDairesi || "")}"></div>
           <div class="c2"><label>Fatura_İl</label><input class="faturaIl" value="${esc(cityTR(city))}"></div>
           <div class="c2"><label>Fatura_İlçe</label><input class="faturaIlce" value="${esc(cityTR(district))}"></div>
-          <div class="c3"><label>E_Belge_Tipi</label><input class="eBelgeTipi readonly" readonly value="${tax === "11111111111" ? "e-Arşiv" : "e-Belge Mükellef Kontrol Gerekli"}"></div>
+          <div class="c3"><label>E_Belge_Tipi</label><input class="eBelgeTipi readonly" readonly value="${tax === "11111111111" ? "e-Arşiv" : (saved.eBelgeTipi || "e-Belge mükellef kontrolü gerekli")}"></div>
           <div class="c3"><label>Paraşüt_Cari_ID</label><input class="parasutCariId" value="${esc(saved.parasutCariId || "")}"></div>
           <div class="c2"><label>Cari_Eşleşme_Güven_Puanı</label><input class="cariPuan readonly" readonly value="${esc(saved.cariPuan || "")}"></div>
           <div class="c3"><label>Cari_Eşleşme_Durumu</label><input class="cariDurum readonly" readonly value="${esc(saved.cariDurum || "Cari çözümü gerekli")}"></div>
@@ -486,67 +583,64 @@
     });
     refreshPayerOptions(card);
   }
-
   function collectOrder(card) {
     syncPaymentDefaults(card);
-    const urunler = [...card.querySelectorAll(".products .line")].map(row => ({
-      urunAdi: row.querySelector(".urunAdi").value,
-      odemeYapan: row.querySelector(".productPayer").value,
-      miktar: row.querySelector(".miktar").value,
-      birim: row.querySelector(".birim").value,
-      birimFiyatKdvDahil: row.querySelector(".birimFiyatKdvDahil").value,
-      kdvOrani: row.querySelector(".kdvOrani").value,
-      gumusGram: row.querySelector(".gumusGram") ? row.querySelector(".gumusGram").value : "",
-      gumusAlisBirim: row.querySelector(".gumusAlisBirim") ? row.querySelector(".gumusAlisBirim").value : "",
-      gumusSatisBirim: row.querySelector(".gumusSatisBirim") ? row.querySelector(".gumusSatisBirim").value : "",
-      gumusTutarTipi: "Birim"
-    }));
-    const odemeler = [...card.querySelectorAll(".payments .line")].map(row => ({
-      odemeYapan: row.querySelector(".odemeYapan").value,
-      odemeTutari: row.querySelector(".odemeTutari").value,
-      odemeTarihi: row.querySelector(".odemeTarihi").value,
-      odemeTeyitKaynagi: row.querySelector(".odemeTeyitKaynagi").value,
-      dekontReferans: row.querySelector(".dekontReferans").value,
-      odemeYapanTel: phoneTR(row.querySelector(".odemeYapanTel").value),
-      odemeYapanTcknVkn: row.querySelector(".odemeYapanTcknVkn").value || "11111111111",
-      odemeYapanAdres: row.querySelector(".odemeYapanAdres").value,
-      odemeYapanIl: row.querySelector(".odemeYapanIl").value,
-      odemeYapanIlce: row.querySelector(".odemeYapanIlce").value
-    }));
-    const faturalar = [...card.querySelectorAll(".invoice-line")].map(row => ({
-      faturaKisisi: row.querySelector(".faturaKisisi").value,
-      cariTipi: row.querySelector(".cariTipi").value,
-      faturaTel: phoneTR(row.querySelector(".faturaTel").value),
-      faturaEmail: row.querySelector(".faturaEmail").value,
-      faturaTcknVkn: row.querySelector(".faturaTcknVkn").value || "11111111111",
-      faturaVergiDairesi: row.querySelector(".faturaVergiDairesi").value,
-      faturaIl: row.querySelector(".faturaIl").value,
-      faturaIlce: row.querySelector(".faturaIlce").value,
-      faturaAdres: row.querySelector(".faturaAdres").value,
-      eBelgeTipi: row.querySelector(".eBelgeTipi").value,
-      parasutCariId: row.querySelector(".parasutCariId").value
-    }));
     return {
       openId: card.dataset.openId || "",
       whatsAppTel: phoneTR(value(card, "whatsAppTel")),
-      siparisSahibi: value(card, "siparisSahibi"),
+      siparisSahibi: titleCaseTR(value(card, "siparisSahibi")),
       hamWhatsappMesaji: value(card, "hamWhatsappMesaji"),
       hizliUrunGirisi: value(card, "hizliUrunGirisi"),
       hizliOdemeGirisi: value(card, "hizliOdemeGirisi"),
       hizliKargoGirisi: value(card, "hizliKargoGirisi"),
-      urunler, odemeler, faturalar,
+      urunler: [...card.querySelectorAll(".products .line")].map(row => ({
+        urunAdi: row.querySelector(".urunAdi").value,
+        odemeYapan: row.querySelector(".productPayer").value,
+        miktar: row.querySelector(".miktar").value,
+        birim: row.querySelector(".birim").value,
+        birimFiyatKdvDahil: row.querySelector(".birimFiyatKdvDahil").value,
+        kdvOrani: row.querySelector(".kdvOrani").value,
+        gumusGram: row.querySelector(".gumusGram") ? row.querySelector(".gumusGram").value : "",
+        gumusAlisBirim: row.querySelector(".gumusAlisBirim") ? row.querySelector(".gumusAlisBirim").value : "",
+        gumusSatisBirim: row.querySelector(".gumusSatisBirim") ? row.querySelector(".gumusSatisBirim").value : "",
+        gumusTutarTipi: "Birim"
+      })),
+      odemeler: [...card.querySelectorAll(".payments .line")].map(row => ({
+        odemeYapan: titleCaseTR(row.querySelector(".odemeYapan").value),
+        odemeTutari: row.querySelector(".odemeTutari").value,
+        odemeTarihi: row.querySelector(".odemeTarihi").value,
+        odemeTeyitKaynagi: row.querySelector(".odemeTeyitKaynagi").value,
+        dekontReferans: row.querySelector(".dekontReferans").value,
+        odemeYapanTel: phoneTR(row.querySelector(".odemeYapanTel").value),
+        odemeYapanTcknVkn: row.querySelector(".odemeYapanTcknVkn").value || "11111111111",
+        odemeYapanAdres: row.querySelector(".odemeYapanAdres").value,
+        odemeYapanIl: row.querySelector(".odemeYapanIl").value,
+        odemeYapanIlce: row.querySelector(".odemeYapanIlce").value
+      })),
+      faturalar: [...card.querySelectorAll(".invoice-line")].map(row => ({
+        faturaKisisi: row.querySelector(".faturaKisisi").value,
+        cariTipi: row.querySelector(".cariTipi").value,
+        faturaTel: phoneTR(row.querySelector(".faturaTel").value),
+        faturaEmail: row.querySelector(".faturaEmail").value,
+        faturaTcknVkn: row.querySelector(".faturaTcknVkn").value || "11111111111",
+        faturaVergiDairesi: row.querySelector(".faturaVergiDairesi").value,
+        faturaIl: row.querySelector(".faturaIl").value,
+        faturaIlce: row.querySelector(".faturaIlce").value,
+        faturaAdres: row.querySelector(".faturaAdres").value,
+        eBelgeTipi: row.querySelector(".eBelgeTipi").value,
+        parasutCariId: row.querySelector(".parasutCariId").value
+      })),
       kargo: {
-        kargoAlicisi: value(card, "kargoAlicisi"),
+        kargoAlicisi: titleCaseTR(value(card, "kargoAlicisi")),
         kargoTel: phoneTR(value(card, "kargoTel")),
-        il: value(card, "il"),
-        ilce: value(card, "ilce"),
+        il: cityTR(value(card, "il")),
+        ilce: cityTR(value(card, "ilce")),
         adres: value(card, "adres"),
         kargoFirmasi: value(card, "kargoFirmasi"),
         paketNotu: value(card, "paketNotu")
       }
     };
   }
-
   function resolveCari(card, line, mode) {
     const openId = card.dataset.openId || "";
     if (!openId) {
@@ -566,16 +660,15 @@
     }).withFailureHandler(err => setCardStatus(card, "HATA: " + (err.message || err)))
       .parasutCariPanelAksiyonu(openId, payer, mode, contactId);
   }
-
   function cards() { return [...document.querySelectorAll(".order-card")]; }
-  function setCardStatus(card, msg) { card.querySelector(".status").textContent = msg; }
+  function setCardStatus(card, msg) { card.querySelector(".control-status").textContent = msg; }
   function summarize(res) {
     if (!res) return "Yanıt alınamadı";
     if (res.control && res.control.summary) return `${res.status || ""}\nAçık_Sipariş_ID: ${res.openId || ""}\nSüre: ${res.elapsedMs || ""} ms\n${res.control.summary.join("\n")}`;
+    if (res.blocks && Array.isArray(res.blocks)) return `${res.status || ""}\n${res.blocks.join("\n")}`;
     if (res.issues) return res.issues.join("\n");
     return JSON.stringify(res, null, 2);
   }
-
   function checkAll() {
     cards().forEach(card => {
       setCardStatus(card, "Kontrol ediliyor...");
@@ -584,7 +677,6 @@
         .ultraSiparisKontrolEt(collectOrder(card));
     });
   }
-
   function saveAll() {
     const list = cards().map(collectOrder);
     cards().forEach(card => setCardStatus(card, "Kaydediliyor..."));
@@ -606,20 +698,24 @@
       refreshOrderTitles();
     }).withFailureHandler(err => cards().forEach(card => setCardStatus(card, "HATA: " + (err.message || err)))).topluUltraSiparisKaydet(list);
   }
-
   function invoiceCargo() {
     const card = cards().find(c => c.dataset.openId) || cards()[0];
     const openId = card.dataset.openId || "";
     if (!openId) { setCardStatus(card, "Önce Kaydet ve ERP güncelle çalıştırılmalı."); return; }
     setCardStatus(card, "Fatura/kargo son kontrol ediliyor...");
-    google.script.run.withSuccessHandler(res => setCardStatus(card, res.ok ? summarize(res) : summarize(res)))
+    google.script.run.withSuccessHandler(res => setCardStatus(card, summarize(res)))
       .withFailureHandler(err => setCardStatus(card, "HATA: " + (err.message || err)))
       .faturaVeKargoOlustur(openId);
   }
 
   google.script.run.withSuccessHandler(data => {
     meta = data || meta;
-    addOrder();
+    const editOrders = meta.editOrders || [];
+    if (editOrders.length) {
+      editOrders.forEach(order => addOrder(order));
+    } else {
+      addOrder();
+    }
   }).getDialogData();
 </script>
 </body>
