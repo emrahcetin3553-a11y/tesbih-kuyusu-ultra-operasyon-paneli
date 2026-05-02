@@ -2,7 +2,7 @@
 
 ## 1. Apps Script'e Yüklenecek Dosyalar
 
-- `03_APPS_SCRIPT_KOD/tesbih_kuyusu_v6_4_1_ultra_operasyon_core.gs`
+- `03_APPS_SCRIPT_KOD/tesbih_kuyusu_v6_4_2_ultra_operasyon_core.gs`
 - `03_APPS_SCRIPT_KOD/ultraSiparisPaneli.html`
 - `03_APPS_SCRIPT_KOD/topluSiparisPaneli.html`
 - `03_APPS_SCRIPT_KOD/cariSecDialog.html`
@@ -30,7 +30,7 @@ Secret değerler dokümana veya GitHub'a yazılmaz.
 2. Menü görünmüyorsa Apps Script'te `onOpen()` çalıştır.
 3. `sistemKolonlariniHazirla()`
 4. `otomatikGorunumuDuzenle()`
-5. `v641GercekSheetKabulKontrolu()`
+5. `v642GercekSheetKabulKontrolu()`
 6. `parasutApiBaglantiTestiTam()`
 
 ## 4. Test Siparişi Senaryoları
@@ -81,5 +81,5 @@ Açma işlemi sadece temiz kontrol merkezi, operatör onayı ve tek fatura/kargo
 
 - Canlı kapıları `Hayır` yap.
 - Gönderim kilidi ve hata mesajlarını 06/07/08 üzerinde kontrol et.
-- Gerekirse V6.4.1 core dosyasını yeniden yükle.
+- Gerekirse V6.4.1 core dosyasını geri dönüş paketi olarak yeniden yükle.
 - Paraşüt veya Navlungo tarafında oluşan canlı kayıt varsa sistem içi ID ile not düş.

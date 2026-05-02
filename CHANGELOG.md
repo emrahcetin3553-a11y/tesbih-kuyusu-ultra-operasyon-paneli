@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-05-02 15:30 - V6.4.2 üretim kabul hazırlığı
+
+- V6.4.2 core ve Sheet aday dosyaları V6.4.1 korunarak ayrı üretildi.
+- Günlük menü 7 ana operatör komutuna indirildi; teknik komutlar `Gelişmiş / Teknik` alt menüsüne alındı.
+- Açık sipariş kargo hazırlığı, kargo bilgileri tam ise gereksiz blokaj üretmeyecek şekilde düzeltildi.
+- Paraşüt taslak ID bekleyen e-belge satırları blokaj yerine hazırlık durumunda bırakıldı; canlı e-belge kapısı kapalı kalıyor.
+- V6.4.2 mock, Sheet builder, syntax, header ve veri sözlüğü kontrolleri için yeni rapor seti eklendi.
+
 ## 2026-05-02 12:00 - V6.4.1 GitHub arşiv paketi
 
 - Temiz GitHub klasör yapısı oluşturuldu.

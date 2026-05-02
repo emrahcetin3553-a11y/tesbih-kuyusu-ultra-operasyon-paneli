@@ -1,12 +1,12 @@
 # Tesbih Kuyusu Ultra Operasyon Paneli
 
-Tesbih Kuyusu V6.4.1 Ultra Operasyon Paneli, Google Sheets ve Apps Script üzerinde sipariş girişini, ürün kalemlerini, ödeme teyidini, fatura gruplarını, Paraşüt satış faturası taslak hazırlığını, kargo paketini, müşteri hafızasını ve kontrol merkezini tek operasyon akışında yönetmek için hazırlanmıştır.
+Tesbih Kuyusu V6.4.2 Ultra Operasyon Paneli, Google Sheets ve Apps Script üzerinde sipariş girişini, ürün kalemlerini, ödeme teyidini, fatura gruplarını, Paraşüt satış faturası taslak hazırlığını, kargo paketini, müşteri hafızasını ve kontrol merkezini tek operasyon akışında yönetmek için hazırlanmıştır.
 
 ## Güncel Sürüm
 
-- Aktif üretim adayı: V6.4.1 Ultra Operasyon
-- Ana Apps Script core: `03_APPS_SCRIPT_KOD/tesbih_kuyusu_v6_4_1_ultra_operasyon_core.gs`
-- Aktif Sheet dosyası: `02_SHEET_SISTEM/Tesbih_Kuyusu_V6_4_1_Ultra_Operasyon_Sheet.xlsx`
+- Aktif üretim adayı: V6.4.2 Ultra Operasyon
+- Ana Apps Script core: `03_APPS_SCRIPT_KOD/tesbih_kuyusu_v6_4_2_ultra_operasyon_core.gs`
+- Aktif Sheet dosyası: `02_SHEET_SISTEM/Tesbih_Kuyusu_V6_4_2_Ultra_Operasyon_Sheet.xlsx`
 - Canlı gönderim kapıları varsayılan: kapalı
 
 ## İş Mantığı
@@ -67,6 +67,6 @@ Navlungo canlı gönderim kapısı varsayılan kapalıdır. `08_KARGO_PAKETLERI`
 - `EBELGE_CANLI_GONDERIM = Hayır`.
 - `NAVLUNGO_CANLI_GONDERIM = Hayır`.
 - Mock test sonucu geçerli.
-- Gerçek Apps Script UI kabul testi çalıştırıldı.
+- Gerçek Apps Script UI kabul testi kullanıcı ana Sheet ortamında son kanıt olarak çalıştırılmalıdır.
 - Paraşüt GET testi logları temiz.
 - `12_KONTROL_MERKEZI` canlıya geçiş öncesi temiz.
