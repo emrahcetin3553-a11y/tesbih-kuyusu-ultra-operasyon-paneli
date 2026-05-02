@@ -1,0 +1,54 @@
+<!doctype html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 16px; color: #172554; background: #f8fafc; }
+    label { display: block; font-size: 12px; font-weight: 700; margin: 10px 0 4px; }
+    input, select { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; background: #fff; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+    button { border: 0; border-radius: 6px; padding: 9px 12px; cursor: pointer; font-weight: 700; }
+    .primary { background: #0f766e; color: #fff; }
+    .secondary { background: #e2e8f0; color: #0f172a; }
+    .status { margin-top: 10px; font-size: 12px; white-space: pre-wrap; color: #334155; }
+  </style>
+</head>
+<body>
+  <div class="grid">
+    <div>
+      <label>Fatura_Grubu_ID</label>
+      <input id="faturaGrubuId">
+    </div>
+    <div>
+      <label>İşlem</label>
+      <select id="mode">
+        <option value="auto">Otomatik aday bul</option>
+        <option value="select">Seçili cari ID bağla</option>
+        <option value="create">Cari oluştur</option>
+      </select>
+    </div>
+  </div>
+  <label>Paraşüt_Cari_ID</label>
+  <input id="contactId">
+  <div class="actions">
+    <button class="secondary" onclick="google.script.host.close()">Kapat</button>
+    <button class="primary" onclick="save()">Uygula</button>
+  </div>
+  <div id="status" class="status"></div>
+  <script>
+    function save() {
+      document.getElementById("status").textContent = "İşleniyor...";
+      google.script.run.withSuccessHandler(res => {
+        document.getElementById("status").textContent = JSON.stringify(res, null, 2);
+      }).withFailureHandler(err => {
+        document.getElementById("status").textContent = err.message || err;
+      }).cariSecimKaydet({
+        faturaGrubuId: document.getElementById("faturaGrubuId").value,
+        mode: document.getElementById("mode").value,
+        contactId: document.getElementById("contactId").value
+      });
+    }
+  </script>
+</body>
+</html>

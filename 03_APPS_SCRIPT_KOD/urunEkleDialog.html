@@ -1,0 +1,124 @@
+<!doctype html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 16px; color: #1f2937; }
+    label { display: block; font-size: 12px; font-weight: 700; margin: 10px 0 4px; }
+    select, input, textarea { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+    button { border: 0; border-radius: 6px; padding: 9px 12px; cursor: pointer; font-weight: 700; }
+    .primary { background: #0f766e; color: white; }
+    .secondary { background: #e5e7eb; color: #111827; }
+    .status { margin-top: 10px; font-size: 12px; color: #334155; min-height: 18px; }
+  </style>
+</head>
+<body>
+  <label>Açık_Sipariş_ID</label>
+  <select id="acikSiparisId"></select>
+
+  <label>Ürün</label>
+  <select id="urunAdi"></select>
+
+  <div class="row">
+    <div>
+      <label>Miktar</label>
+      <input id="miktar" type="number" min="0" step="0.01" value="1">
+    </div>
+    <div>
+      <label>Birim</label>
+      <input id="birim" type="text" value="Adet">
+    </div>
+  </div>
+
+  <label>Birim_Fiyat_KDV_Dahil</label>
+  <input id="birimFiyatKdvDahil" type="number" min="0" step="0.01">
+
+  <div class="row">
+    <div>
+      <label>KDV Modeli</label>
+      <select id="kdvModeli">
+        <option>Standart KDV</option>
+        <option>KDV 0</option>
+      </select>
+    </div>
+    <div>
+      <label>KDV Oranı</label>
+      <input id="kdvOrani" type="number" min="0" step="0.01" value="0.20">
+    </div>
+  </div>
+
+  <div class="row">
+    <div>
+      <label>Gümüş gram</label>
+      <input id="gumusGram" type="number" min="0" step="0.01">
+    </div>
+    <div>
+      <label>Gümüş alış birim</label>
+      <input id="gumusAlisBirim" type="number" min="0" step="0.01">
+    </div>
+  </div>
+
+  <label>Gümüş_Tutar_Tipi</label>
+  <select id="gumusTutarTipi">
+    <option></option>
+    <option>Birim</option>
+    <option>Toplam</option>
+  </select>
+
+  <label>Not</label>
+  <textarea id="not" rows="2"></textarea>
+
+  <div class="actions">
+    <button class="secondary" onclick="google.script.host.close()">Kapat</button>
+    <button class="primary" onclick="save()">Kaydet</button>
+  </div>
+  <div id="status" class="status"></div>
+
+  <script>
+    let productMeta = {};
+    function fillSelect(el, rows, getValue, getLabel) {
+      el.innerHTML = "";
+      rows.forEach(row => {
+        const opt = document.createElement("option");
+        opt.value = getValue(row);
+        opt.textContent = getLabel(row);
+        el.appendChild(opt);
+      });
+    }
+    google.script.run.withSuccessHandler(data => {
+      fillSelect(document.getElementById("acikSiparisId"), data.openOrders || [], r => r.id, r => r.label);
+      fillSelect(document.getElementById("urunAdi"), data.products || [], r => r.name, r => r.name);
+      (data.products || []).forEach(p => productMeta[p.name] = p);
+      applyProductDefaults();
+    }).getDialogData();
+    document.getElementById("urunAdi").addEventListener("change", applyProductDefaults);
+    function applyProductDefaults() {
+      const p = productMeta[document.getElementById("urunAdi").value] || {};
+      if (p.unit) document.getElementById("birim").value = p.unit;
+      if (p.vatRate !== undefined) document.getElementById("kdvOrani").value = p.vatRate;
+    }
+    function save() {
+      const form = {
+        acikSiparisId: document.getElementById("acikSiparisId").value,
+        urunAdi: document.getElementById("urunAdi").value,
+        miktar: document.getElementById("miktar").value,
+        birim: document.getElementById("birim").value,
+        birimFiyatKdvDahil: document.getElementById("birimFiyatKdvDahil").value,
+        kdvModeli: document.getElementById("kdvModeli").value,
+        kdvOrani: document.getElementById("kdvOrani").value,
+        gumusGram: document.getElementById("gumusGram").value,
+        gumusAlisBirim: document.getElementById("gumusAlisBirim").value,
+        gumusTutarTipi: document.getElementById("gumusTutarTipi").value,
+        not: document.getElementById("not").value
+      };
+      document.getElementById("status").textContent = "Kaydediliyor...";
+      google.script.run
+        .withSuccessHandler(() => { document.getElementById("status").textContent = "Kaydedildi."; })
+        .withFailureHandler(err => { document.getElementById("status").textContent = err.message || err; })
+        .urunEkleKaydet(form);
+    }
+  </script>
+</body>
+</html>

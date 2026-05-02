@@ -1,0 +1,12 @@
+.env
+*.secret
+*token*
+*credentials*
+private/
+secrets/
+*.bak
+*.tmp
+node_modules/
+.clasp.json
+.DS_Store
+Thumbs.db

@@ -1,0 +1,354 @@
+<!doctype html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <style>
+    :root { --line:#d8e2ef; --ink:#10233f; --soft:#f6f9fc; --brand:#0f766e; --warn:#b45309; --bad:#b91c1c; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:Arial, sans-serif; color:var(--ink); background:#f3f6fa; }
+    .shell { padding:18px; max-width:1380px; margin:0 auto; }
+    h2 { margin:0 0 14px; font-size:24px; }
+    h3 { margin:0 0 12px; font-size:17px; color:#0f766e; }
+    section { background:#fff; border:1px solid var(--line); border-radius:8px; padding:16px; margin-bottom:14px; }
+    label { display:block; font-weight:700; font-size:12px; margin:0 0 6px; }
+    input, select, textarea { width:100%; border:1px solid #c8d4e3; border-radius:6px; padding:10px; font-size:14px; background:#fff; }
+    textarea { min-height:74px; resize:vertical; }
+    .grid { display:grid; grid-template-columns:repeat(12, 1fr); gap:12px; align-items:end; }
+    .c2 { grid-column:span 2; } .c3 { grid-column:span 3; } .c4 { grid-column:span 4; }
+    .c5 { grid-column:span 5; } .c6 { grid-column:span 6; } .c8 { grid-column:span 8; }
+    .c12 { grid-column:span 12; }
+    .row { border:1px solid #e5edf6; border-radius:8px; padding:12px; margin:8px 0; background:#fbfdff; }
+    .inline { display:flex; gap:10px; align-items:center; justify-content:flex-end; }
+    button { border:0; border-radius:7px; padding:11px 14px; font-weight:700; cursor:pointer; }
+    .primary { background:#0f766e; color:#fff; }
+    .secondary { background:#e8eef6; color:#0f1d35; }
+    .danger { background:#fee2e2; color:#991b1b; }
+    .status { white-space:pre-wrap; border:1px solid var(--line); border-radius:8px; padding:12px; background:#fff; min-height:88px; }
+    .badge { display:inline-block; padding:4px 8px; border-radius:999px; background:#e8eef6; margin-right:6px; font-size:12px; }
+    .silver { display:none; }
+    .row.is-silver .silver { display:block; }
+    .readonly { background:#f4f7fb; }
+    @media (max-width:900px) { .grid { grid-template-columns:repeat(6, 1fr); } .c8,.c6,.c5,.c4,.c3,.c2 { grid-column:span 6; } }
+  </style>
+</head>
+<body>
+<div class="shell">
+  <h2>Ultra sipariş paneli</h2>
+
+  <section>
+    <h3>Müşteri</h3>
+    <div class="grid">
+      <div class="c3"><label>WhatsApp_Tel</label><input id="whatsAppTel" onblur="normalizeAndLoad()"></div>
+      <div class="c4"><label>Sipariş_Sahibi</label><input id="siparisSahibi" onblur="titleCaseInput(this); normalizeAndLoad()"></div>
+      <div class="c5"><label>Ham_WhatsApp_Mesajı</label><input id="hamWhatsappMesaji"></div>
+      <div class="c4"><label>Hızlı_Ürün_Girişi</label><input id="hizliUrunGirisi"></div>
+      <div class="c4"><label>Hızlı_Ödeme_Girişi</label><input id="hizliOdemeGirisi"></div>
+      <div class="c4"><label>Hızlı_Kargo_Girişi</label><input id="hizliKargoGirisi"></div>
+    </div>
+  </section>
+
+  <section>
+    <h3>Kargo</h3>
+    <div class="grid">
+      <div class="c3"><label>Kargo_Alıcısı</label><input id="kargoAlicisi" onblur="titleCaseInput(this)"></div>
+      <div class="c3"><label>Kargo_Tel</label><input id="kargoTel" onblur="phoneInput(this)"></div>
+      <div class="c3"><label>Kargo_Firması</label><select id="kargoFirmasi"></select></div>
+      <div class="c3"><label>Paket_Notu</label><input id="paketNotu"></div>
+      <div class="c3"><label>İl</label><input id="il" onblur="cityInput(this)"></div>
+      <div class="c3"><label>İlçe</label><input id="ilce" onblur="cityInput(this)"></div>
+      <div class="c6"><label>Adres</label><input id="adres"></div>
+    </div>
+  </section>
+
+  <section>
+    <h3>Ürünler</h3>
+    <div id="products"></div>
+    <button class="secondary" onclick="addProduct()">Ürün satırı ekle</button>
+  </section>
+
+  <section>
+    <h3>Ödemeler</h3>
+    <div id="payments"></div>
+    <button class="secondary" onclick="addPayment()">Ödeme satırı ekle</button>
+  </section>
+
+  <section>
+    <h3>Fatura / Cari</h3>
+    <div id="invoiceBlocks"></div>
+  </section>
+
+  <section>
+    <h3>Kontrol Özeti</h3>
+    <div id="status" class="status">Kontrol bekleniyor.</div>
+  </section>
+
+  <section>
+    <h3>Aksiyonlar</h3>
+    <div class="inline">
+      <button class="secondary" onclick="check()">Kontrol et</button>
+      <button class="secondary" onclick="invoiceCargo()">Fatura ve Kargo oluştur</button>
+      <button class="secondary" onclick="google.script.host.close()">Kapat</button>
+      <button class="primary" onclick="save()">Kaydet ve ERP güncelle</button>
+    </div>
+  </section>
+</div>
+
+<script>
+  let meta = { products: [], paymentSources: [], cargoCompanies: [], today: "" };
+
+  function esc(v) { return String(v == null ? "" : v).replace(/[&<>"']/g, s => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[s])); }
+  function optionList(rows, valueKey, labelKey) {
+    return (rows || []).map(r => {
+      const value = typeof r === "string" ? r : r[valueKey];
+      const label = typeof r === "string" ? r : (r[labelKey] || r[valueKey]);
+      return `<option value="${esc(value)}">${esc(label)}</option>`;
+    }).join("");
+  }
+  function titleCaseTR(v) {
+    return String(v || "").trim().replace(/\s+/g, " ").split(" ").filter(Boolean)
+      .map(x => x.charAt(0).toLocaleUpperCase("tr-TR") + x.slice(1).toLocaleLowerCase("tr-TR")).join(" ");
+  }
+  function titleCaseInput(el) { el.value = titleCaseTR(el.value); rebuildInvoiceBlocks(); refreshPayerOptions(); }
+  function cityInput(el) { el.value = titleCaseTR(el.value); }
+  function phoneTR(v) {
+    const d = String(v || "").replace(/\D/g, "");
+    if (!d) return "";
+    if (d.length === 10 && d[0] === "5") return "+90" + d;
+    if (d.length === 11 && d[0] === "0") return "+90" + d.slice(1);
+    if (d.length === 12 && d.startsWith("90")) return "+" + d;
+    return d.startsWith("+") ? d : "+" + d;
+  }
+  function phoneInput(el) { el.value = phoneTR(el.value); }
+  function productByName(name) { return (meta.products || []).find(p => p.name === name) || {}; }
+  function payerNames() {
+    return [...new Set([...document.querySelectorAll(".odemeYapan")].map(x => titleCaseTR(x.value)).filter(Boolean))];
+  }
+  function payerOptions(selected) {
+    const names = payerNames();
+    const opts = names.length ? names : [""];
+    return opts.map(n => `<option ${n === selected ? "selected" : ""} value="${esc(n)}">${esc(n || "Ödeme bekliyor")}</option>`).join("");
+  }
+  function refreshPayerOptions() {
+    document.querySelectorAll(".productPayer").forEach(sel => {
+      const current = sel.value;
+      sel.innerHTML = payerOptions(current);
+    });
+  }
+
+  function addProduct(data = {}) {
+    const wrap = document.createElement("div");
+    wrap.className = "row";
+    wrap.innerHTML = `
+      <div class="grid">
+        <div class="c2"><label>Ürün</label><select class="urunAdi" onchange="productChanged(this)">${optionList(meta.products, "name", "name")}</select></div>
+        <div class="c3"><label>Ödeme yapan / fatura kişisi</label><select class="productPayer">${payerOptions(data.odemeYapan || "")}</select></div>
+        <div class="c1"><label>Miktar</label><input class="miktar" value="${esc(data.miktar || 1)}" onblur="calcProduct(this)"></div>
+        <div class="c1"><label>Birim</label><input class="birim" value="${esc(data.birim || "Adet")}"></div>
+        <div class="c2"><label>Birim fiyat</label><input class="birimFiyatKdvDahil" value="${esc(data.birimFiyatKdvDahil || "")}" onblur="calcProduct(this)"></div>
+        <div class="c1"><label>KDV</label><input class="kdvOrani" value="${esc(data.kdvOrani || "0,20")}" onblur="calcProduct(this)"></div>
+        <div class="c1"><label>KDV hariç</label><input class="kdvHaric readonly" readonly></div>
+        <div class="c1"><label>KDV tutarı</label><input class="kdvTutari readonly" readonly></div>
+        <div class="c2"><label>Toplam</label><input class="toplamKdvDahil readonly" readonly></div>
+        <div class="c2"><label>Paraşüt ürün ID</label><input class="parasutUrunId readonly" readonly></div>
+        <div class="c12 silver">
+          <div class="grid">
+            <div class="c2"><label>Gram</label><input class="gumusGram" value="${esc(data.gumusGram || "")}" onblur="calcProduct(this)"></div>
+            <div class="c2"><label>Alış fiyatı</label><input class="gumusAlisBirim" value="${esc(data.gumusAlisBirim || "")}" onblur="calcProduct(this)"></div>
+            <div class="c2"><label>Satış fiyatı</label><input class="gumusSatisBirim" value="${esc(data.gumusSatisBirim || "")}" onblur="calcProduct(this)"></div>
+            <div class="c2"><label>KDV modeli</label><select class="kdvModeli"><option>Standart KDV</option><option>KDV 0</option><option>11 katmanı karar verecek</option></select></div>
+            <div class="c2"><label>Marj</label><input class="gumusMarj readonly" readonly></div>
+          </div>
+        </div>
+        <div class="c1"><button class="danger" onclick="this.closest('.row').remove()">Sil</button></div>
+      </div>`;
+    document.getElementById("products").appendChild(wrap);
+    wrap.querySelector(".urunAdi").value = data.urunAdi || "Tesbih";
+    productChanged(wrap.querySelector(".urunAdi"));
+  }
+
+  function productChanged(sel) {
+    const row = sel.closest(".row");
+    const cfg = productByName(sel.value);
+    row.classList.toggle("is-silver", sel.value === "Gümüş");
+    row.querySelector(".birim").value = cfg.unit || (sel.value === "Gümüş" ? "Gram" : "Adet");
+    row.querySelector(".kdvOrani").value = String(cfg.vatRate == null ? 0.20 : cfg.vatRate).replace(".", ",");
+    row.querySelector(".parasutUrunId").value = cfg.productId || "";
+    calcProduct(sel);
+  }
+
+  function num(v) { return Number(String(v || "").replace(/\./g, "").replace(",", ".")) || 0; }
+  function calcProduct(el) {
+    const row = el.closest(".row");
+    const qty = num(row.querySelector(".miktar").value) || 1;
+    const unit = num(row.querySelector(".birimFiyatKdvDahil").value);
+    const gross = qty * unit;
+    const rate = num(row.querySelector(".kdvOrani").value);
+    const net = rate ? gross / (1 + rate) : gross;
+    row.querySelector(".toplamKdvDahil").value = gross ? gross.toFixed(2) : "";
+    row.querySelector(".kdvHaric").value = gross ? net.toFixed(2) : "";
+    row.querySelector(".kdvTutari").value = gross ? (gross - net).toFixed(2) : "";
+    const gram = num(row.querySelector(".gumusGram") && row.querySelector(".gumusGram").value);
+    const cost = num(row.querySelector(".gumusAlisBirim") && row.querySelector(".gumusAlisBirim").value);
+    const margin = gross - (gram * cost);
+    if (row.querySelector(".gumusMarj")) row.querySelector(".gumusMarj").value = gram && cost ? margin.toFixed(2) : "";
+  }
+
+  function addPayment(data = {}) {
+    const wrap = document.createElement("div");
+    wrap.className = "row";
+    wrap.innerHTML = `
+      <div class="grid">
+        <div class="c3"><label>Ödeme_Yapan</label><input class="odemeYapan" value="${esc(data.odemeYapan || "")}" onblur="titleCaseInput(this)"></div>
+        <div class="c2"><label>Tutar</label><input class="odemeTutari" value="${esc(data.odemeTutari || "")}"></div>
+        <div class="c2"><label>Tarih</label><input type="date" class="odemeTarihi" value="${esc(data.odemeTarihi || meta.today)}"></div>
+        <div class="c2"><label>Kaynak</label><select class="odemeTeyitKaynagi">${optionList(meta.paymentSources)}</select></div>
+        <div class="c3"><label>Dekont</label><input class="dekontReferans" value="${esc(data.dekontReferans || "")}"></div>
+        <div class="c2"><label>Ödeme_Yapan_Tel</label><input class="odemeYapanTel" value="${esc(data.odemeYapanTel || "")}" onblur="phoneInput(this)"></div>
+        <div class="c2"><label>Ödeme_Yapan_TCKN_VKN</label><input class="odemeYapanTcknVkn" value="${esc(data.odemeYapanTcknVkn || "")}" onblur="rebuildInvoiceBlocks()"></div>
+        <div class="c3"><label>Ödeme_Yapan_İl</label><input class="odemeYapanIl" value="${esc(data.odemeYapanIl || "")}" onblur="cityInput(this)"></div>
+        <div class="c3"><label>Ödeme_Yapan_İlçe</label><input class="odemeYapanIlce" value="${esc(data.odemeYapanIlce || "")}" onblur="cityInput(this)"></div>
+        <div class="c8"><label>Ödeme_Yapan_Adres</label><input class="odemeYapanAdres" value="${esc(data.odemeYapanAdres || "")}"></div>
+        <div class="c1"><button class="danger" onclick="this.closest('.row').remove(); rebuildInvoiceBlocks(); refreshPayerOptions()">Sil</button></div>
+      </div>`;
+    document.getElementById("payments").appendChild(wrap);
+    wrap.querySelector(".odemeTeyitKaynagi").value = data.odemeTeyitKaynagi || "Manuel";
+    rebuildInvoiceBlocks();
+    refreshPayerOptions();
+  }
+
+  function rebuildInvoiceBlocks() {
+    const area = document.getElementById("invoiceBlocks");
+    area.innerHTML = "";
+    document.querySelectorAll("#payments .row").forEach((row, idx) => {
+      const payer = titleCaseTR(row.querySelector(".odemeYapan").value);
+      if (!payer) return;
+      const tel = row.querySelector(".odemeYapanTel").value || document.getElementById("whatsAppTel").value;
+      const tax = row.querySelector(".odemeYapanTcknVkn").value || "11111111111";
+      const city = row.querySelector(".odemeYapanIl").value || document.getElementById("il").value;
+      const district = row.querySelector(".odemeYapanIlce").value || document.getElementById("ilce").value;
+      const address = row.querySelector(".odemeYapanAdres").value || document.getElementById("adres").value;
+      const block = document.createElement("div");
+      block.className = "row";
+      block.innerHTML = `
+        <div><span class="badge">Fatura/Cari ${idx + 1}</span><strong>${esc(payer)}</strong></div>
+        <div class="grid">
+          <div class="c3"><label>Fatura_Kişisi</label><input class="faturaKisisi readonly" readonly value="${esc(payer)}"></div>
+          <div class="c2"><label>Cari_Tipi</label><select class="cariTipi"><option>Gerçek Kişi</option><option>Tüzel Kişi</option></select></div>
+          <div class="c2"><label>Fatura_Tel</label><input class="faturaTel" value="${esc(tel)}" onblur="phoneInput(this)"></div>
+          <div class="c2"><label>Fatura_TCKN_VKN</label><input class="faturaTcknVkn" value="${esc(tax)}"></div>
+          <div class="c3"><label>Fatura_Vergi_Dairesi</label><input class="faturaVergiDairesi"></div>
+          <div class="c2"><label>Fatura_İl</label><input class="faturaIl" value="${esc(city)}" onblur="cityInput(this)"></div>
+          <div class="c2"><label>Fatura_İlçe</label><input class="faturaIlce" value="${esc(district)}" onblur="cityInput(this)"></div>
+          <div class="c4"><label>E_Belge_Tipi</label><input class="eBelgeTipi readonly" readonly value="${tax === "11111111111" ? "e-Arşiv" : "e-Belge Mükellef Kontrol Gerekli"}"></div>
+          <div class="c4"><label>Paraşüt_Cari_ID</label><input class="parasutCariId"></div>
+          <div class="c2"><label>Cari_Eşleşme_Güven_Puanı</label><input class="cariPuan readonly" readonly></div>
+          <div class="c3"><label>Cari_Eşleşme_Durumu</label><input class="cariDurum readonly" readonly value="Cari çözümü gerekli"></div>
+          <div class="c3"><label>Cari_Aksiyon</label><input class="cariAksiyon readonly" readonly value="Kaydet sırasında aday aranacak"></div>
+          <div class="c12"><label>Fatura_Adres</label><input class="faturaAdres" value="${esc(address)}"></div>
+        </div>`;
+      area.appendChild(block);
+    });
+  }
+
+  function collect() {
+    const products = [...document.querySelectorAll("#products .row")].map(row => ({
+      urunAdi: row.querySelector(".urunAdi").value,
+      odemeYapan: row.querySelector(".productPayer").value,
+      miktar: row.querySelector(".miktar").value,
+      birim: row.querySelector(".birim").value,
+      birimFiyatKdvDahil: row.querySelector(".birimFiyatKdvDahil").value,
+      kdvOrani: row.querySelector(".kdvOrani").value,
+      gumusGram: row.querySelector(".gumusGram") ? row.querySelector(".gumusGram").value : "",
+      gumusAlisBirim: row.querySelector(".gumusAlisBirim") ? row.querySelector(".gumusAlisBirim").value : "",
+      gumusSatisBirim: row.querySelector(".gumusSatisBirim") ? row.querySelector(".gumusSatisBirim").value : "",
+      gumusTutarTipi: "Birim"
+    }));
+    const payments = [...document.querySelectorAll("#payments .row")].map(row => ({
+      odemeYapan: row.querySelector(".odemeYapan").value,
+      odemeTutari: row.querySelector(".odemeTutari").value,
+      odemeTarihi: row.querySelector(".odemeTarihi").value,
+      odemeTeyitKaynagi: row.querySelector(".odemeTeyitKaynagi").value,
+      dekontReferans: row.querySelector(".dekontReferans").value,
+      odemeYapanTel: row.querySelector(".odemeYapanTel").value,
+      odemeYapanTcknVkn: row.querySelector(".odemeYapanTcknVkn").value,
+      odemeYapanAdres: row.querySelector(".odemeYapanAdres").value,
+      odemeYapanIl: row.querySelector(".odemeYapanIl").value,
+      odemeYapanIlce: row.querySelector(".odemeYapanIlce").value
+    }));
+    return {
+      whatsAppTel: document.getElementById("whatsAppTel").value,
+      siparisSahibi: document.getElementById("siparisSahibi").value,
+      hamWhatsappMesaji: document.getElementById("hamWhatsappMesaji").value,
+      hizliUrunGirisi: document.getElementById("hizliUrunGirisi").value,
+      hizliOdemeGirisi: document.getElementById("hizliOdemeGirisi").value,
+      hizliKargoGirisi: document.getElementById("hizliKargoGirisi").value,
+      urunler: products,
+      odemeler: payments,
+      kargo: {
+        kargoAlicisi: document.getElementById("kargoAlicisi").value,
+        kargoTel: document.getElementById("kargoTel").value,
+        il: document.getElementById("il").value,
+        ilce: document.getElementById("ilce").value,
+        adres: document.getElementById("adres").value,
+        kargoFirmasi: document.getElementById("kargoFirmasi").value,
+        paketNotu: document.getElementById("paketNotu").value
+      }
+    };
+  }
+
+  function check() {
+    document.getElementById("status").textContent = "Kontrol ediliyor...";
+    google.script.run.withSuccessHandler(res => {
+      document.getElementById("status").textContent = res.ok ? "OK" : (res.issues || []).join("\n");
+    }).withFailureHandler(err => {
+      document.getElementById("status").textContent = "HATA: " + err.message;
+    }).ultraSiparisKontrolEt(collect());
+  }
+
+  function save() {
+    document.getElementById("status").textContent = "Kaydediliyor...";
+    google.script.run.withSuccessHandler(res => {
+      document.getElementById("status").textContent = `${res.status}\nAçık_Sipariş_ID: ${res.openId}\nSüre: ${res.elapsedMs} ms`;
+    }).withFailureHandler(err => {
+      document.getElementById("status").textContent = "HATA: " + err.message;
+    }).ultraSiparisKaydet(collect());
+  }
+
+  function invoiceCargo() {
+    document.getElementById("status").textContent = "Son aşama kontrol ediliyor...";
+    google.script.run.withSuccessHandler(res => {
+      document.getElementById("status").textContent = res.ok ? "Fatura/kargo adımı tamamlandı" : (res.status || "Kontrol gerekli");
+    }).withFailureHandler(err => {
+      document.getElementById("status").textContent = "HATA: " + err.message;
+    }).faturaVeKargoOlustur();
+  }
+
+  function normalizeAndLoad() {
+    const tel = document.getElementById("whatsAppTel");
+    tel.value = phoneTR(tel.value);
+    const owner = document.getElementById("siparisSahibi");
+    owner.value = titleCaseTR(owner.value);
+    if (!tel.value) return;
+    google.script.run.withSuccessHandler(res => {
+      if (!res || !res.ok) return;
+      if (!owner.value && res.owner) owner.value = res.owner;
+      if (!document.getElementById("kargoAlicisi").value && res.cargo && res.cargo.receiver) document.getElementById("kargoAlicisi").value = res.cargo.receiver;
+      if (!document.getElementById("kargoTel").value && res.cargo && res.cargo.phone) document.getElementById("kargoTel").value = res.cargo.phone;
+      if (!document.getElementById("il").value && res.cargo && res.cargo.city) document.getElementById("il").value = res.cargo.city;
+      if (!document.getElementById("ilce").value && res.cargo && res.cargo.district) document.getElementById("ilce").value = res.cargo.district;
+      if (!document.getElementById("adres").value && res.cargo && res.cargo.address) document.getElementById("adres").value = res.cargo.address;
+      document.getElementById("status").textContent = res.openOrder ? `Açık sipariş bulundu: ${res.openOrder.id}` : (res.riskNote || "Müşteri hafızası kontrol edildi.");
+    }).getUltraPanelHazirlik(tel.value);
+  }
+
+  google.script.run.withSuccessHandler(data => {
+    meta = data || meta;
+    document.getElementById("kargoFirmasi").innerHTML = optionList(meta.cargoCompanies);
+    document.getElementById("kargoFirmasi").value = "Aras Kargo";
+    addPayment();
+    addProduct();
+  }).getDialogData();
+</script>
+</body>
+</html>
