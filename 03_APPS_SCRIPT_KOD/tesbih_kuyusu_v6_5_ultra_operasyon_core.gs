@@ -3368,23 +3368,31 @@ var TK6 = (function () {
 
   function navlungoTokenAl_() {
     var props = PropertiesService.getScriptProperties();
-    var username = props.getProperty("NAVLUNGO_API_USERNAME");
-    var password = props.getProperty("NAVLUNGO_API_PASSWORD");
+    var username = String(props.getProperty("NAVLUNGO_API_USERNAME") || "").trim();
+    var password = String(props.getProperty("NAVLUNGO_API_PASSWORD") || "").trim();
     if (!username || !password) throw new Error("Navlungo API kullanıcı adı veya şifre eksik.");
+    var env = navlungoEnv_();
     var response = UrlFetchApp.fetch(navlungoBaseUrl_() + "auth/api", {
       method: "post",
       contentType: "application/json",
+      headers: { "Accept": "application/json", "X-localization": "tr" },
       payload: JSON.stringify({ username: username, password: password }),
       muteHttpExceptions: true
     });
     var status = response.getResponseCode();
     var text = response.getContentText();
+    if (status === 422) {
+      throw new Error("Navlungo token hata 422 (" + env + "): Kullanıcı bilgileri bu ortamda kabul edilmedi. QA ortamı için domestic-qa.navlungo.com üzerinden alınan API bilgileri gerekir; canlı panel bilgileri kullanılıyorsa NAVLUNGO_ENV değerini LIVE yapın. Yanıt: " + sanitizeApiText_(text));
+    }
     if (status < 200 || status >= 300) throw new Error("Navlungo token hata " + status + ": " + sanitizeApiText_(text));
     var parsed = navlungoJson_(text);
-    if (!parsed.access_token) throw new Error("Navlungo token yanıtında access_token yok.");
-    props.setProperty("NAVLUNGO_ACCESS_TOKEN", parsed.access_token);
-    props.setProperty("NAVLUNGO_ACCESS_TOKEN_EXPIRES_AT", new Date(Date.now() + Number(parsed.expires_in || 28800) * 1000).toISOString());
-    return { ok: true, status: "Navlungo token alındı", tokenType: parsed.token_type || "Bearer", expiresIn: parsed.expires_in || "" };
+    var data = parsed.data || parsed;
+    var accessToken = data.access_token || parsed.access_token || "";
+    if (!accessToken) throw new Error("Navlungo token yanıtında access_token yok.");
+    var expiresAt = navlungoTokenExpiresAt_(data.expires_in || parsed.expires_in);
+    props.setProperty("NAVLUNGO_ACCESS_TOKEN", accessToken);
+    props.setProperty("NAVLUNGO_ACCESS_TOKEN_EXPIRES_AT", expiresAt);
+    return { ok: true, status: "Navlungo token alındı", tokenType: data.token_type || parsed.token_type || "Bearer", expiresAt: expiresAt };
   }
 
   function navlungoBaglantiTestiTam_() {
@@ -3415,6 +3423,8 @@ var TK6 = (function () {
         error: missingMessage
       };
     }
+    Logger.log("[OK] NAVLUNGO_ENV = " + navlungoEnv_());
+    Logger.log("[OK] Navlungo base URL = " + navlungoBaseUrl_());
     var token;
     try {
       token = navlungoTokenAl_();
@@ -3425,7 +3435,6 @@ var TK6 = (function () {
     }
     var carrier = navlungoCarrierListesiAl_();
     Logger.log((carrier.ok ? "[OK] Navlungo carrier kontrolü başarılı" : "[HATA] Navlungo carrier kontrolü başarısız: " + carrier.status));
-    Logger.log("[OK] NAVLUNGO_ENV = " + navlungoEnv_());
     Logger.log(yes_(setting_(ss, CFG.liveNavlungoSendSetting, "Hayır")) ? "[HATA] NAVLUNGO_CANLI_GONDERIM açık" : "[OK] NAVLUNGO_CANLI_GONDERIM kapalı");
     Logger.log("[OK] Canlı gönderi POST yapılmadı");
     return {
@@ -3627,13 +3636,30 @@ var TK6 = (function () {
 
   function navlungoEnv_() {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var env = String(setting_(ss, "NAVLUNGO_ENV", "QA") || "QA").toUpperCase();
+    var propsEnv = "";
+    try { propsEnv = String(PropertiesService.getScriptProperties().getProperty("NAVLUNGO_ENV") || "").trim(); } catch (err) { propsEnv = ""; }
+    var env = String(propsEnv || setting_(ss, "NAVLUNGO_ENV", "QA") || "QA").toUpperCase();
     if (env !== "LIVE") return "QA";
     return "LIVE";
   }
 
   function navlungoBaseUrl_() {
     return navlungoEnv_() === "LIVE" ? CFG.navlungoLiveBaseUrl : CFG.navlungoQaBaseUrl;
+  }
+
+  function navlungoTokenExpiresAt_(value) {
+    if (value instanceof Date) return value.toISOString();
+    if (typeof value === "number") {
+      if (value > 1000000000000) return new Date(value).toISOString();
+      if (value > 1000000000) return new Date(value * 1000).toISOString();
+      return new Date(Date.now() + value * 1000).toISOString();
+    }
+    var text = String(value || "").trim();
+    if (!text) return new Date(Date.now() + 28800 * 1000).toISOString();
+    if (/^\d+$/.test(text)) return navlungoTokenExpiresAt_(Number(text));
+    var parsed = new Date(text.replace(" ", "T"));
+    if (!isNaN(parsed.getTime())) return parsed.toISOString();
+    return new Date(Date.now() + 28800 * 1000).toISOString();
   }
 
   function navlungoApiFetch_(method, endpoint, payload, retried) {

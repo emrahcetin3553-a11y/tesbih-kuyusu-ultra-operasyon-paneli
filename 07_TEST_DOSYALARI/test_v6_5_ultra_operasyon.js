@@ -178,7 +178,7 @@ const sandbox = {
       }
       if (url.includes("domestic-api") && url.includes("auth/api")) {
         navlungoAuthCalls++;
-        return response(200, { access_token: "nav-token-" + navlungoAuthCalls, token_type: "Bearer", expires_in: 3600 });
+        return response(200, { status: true, data: { access_token: "nav-token-" + navlungoAuthCalls, token_type: "Bearer", expires_in: "2026-05-03 12:00:00" } });
       }
       if (url.includes("domestic-api") && method === "get" && url.includes("carrier/my-carriers")) {
         return response(200, { data: [{ id: 1, name: "Aras Kargo" }] });
