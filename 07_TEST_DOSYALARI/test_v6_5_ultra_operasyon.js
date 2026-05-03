@@ -318,6 +318,11 @@ assert(!/Toplu sipariş paneli/.test(html), "Ayrı toplu panel metni aktif panel
 assert(!/sipariÅ|MÃ|Ãœ|Ã–|ParaÅ/.test(html), "Panelde bozuk Türkçe karakter kalmamalı");
 
 const cargoPackageId = rows(CFG.sheets.cargo)[0][H.CARGO_PACKAGE_ID];
+assert(/^KP-AS-\d{8}-\d{3}$/.test(cargoPackageId), "Kargo_Paket_ID tireli formatını korumalı");
+const navDryParamless = sandbox.navlungoKargoTaslakTestEt();
+assert(navDryParamless.kargoPaketId === cargoPackageId, "Parametresiz Navlungo dry-run ilk uygun kargo paketini bulmalı");
+const navDryByOpenId = sandbox.navlungoKargoTaslakTestEt(saved.openId);
+assert(navDryByOpenId.kargoPaketId === cargoPackageId, "Açık_Sipariş_ID ile arama kargo paket satırını bozmadan bulmalı");
 const navDry = sandbox.navlungoKargoTaslakTestEt(cargoPackageId);
 assert(navDry.ok === true, "Navlungo dry-run payload üretmeli");
 assert(navDry.payload.posts[0].recipient.name, "Navlungo alıcı bilgisi 08 kargo satırından gelmeli");
@@ -344,8 +349,9 @@ delete props.NAVLUNGO_LIVE_API_USERNAME;
 delete props.NAVLUNGO_LIVE_API_PASSWORD;
 props.NAVLUNGO_ACCESS_TOKEN = "";
 props.NAVLUNGO_ACCESS_TOKEN_EXPIRES_AT = "2000-01-01T00:00:00.000Z";
-const navCreateClosed = sandbox.navlungoKargoOlusturOnayli(cargoPackageId);
+const navCreateClosed = sandbox.navlungoKargoOlusturOnayli();
 assert(navCreateClosed.livePost === "Yapılmadı", "NAVLUNGO_CANLI_GONDERIM Hayır iken gönderi POST yapılmamalı");
+assert(rows(CFG.sheets.cargo)[0][H.NAVLUNGO_STATUS] === "Canlı gönderim kapalı - payload hazır", "Canlı kapı kapalıyken 08 durumu payload hazır olarak yazılmalı");
 patchRows(CFG.sheets.cargo, H.CARGO_PACKAGE_ID, cargoPackageId, { [H.NAVLUNGO_POST_NUMBER]: "NL-QA-1", [H.NAVLUNGO_TEST]: "Evet" });
 const navCheck = sandbox.navlungoGonderiSorgula(cargoPackageId);
 assert(navCheck.ok === true, "Navlungo kargo sorgulama GET akışı çalışmalı");

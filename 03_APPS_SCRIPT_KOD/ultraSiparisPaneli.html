@@ -38,6 +38,9 @@
     .secondary { background:#e8eef6; color:#10233f; }
     .danger { background:#fee2e2; color:#991b1b; }
     .status { white-space:pre-wrap; border:1px solid var(--line); border-radius:8px; padding:10px; background:#fff; min-height:74px; }
+    .status.info { border-color:#bfdbfe; background:#eff6ff; }
+    .status.warn { border-color:#fed7aa; background:#fff7ed; }
+    .status.error { border-color:#fecaca; background:#fef2f2; }
     .badge { display:inline-block; padding:3px 7px; border-radius:999px; background:#e8eef6; margin-right:6px; font-size:12px; }
     .muted { color:var(--muted); font-size:12px; }
     .actions-inline { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
@@ -669,23 +672,54 @@
       line.querySelector(".cariAksiyon").value = res.ok ? "Cari bağlı" : (res.status || "Operatör onayı gerekli");
       const liveInfo = res.livePost ? `\nCanlı cari POST: ${res.livePost}` : "";
       setCardStatus(card, `${payer}: ${res.status || "Cari sonucu alındı"}${liveInfo}`);
-    }).withFailureHandler(err => setCardStatus(card, "HATA: " + (err.message || err)))
+    }).withFailureHandler(err => setCardStatus(card, failureText("Paraşüt cari", err), "error"))
       .parasutCariPanelAksiyonu(openId, payer, mode, contactId);
   }
   function cards() { return [...document.querySelectorAll(".order-card")]; }
-  function setCardStatus(card, msg) { card.querySelector(".control-status").textContent = msg; }
+  function setCardStatus(card, msg, kind) {
+    const box = card.querySelector(".control-status");
+    box.textContent = msg;
+    box.classList.remove("info", "warn", "error");
+    if (kind) box.classList.add(kind);
+  }
+  function issueText(issue) {
+    if (!issue) return "";
+    if (typeof issue === "string") return issue;
+    const module = issue.sheet || issue.module || "Kontrol";
+    const id = issue.id ? ` / ${issue.id}` : "";
+    const msg = issue.message || issue.status || issue.error || JSON.stringify(issue);
+    const action = issue.action ? ` -> ${issue.action}` : "";
+    return `${module}${id}: ${msg}${action}`;
+  }
+  function groupLines(lines) {
+    const groups = { "Paraşüt": [], "Navlungo": [], "Banka": [], "Operasyon": [], "Bilgilendirme": [] };
+    (lines || []).forEach(line => {
+      const text = issueText(line);
+      const key = asciiKey(text);
+      if (/parasut|parasüt|cari|fatura/.test(key)) groups["Paraşüt"].push(text);
+      else if (/navlungo|kargo/.test(key)) groups["Navlungo"].push(text);
+      else if (/banka|odeme|ödeme/.test(key)) groups["Banka"].push(text);
+      else if (/eksik|gecerli|geçerli|uyari|uyarı|once kaydet|önce kaydet/.test(key)) groups["Bilgilendirme"].push(text);
+      else groups["Operasyon"].push(text);
+    });
+    return Object.keys(groups).filter(k => groups[k].length).map(k => `${k}\n- ${groups[k].join("\n- ")}`).join("\n\n");
+  }
   function summarize(res) {
     if (!res) return "Yanıt alınamadı";
-    if (res.control && res.control.summary) return `${res.status || ""}\nAçık_Sipariş_ID: ${res.openId || ""}\nSüre: ${res.elapsedMs || ""} ms\n${res.control.summary.join("\n")}`;
-    if (res.blocks && Array.isArray(res.blocks)) return `${res.status || ""}\n${res.blocks.join("\n")}`;
-    if (res.issues) return res.issues.join("\n");
+    if (res.control && res.control.summary) return `${res.status || ""}\nAçık_Sipariş_ID: ${res.openId || res.control.openId || ""}\nSüre: ${res.elapsedMs || ""} ms\n${groupLines(res.control.summary)}`;
+    if (res.blocks && Array.isArray(res.blocks)) return `${res.status || ""}\n${groupLines(res.blocks)}`;
+    if (res.issues) return groupLines(res.issues);
     return JSON.stringify(res, null, 2);
+  }
+  function failureText(module, err) {
+    const msg = err && err.message ? err.message : String(err || "Bilinmeyen hata");
+    return `İşlemi engelleyen hata (${module})\n${msg}`;
   }
   function checkAll() {
     cards().forEach(card => {
       setCardStatus(card, "Kontrol ediliyor...");
-      google.script.run.withSuccessHandler(res => setCardStatus(card, res.ok ? "12_KONTROL_MERKEZI temiz" : summarize(res)))
-        .withFailureHandler(err => setCardStatus(card, "HATA: " + (err.message || err)))
+      google.script.run.withSuccessHandler(res => setCardStatus(card, res.ok ? "12_KONTROL_MERKEZI temiz" : summarize(res), res.ok ? "info" : "warn"))
+        .withFailureHandler(err => setCardStatus(card, failureText("Kontrol", err), "error"))
         .ultraSiparisKontrolEt(collectOrder(card));
     });
   }
@@ -698,7 +732,7 @@
         card.dataset.openId = res.openId || "";
         refreshOrderTitles();
         setCardStatus(card, summarize(res));
-      }).withFailureHandler(err => setCardStatus(cards()[0], "HATA: " + (err.message || err))).ultraSiparisKaydet(list[0]);
+      }).withFailureHandler(err => setCardStatus(cards()[0], failureText("Kaydet ve ERP güncelle", err), "error")).ultraSiparisKaydet(list[0]);
       return;
     }
     google.script.run.withSuccessHandler(res => {
@@ -708,15 +742,15 @@
         setCardStatus(card, summarize(r));
       });
       refreshOrderTitles();
-    }).withFailureHandler(err => cards().forEach(card => setCardStatus(card, "HATA: " + (err.message || err)))).topluUltraSiparisKaydet(list);
+    }).withFailureHandler(err => cards().forEach(card => setCardStatus(card, failureText("Kaydet ve ERP güncelle", err), "error"))).topluUltraSiparisKaydet(list);
   }
   function invoiceCargo() {
     const card = cards().find(c => c.dataset.openId) || cards()[0];
     const openId = card.dataset.openId || "";
     if (!openId) { setCardStatus(card, "Önce Kaydet ve ERP güncelle çalıştırılmalı."); return; }
     setCardStatus(card, "Fatura/kargo son kontrol ediliyor...");
-    google.script.run.withSuccessHandler(res => setCardStatus(card, summarize(res)))
-      .withFailureHandler(err => setCardStatus(card, "HATA: " + (err.message || err)))
+    google.script.run.withSuccessHandler(res => setCardStatus(card, summarize(res), res.ok === false ? "warn" : "info"))
+      .withFailureHandler(err => setCardStatus(card, failureText("Fatura ve Kargo", err), "error"))
       .faturaVeKargoOlustur(openId);
   }
   function currentCargoPackageId(card) {
@@ -731,8 +765,8 @@
     }
     setCardStatus(card, "Navlungo işlemi çalışıyor...");
     const runner = google.script.run
-      .withSuccessHandler(res => setCardStatus(card, summarize(res)))
-      .withFailureHandler(err => setCardStatus(card, "HATA: " + (err.message || err)));
+      .withSuccessHandler(res => setCardStatus(card, summarize(res), res.ok === false ? "warn" : "info"))
+      .withFailureHandler(err => setCardStatus(card, failureText("Navlungo", err), "error"));
     if (action === "dry") runner.navlungoKargoTaslakTestEt(kargoPaketId);
     else if (action === "create") runner.navlungoKargoOlusturOnayli(kargoPaketId);
     else if (action === "barcode") runner.navlungoBarkodAl(kargoPaketId);
