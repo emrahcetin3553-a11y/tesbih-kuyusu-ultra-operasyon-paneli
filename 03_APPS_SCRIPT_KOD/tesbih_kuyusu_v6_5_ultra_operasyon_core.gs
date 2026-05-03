@@ -1207,10 +1207,10 @@ var TK6 = (function () {
     applyInvoicePanelHints_(ss, openId, form || {});
     autoCariBaglaForOpen_(ss, openId, false);
     updateMusteriHafizaForOpen_(ss, openId);
-    parasutTaslaklariniHazirla_();
-    ebelgeIstisnaHazirla_();
-    rebuildOpenOrders_();
-    kontrolMerkeziniGuncelle_();
+    parasutTaslaklariniHazirlaForOpen_(ss, openId);
+    ebelgeIstisnaHazirlaForOpen_(ss, openId);
+    rebuildOpenOrderForOpen_(ss, openId);
+    kontrolMerkeziniGuncelleForOpen_(ss, openId);
     var control = panelKontrolOzetiForOpen_(ss, openId);
     return {
       ok: control.ok,
@@ -1238,19 +1238,24 @@ var TK6 = (function () {
       }
     });
     if (saved.length) {
-      sistemiYenile_();
+      var ss = SpreadsheetApp.getActiveSpreadsheet();
       saved.forEach(function (r) {
         try {
-          applyInvoicePanelHints_(SpreadsheetApp.getActiveSpreadsheet(), r.openId, r.form || {});
-          autoCariBaglaForOpen_(SpreadsheetApp.getActiveSpreadsheet(), r.openId, false);
-          updateMusteriHafizaForOpen_(SpreadsheetApp.getActiveSpreadsheet(), r.openId);
+          hafifErpGuncelle_(r.openId);
+          applyInvoicePanelHints_(ss, r.openId, r.form || {});
+          autoCariBaglaForOpen_(ss, r.openId, false);
+          updateMusteriHafizaForOpen_(ss, r.openId);
+          parasutTaslaklariniHazirlaForOpen_(ss, r.openId);
+          ebelgeIstisnaHazirlaForOpen_(ss, r.openId);
+          rebuildOpenOrderForOpen_(ss, r.openId);
+          kontrolMerkeziniGuncelleForOpen_(ss, r.openId);
+          r.control = panelKontrolOzetiForOpen_(ss, r.openId);
+          r.ok = r.control.ok;
         } catch (err) {
           r.ok = false;
           r.error = safeErrorMessage_(err);
         }
       });
-      parasutTaslaklariniHazirla_();
-      kontrolMerkeziniGuncelle_();
     }
     return { ok: results.every(function (r) { return r.ok; }), count: results.length, elapsedMs: Date.now() - started, results: results };
   }
@@ -1774,16 +1779,444 @@ var TK6 = (function () {
 
   function hafifErpGuncelle_(openId) {
     if (!openId) return false;
-    odemeleriKontrolEt_();
-    urunKalemleriniKontrolEt_();
-    faturaGruplariniOlustur_();
-    rebuildOpenOrders_();
-    kargoPaketleriniOlustur_();
-    finans808OnizlemeOlustur_();
-    parasutTaslaklariniHazirla_();
-    ebelgeIstisnaHazirla_();
-    rebuildOpenOrders_();
-    kontrolMerkeziniGuncelle_();
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    odemeleriKontrolEtForOpen_(ss, openId);
+    urunKalemleriniKontrolEtForOpen_(ss, openId);
+    faturaGruplariniOlusturForOpen_(ss, openId);
+    rebuildOpenOrderForOpen_(ss, openId);
+    kargoPaketleriniOlusturForOpen_(ss, openId);
+    finans808OnizlemeOlusturForOpen_(ss, openId);
+    parasutTaslaklariniHazirlaForOpen_(ss, openId);
+    ebelgeIstisnaHazirlaForOpen_(ss, openId);
+    rebuildOpenOrderForOpen_(ss, openId);
+    kontrolMerkeziniGuncelleForOpen_(ss, openId);
+    return true;
+  }
+
+  function rowsExceptOpen_(rows, openId) {
+    return (rows || []).filter(function (row) { return row[H.OPEN_ID] !== openId; });
+  }
+
+  function replaceRowsForOpen_(ss, sheetName, headers, openId, nextRows) {
+    var sh = sheet_(ss, sheetName);
+    var existingRows = objects_(sh);
+    var scopedRows = nextRows || [];
+    var inserted = false;
+    var rows = [];
+    existingRows.forEach(function (row) {
+      if (row[H.OPEN_ID] !== openId) {
+        rows.push(row);
+        return;
+      }
+      if (!inserted) {
+        scopedRows.forEach(function (next) { rows.push(next); });
+        inserted = true;
+      }
+    });
+    if (!inserted) scopedRows.forEach(function (next) { rows.push(next); });
+    writeObjects_(sh, headers, rows);
+    return true;
+  }
+
+  function odemeleriKontrolEtForOpen_(ss, openId) {
+    var sh = sheet_(ss, CFG.sheets.payments);
+    var rows = objects_(sh);
+    var scoped = rows.filter(function (row) { return row[H.OPEN_ID] === openId; });
+    var seqByOpenPayer = {};
+    var out = [];
+    scoped.forEach(function (row) {
+      if (!row[H.OPEN_ID] && !row[H.PAYER] && !row[H.PAYMENT_AMOUNT]) return;
+      var warnings = [];
+      var payer = normalizePersonName_(row[H.PAYER]);
+      var amount = num_(row[H.PAYMENT_AMOUNT]);
+      var linkId = row[H.INVOICE_CARI_LINK_ID] || (openId && payer ? invoiceCariLinkId_(openId, payer) : "");
+      var bankMoveId = String(row[H.BANK_MOVE_ID] || "").trim();
+      var operatorConfirm = String(row[H.OPERATOR_CONFIRM] || "").trim();
+      if (!openId) warnings.push("Açık sipariş ID eksik");
+      if (!payer) warnings.push("Ödeme yapan eksik");
+      if (!amount) warnings.push("Ödeme tutarı eksik");
+      if (bankMoveId && !yes_(operatorConfirm)) warnings.push("Banka hareketi için operatör teyidi gerekli");
+      var key = openId + "|" + safeKey_(payer || "ODEME");
+      out.push(copyByHeaders_(row, HEADERS.payments, {
+        [H.PAYMENT_ID]: row[H.PAYMENT_ID] || "OD-" + (openId || "NOOPEN") + "-" + safeKey_(payer || "ODEME") + "-" + pad_(nextSeq_(seqByOpenPayer, key), 3),
+        [H.OPEN_ID]: openId,
+        [H.Q_ID]: row[H.Q_ID] || findQueueIdForOpenId_(ss, openId),
+        [H.PAYER]: payer,
+        [H.PAYMENT_AMOUNT]: amount,
+        [H.PAYMENT_DATE]: row[H.PAYMENT_DATE] || new Date(),
+        [H.PAYMENT_SOURCE]: row[H.PAYMENT_SOURCE] || "Manuel",
+        [H.RECEIPT_REF]: row[H.RECEIPT_REF] || "",
+        [H.PAYER_TEL]: normalizePhone_(row[H.PAYER_TEL]),
+        [H.PAYER_TAX_NO]: normalizeTaxNo_(row[H.PAYER_TAX_NO]),
+        [H.PAYER_ADDRESS]: normalizeAddress_(row[H.PAYER_ADDRESS]),
+        [H.PAYER_CITY]: normalizeCity_(row[H.PAYER_CITY]),
+        [H.PAYER_DISTRICT]: normalizeCity_(row[H.PAYER_DISTRICT]),
+        [H.INVOICE_CARI_LINK_ID]: linkId,
+        [H.CONFIRM_STATUS]: row[H.CONFIRM_STATUS] || (warnings.length ? "Kontrol Gerekli" : "Bekliyor"),
+        [H.CONFIRM_NOTE]: row[H.CONFIRM_NOTE] || "",
+        [H.BANK_MOVE_ID]: bankMoveId,
+        [H.BANK_MATCH_STATUS]: row[H.BANK_MATCH_STATUS] || "",
+        [H.BANK_MATCH_SCORE]: row[H.BANK_MATCH_SCORE] || "",
+        [H.BANK_MATCH_NOTE]: row[H.BANK_MATCH_NOTE] || "",
+        [H.OPERATOR_CONFIRM]: operatorConfirm || "Hayır",
+        [H.WARN]: warnings.join(" | ")
+      }));
+    });
+    return replaceRowsForOpen_(ss, CFG.sheets.payments, HEADERS.payments, openId, out);
+  }
+
+  function urunKalemleriniKontrolEtForOpen_(ss, openId) {
+    var rows = objects_(sheet_(ss, CFG.sheets.items));
+    var scoped = rows.filter(function (row) { return row[H.OPEN_ID] === openId; });
+    var payments = objects_(sheet_(ss, CFG.sheets.payments)).filter(function (row) { return row[H.OPEN_ID] === openId; });
+    var paymentsById = indexBy_(payments, H.PAYMENT_ID);
+    var paymentsByOpen = groupBy_(payments, H.OPEN_ID);
+    var productMap = productIdMap_(ss, false);
+    var productMapEmpty = !Object.keys(productMap).length;
+    var seqByOpen = {};
+    var out = [];
+
+    scoped.forEach(function (row, i) {
+      if (!row[H.OPEN_ID] && !row[H.PRODUCT]) return;
+      var warnings = [];
+      var seq = row[H.SEQ] || nextSeq_(seqByOpen, openId || "NO_OPEN");
+      var product = normalizeUrunAdi_(row[H.PRODUCT]);
+      var config = getUrunConfig_(product);
+      var qty = num_(row[H.QTY]);
+      var unitGross = num_(row[H.UNIT_GROSS]);
+      var gross = num_(row[H.LINE_GROSS]) || round2_(qty * unitGross);
+      var vatRate = normalizeVatRate_(row[H.VAT_RATE] || (config && config.vatRate));
+      var silverType = normalizeSilverAmountType_(row[H.SILVER_AMOUNT_TYPE]);
+      var net = num_(row[H.LINE_NET]) || round2_(gross / (1 + vatRate));
+      var vat = num_(row[H.VAT_AMOUNT]) || round2_(gross - net);
+      var paymentId = row[H.PAYMENT_ID] || "";
+      var payerHint = normalizePersonName_(row[H.PAYER]);
+      if (!paymentId && openId && payerHint) {
+        var samePayerPayments = (paymentsByOpen[openId] || []).filter(function (p) { return normalizePersonName_(p[H.PAYER]) === payerHint; });
+        if (samePayerPayments.length === 1) paymentId = samePayerPayments[0][H.PAYMENT_ID];
+      }
+      if (!paymentId && openId && (paymentsByOpen[openId] || []).length === 1) paymentId = paymentsByOpen[openId][0][H.PAYMENT_ID];
+      var payment = paymentId ? paymentsById[paymentId] : null;
+      var payer = payment ? payment[H.PAYER] : payerHint;
+      var groupId = row[H.INVOICE_GROUP_ID] || (payer ? invoiceGroupId_(openId, payer) : "");
+      var linkId = row[H.INVOICE_CARI_LINK_ID] || (payer ? invoiceCariLinkId_(openId, payer) : "");
+      var productId = productMapEmpty ? "" : (row[H.PARASUT_PRODUCT_ID] || productIdFromMap_(productMap, product));
+
+      if (!openId) warnings.push("Açık sipariş ID eksik");
+      if (!product) warnings.push("Ürün seçilmedi / eşleşmedi");
+      if (!qty) warnings.push("Miktar eksik");
+      if (!gross) warnings.push("Tutar eksik");
+      if (productType_(product) === "Gümüş" && row[H.SILVER_AMOUNT_TYPE] && !silverType) warnings.push("Gümüş_Tutar_Tipi Birim veya Toplam olmalı");
+      if (!paymentId) warnings.push("Ödeme ID eksik");
+      if (paymentId && !payment) warnings.push("Ödeme ID 05_ODEMELER içinde yok");
+      if (!groupId) warnings.push("Fatura grubu yok");
+      if (productMapEmpty || !productId) warnings.push("Paraşüt ürün ID mapping yok");
+
+      out.push(copyByHeaders_(row, HEADERS.items, {
+        [H.ITEM_ID]: row[H.ITEM_ID] || "UK-" + (openId || "NOOPEN") + "-" + pad_(i + 1, 4),
+        [H.OPEN_ID]: openId,
+        [H.Q_ID]: row[H.Q_ID] || findQueueIdForOpenId_(ss, openId),
+        [H.SEQ]: seq,
+        [H.INVOICE_CARI_LINK_ID]: linkId,
+        [H.PAYER]: payer,
+        [H.PRODUCT]: product || row[H.PRODUCT],
+        [H.PRODUCT_TYPE]: row[H.PRODUCT_TYPE] || (config && config.type) || productType_(product),
+        [H.UNIT]: row[H.UNIT] || (config && config.unit) || defaultUnit_(product),
+        [H.QTY]: qty,
+        [H.UNIT_GROSS]: unitGross || round6_(gross / Math.max(qty, 1)),
+        [H.LINE_GROSS]: gross,
+        [H.VAT_MODEL]: row[H.VAT_MODEL] || (vatRate === 0 ? "KDV 0" : "Standart KDV"),
+        [H.VAT_RATE]: vatRate,
+        [H.LINE_NET]: net,
+        [H.VAT_AMOUNT]: vat,
+        [H.SILVER_AMOUNT_TYPE]: silverType,
+        [H.SILVER_SALE_UNIT]: row[H.SILVER_SALE_UNIT] || unitGross || "",
+        [H.SILVER_MARGIN]: productType_(product) === "Gümüş" ? calculateSilverMarginFromNumbers_(row[H.SILVER_GRAM], row[H.SILVER_COST_UNIT], gross) : "",
+        [H.PARASUT_PRODUCT_ID]: productId,
+        [H.PAYMENT_ID]: paymentId,
+        [H.INVOICE_GROUP_ID]: groupId,
+        [H.ITEM_STATUS]: warnings.length ? "Kontrol Gerekli" : "Hazır",
+        [H.WARN]: warnings.join(" | ")
+      }));
+    });
+    return replaceRowsForOpen_(ss, CFG.sheets.items, HEADERS.items, openId, out);
+  }
+
+  function faturaGruplariniOlusturForOpen_(ss, openId) {
+    var items = objects_(sheet_(ss, CFG.sheets.items)).filter(function (row) { return row[H.OPEN_ID] === openId && row[H.ITEM_STATUS] !== "İptal" && row[H.ITEM_STATUS] !== "Arşiv"; });
+    var payments = objects_(sheet_(ss, CFG.sheets.payments)).filter(function (row) { return row[H.OPEN_ID] === openId && row[H.CONFIRM_STATUS] !== "İptal" && row[H.CONFIRM_STATUS] !== "Arşiv"; });
+    var prev = indexBy_(objects_(sheet_(ss, CFG.sheets.invoiceGroups)), H.INVOICE_GROUP_ID);
+    var groups = {};
+
+    payments.forEach(function (p) {
+      var gid = invoiceGroupId_(p[H.OPEN_ID], p[H.PAYER]);
+      if (!groups[gid]) groups[gid] = newInvoiceAccumulator_(gid, p[H.OPEN_ID], p[H.PAYER]);
+      if (!groups[gid].payer) groups[gid].payer = p[H.PAYER];
+      groups[gid].payments.push(p);
+      groups[gid].paymentTotal += num_(p[H.PAYMENT_AMOUNT]);
+    });
+
+    items.forEach(function (it) {
+      var gid = it[H.INVOICE_GROUP_ID] || "__ITEM_WITHOUT_GROUP__" + it[H.OPEN_ID];
+      if (!groups[gid]) groups[gid] = newInvoiceAccumulator_(gid, it[H.OPEN_ID], it[H.PAYER] || "");
+      groups[gid].items.push(it);
+      groups[gid].itemTotal += num_(it[H.LINE_GROSS]);
+      groups[gid].itemNet += num_(it[H.LINE_NET]);
+      groups[gid].itemVat += num_(it[H.VAT_AMOUNT]);
+    });
+
+    var out = Object.keys(groups).sort().map(function (gid) {
+      var g = groups[gid];
+      var saved = prev[gid] || {};
+      var warnings = [];
+      var diff = round2_(g.paymentTotal - g.itemTotal);
+      var firstPayment = g.payments[0] || {};
+      var invoicePerson = normalizePersonName_(saved[H.INVOICE_PERSON] || g.payer);
+      var savedCariTypeHint = normalizeCariTipi_(saved[H.CARI_TYPE], "", invoicePerson || g.payer);
+      var taxNo = normalizeTaxNo_(saved[H.TAX_NO] || (savedCariTypeHint === "Tüzel Kişi" ? "" : firstPayment[H.PAYER_TAX_NO]));
+      var cariType = normalizeCariTipi_(saved[H.CARI_TYPE], taxNo, invoicePerson || g.payer);
+      if (!invoicePerson) warnings.push("Fatura kişisi/ödeme yapan eksik");
+      if (!g.items.length) warnings.push("Faturalandırılacak ürün yok");
+      if (!g.payments.length) warnings.push("Ödeme kaydı yok");
+      var paymentWarnings = g.payments.map(function (p) { return p[H.WARN]; }).filter(Boolean);
+      if (paymentWarnings.length) warnings.push("Ödeme teyit blokajı: " + paymentWarnings.join(" | "));
+      if (Math.abs(diff) > 0.01) warnings.push("Ödeme toplamı ile ürün toplamı eşleşmiyor");
+      if (!taxNo && cariType === "Gerçek Kişi") taxNo = setting_(ss, "TCKN_VARSAYILAN_GERCEK_KISI", CFG.defaultTckn);
+      if (!taxNo && cariType === "Tüzel Kişi") warnings.push("Tüzel kişi için VKN zorunlu");
+      var ebelgeType = saved[H.EBELGE_TYPE] || ebelgeTipiBelirle_(taxNo, cariType);
+      var matchScore = saved[H.CARI_MATCH_SCORE] || "";
+      var matchStatus = saved[H.CARI_MATCH_STATUS] || (saved[H.PARASUT_CONTACT_ID] ? "Bağlı" : "Cari çözümü gerekli");
+      var cariAction = saved[H.CARI_ACTION] || (saved[H.PARASUT_CONTACT_ID] ? "Cari bağlı" : "Cari adaylarını kontrol et");
+      return copyByHeaders_(saved, HEADERS.invoiceGroups, {
+        [H.INVOICE_GROUP_ID]: gid,
+        [H.OPEN_ID]: g.openId,
+        [H.PAYER]: g.payer,
+        [H.INVOICE_PERSON]: invoicePerson,
+        [H.CARI_TYPE]: cariType,
+        [H.INVOICE_TEL]: saved[H.INVOICE_TEL] || firstPayment[H.PAYER_TEL] || "",
+        [H.INVOICE_EMAIL]: saved[H.INVOICE_EMAIL] || "",
+        [H.TAX_NO]: taxNo,
+        [H.TAX_OFFICE]: saved[H.TAX_OFFICE] || "",
+        [H.INVOICE_ADDRESS]: saved[H.INVOICE_ADDRESS] || firstPayment[H.PAYER_ADDRESS] || "",
+        [H.INVOICE_CITY]: saved[H.INVOICE_CITY] || firstPayment[H.PAYER_CITY] || "",
+        [H.INVOICE_DISTRICT]: saved[H.INVOICE_DISTRICT] || firstPayment[H.PAYER_DISTRICT] || "",
+        [H.EBELGE_TYPE]: ebelgeType,
+        [H.ITEM_SUM]: round2_(g.itemTotal),
+        [H.GROUP_PAYMENT_SUM]: round2_(g.paymentTotal),
+        [H.DIFF]: diff,
+        [H.INVOICE_STATUS]: warnings.length ? "Blokaj" : "Hazır",
+        [H.PARASUT_CONTACT_ID]: saved[H.PARASUT_CONTACT_ID] || "",
+        [H.CARI_MATCH_SCORE]: matchScore,
+        [H.CARI_MATCH_STATUS]: matchStatus,
+        [H.CARI_ACTION]: cariAction,
+        [H.PARASUT_INVOICE_ID]: saved[H.PARASUT_INVOICE_ID] || "",
+        [H.SEND_LOCK]: saved[H.PARASUT_INVOICE_ID] ? "Evet" : (saved[H.SEND_LOCK] || "Hayır"),
+        [H.WARN]: warnings.join(" | ")
+      });
+    });
+    return replaceRowsForOpen_(ss, CFG.sheets.invoiceGroups, HEADERS.invoiceGroups, openId, out);
+  }
+
+  function rebuildOpenOrderForOpen_(ss, openId) {
+    var queueRows = objects_(sheet_(ss, CFG.sheets.queue));
+    var qRows = queueRows.filter(function (row) { return row[H.OPEN_ID] === openId; });
+    var first = qRows[0] || {};
+    var items = objects_(sheet_(ss, CFG.sheets.items)).filter(function (row) { return row[H.OPEN_ID] === openId; });
+    var payments = objects_(sheet_(ss, CFG.sheets.payments)).filter(function (row) { return row[H.OPEN_ID] === openId; });
+    var groups = objects_(sheet_(ss, CFG.sheets.invoiceGroups)).filter(function (row) { return row[H.OPEN_ID] === openId; });
+    var cargo = objects_(sheet_(ss, CFG.sheets.cargo)).filter(function (row) { return row[H.OPEN_ID] === openId; });
+    var gross = sum_(items, H.LINE_GROSS);
+    var net = sum_(items, H.LINE_NET);
+    var vat = sum_(items, H.VAT_AMOUNT);
+    var pay = sum_(payments, H.PAYMENT_AMOUNT);
+    var diff = round2_(pay - gross);
+    var warnings = [];
+    if (!items.length) warnings.push("Ürün kalemi yok");
+    if (!payments.length) warnings.push("Ödeme kaydı yok");
+    if (Math.abs(diff) > 0.01) warnings.push("Ödeme ve ürün toplamı eşleşmiyor");
+    if (items.length && payments.length && !groups.length) warnings.push("Fatura grubu yok");
+    var qStatus = first[H.ORDER_STATUS] || "Açık";
+    return replaceRowsForOpen_(ss, CFG.sheets.open, HEADERS.open, openId, [copyByHeaders_({}, HEADERS.open, {
+      [H.OPEN_ID]: openId,
+      [H.ORDER_NO]: "TK-" + openId.replace(/^AS-/, ""),
+      [H.OP_DAY]: first[H.OP_DAY] || "",
+      [H.FIRST_TS]: firstDate_(qRows, H.MSG_DT),
+      [H.LAST_TS]: lastDate_(qRows, H.MSG_DT),
+      [H.PHONE]: first[H.PHONE] || "",
+      [H.OWNER]: first[H.OWNER] || "",
+      [H.ORDER_STATUS]: warnings.length ? "Kontrol Gerekli" : qStatus,
+      [H.ITEM_COUNT]: items.length,
+      [H.PAYMENT_COUNT]: payments.length,
+      [H.GROUP_COUNT]: groups.length,
+      [H.CARGO_COUNT]: cargo.length,
+      [H.TOTAL_GROSS]: gross,
+      [H.TOTAL_NET]: net,
+      [H.TOTAL_VAT]: vat,
+      [H.PAYMENT_TOTAL]: pay,
+      [H.PAYMENT_DIFF]: diff,
+      [H.CARGO_STATUS]: cargo.length ? cargo[0][H.PACKAGE_STATUS] : "Bekliyor",
+      [H.INVOICE_STATUS]: warnings.length ? "Blokaj" : "Hazırlanabilir",
+      [H.EBELGE_STATUS]: "11_EBELGE_ISTISNA bekler",
+      [H.CONTROL_LEVEL]: warnings.length ? "Blokaj" : "OK",
+      [H.WARN]: warnings.join(" | "),
+      [H.NOTE]: first[H.NOTE] || "",
+      [H.MERGE_KEY]: (first[H.OP_DAY] || "") + "|" + (first[H.PHONE] || ""),
+      [H.CLOSE_OK]: warnings.length ? "Hayır" : "Evet",
+      [H.BLOCK_REASON]: warnings.join(" | ")
+    })]);
+  }
+
+  function kargoPaketleriniOlusturForOpen_(ss, openId) {
+    var open = objects_(sheet_(ss, CFG.sheets.open)).filter(function (row) { return row[H.OPEN_ID] === openId; })[0] || {};
+    var existing = objects_(sheet_(ss, CFG.sheets.cargo));
+    var row = existing.filter(function (r) { return r[H.OPEN_ID] === openId; })[0] || {};
+    if (!row[H.CARGO_PACKAGE_ID] && !open[H.OPEN_ID]) return replaceRowsForOpen_(ss, CFG.sheets.cargo, HEADERS.cargo, openId, []);
+    var closed = isClosedText_(open[H.ORDER_STATUS]);
+    var warnings = [];
+    [H.CARGO_RECEIVER, H.CARGO_TEL, H.CITY, H.DISTRICT, H.ADDRESS].forEach(function (key) {
+      if (!row[key]) warnings.push(key + " eksik");
+    });
+    if (!closed && row[H.BARCODE]) warnings.push("Açık siparişte barkodlu paket için revizyon kontrolü gerekli");
+    return replaceRowsForOpen_(ss, CFG.sheets.cargo, HEADERS.cargo, openId, [copyByHeaders_(row, HEADERS.cargo, {
+      [H.CARGO_PACKAGE_ID]: row[H.CARGO_PACKAGE_ID] || "KP-" + openId,
+      [H.OPEN_ID]: openId,
+      [H.CARGO_RECEIVER]: row[H.CARGO_RECEIVER] || "",
+      [H.CARGO_TEL]: normalizePhone_(row[H.CARGO_TEL]),
+      [H.CITY]: row[H.CITY] || "",
+      [H.DISTRICT]: row[H.DISTRICT] || "",
+      [H.ADDRESS]: normalizeAddress_(row[H.ADDRESS]),
+      [H.CARGO_COMPANY]: row[H.CARGO_COMPANY] || setting_(ss, "VARSAYILAN_KARGO_FIRMASI", CFG.defaultCargoCompany),
+      [H.PACKAGE_STATUS]: warnings.length ? "Blokaj" : "Hazır",
+      [H.BARCODE]: row[H.BARCODE] || "",
+      [H.TRACKING_NO]: row[H.TRACKING_NO] || "",
+      [H.LATE_ADD]: row[H.LATE_ADD] || "Hayır",
+      [H.PACKAGE_NOTE]: row[H.PACKAGE_NOTE] || "",
+      [H.WARN]: warnings.join(" | ")
+    })]);
+  }
+
+  function finans808OnizlemeOlusturForOpen_(ss, openId) {
+    var items = objects_(sheet_(ss, CFG.sheets.items)).filter(function (row) { return row[H.OPEN_ID] === openId; });
+    var payments = objects_(sheet_(ss, CFG.sheets.payments)).filter(function (row) { return row[H.OPEN_ID] === openId; });
+    var gross = sum_(items, H.LINE_GROSS);
+    var net = sum_(items, H.LINE_NET);
+    var vat = sum_(items, H.VAT_AMOUNT);
+    var pay = sum_(payments, H.PAYMENT_AMOUNT);
+    var diff = round2_(pay - gross);
+    return replaceRowsForOpen_(ss, CFG.sheets.finance808, HEADERS.finance808, openId, [{
+      [H.FIN_ID]: "808-" + openId,
+      [H.OPEN_ID]: openId,
+      [H.MODEL_TYPE]: "FINANS_ONIZLEME",
+      [H.ITEM_SUM]: gross,
+      [H.LINE_NET]: net,
+      [H.VAT_AMOUNT]: vat,
+      [H.GROUP_PAYMENT_SUM]: pay,
+      [H.DIFF]: diff,
+      [H.NET_GAIN]: round2_(net - num_(setting_(ss, "KARGO_UCRETI_STANDART", CFG.defaultCargoFee))),
+      [H.OFFICIAL_NOTE]: "808 resmi fatura modeli değildir; yalnızca finans ön izlemedir.",
+      [H.NO_INVOICE_EFFECT]: "Evet",
+      [H.WARN]: Math.abs(diff) > 0.01 ? "Ödeme ve ürün toplamı eşleşmiyor" : ""
+    }]);
+  }
+
+  function parasutTaslaklariniHazirlaForOpen_(ss, openId) {
+    var groups = indexBy_(objects_(sheet_(ss, CFG.sheets.invoiceGroups)).filter(function (row) { return row[H.OPEN_ID] === openId; }), H.INVOICE_GROUP_ID);
+    var itemsByGroup = groupBy_(objects_(sheet_(ss, CFG.sheets.items)).filter(function (row) { return row[H.OPEN_ID] === openId; }), H.INVOICE_GROUP_ID);
+    var previous = indexBy_(objects_(sheet_(ss, CFG.sheets.parasut)), H.INVOICE_GROUP_ID);
+    var out = [];
+
+    Object.keys(groups).sort().forEach(function (gid) {
+      var group = groups[gid];
+      var groupItems = itemsByGroup[gid] || [];
+      groupItems.forEach(function (item) {
+        var warnings = [];
+        if (group[H.INVOICE_STATUS] !== "Hazır") warnings.push(group[H.WARN] || "Fatura grubu hazır değil");
+        if (!group[H.PARASUT_CONTACT_ID]) warnings.push("Paraşüt cari ID yok");
+        if (!item[H.PARASUT_PRODUCT_ID]) warnings.push("Paraşüt ürün ID mapping yok");
+        if (group[H.SEND_LOCK] === "Evet" || group[H.PARASUT_INVOICE_ID]) warnings.push("Fatura grubu kilitli/gönderilmiş");
+        var canSend = warnings.length ? "Hayır" : "Evet";
+        var saved = previous[gid] || {};
+        out.push({
+          [H.ACTION]: "Satış Faturası Taslağı",
+          [H.INVOICE_GROUP_ID]: gid,
+          [H.OPEN_ID]: group[H.OPEN_ID],
+          [H.INVOICE_PERSON]: group[H.INVOICE_PERSON],
+          [H.CARI_TYPE]: group[H.CARI_TYPE],
+          [H.PARASUT_CONTACT_ID]: group[H.PARASUT_CONTACT_ID],
+          [H.ITEM_ID]: item[H.ITEM_ID],
+          [H.PRODUCT]: item[H.PRODUCT],
+          [H.PARASUT_PRODUCT_ID]: item[H.PARASUT_PRODUCT_ID],
+          [H.QTY]: item[H.QTY],
+          [H.UNIT]: item[H.UNIT],
+          [H.UNIT_NET]: round6_(num_(item[H.LINE_NET]) / Math.max(1, num_(item[H.QTY]))),
+          [H.VAT_RATE]: item[H.VAT_RATE],
+          [H.VAT_AMOUNT]: item[H.VAT_AMOUNT],
+          [H.LINE_GROSS]: item[H.LINE_GROSS],
+          [H.PARASUT_INVOICE_ID]: saved[H.PARASUT_INVOICE_ID] || group[H.PARASUT_INVOICE_ID] || "",
+          [H.PARASUT_STATUS]: canSend === "Evet" ? "Taslak Hazır" : "Blokaj",
+          [H.SEND_LOCK]: group[H.SEND_LOCK] || "Hayır",
+          [H.PAYLOAD_CHECK]: canSend === "Evet" ? "Payload hazır" : warnings.join(" | "),
+          [H.ERROR]: canSend === "Evet" ? "" : warnings.join(" | "),
+          [H.CAN_SEND_DRAFT]: canSend,
+          [H.DRAFT_BLOCK]: warnings.join(" | "),
+          [H.NOTE]: ""
+        });
+      });
+    });
+    return replaceRowsForOpen_(ss, CFG.sheets.parasut, HEADERS.parasut, openId, out);
+  }
+
+  function ebelgeIstisnaHazirlaForOpen_(ss, openId) {
+    var parasutByGroup = groupBy_(objects_(sheet_(ss, CFG.sheets.parasut)).filter(function (row) { return row[H.OPEN_ID] === openId; }), H.INVOICE_GROUP_ID);
+    var out = objects_(sheet_(ss, CFG.sheets.invoiceGroups)).filter(function (group) { return group[H.OPEN_ID] === openId; }).map(function (group) {
+      var rows = parasutByGroup[group[H.INVOICE_GROUP_ID]] || [];
+      var hasSilver = rows.some(function (r) { return productType_(r[H.PRODUCT]) === "Gümüş"; });
+      var hasVatZero = rows.some(function (r) { return num_(r[H.VAT_RATE]) === 0; });
+      var warnings = [];
+      var preparationNote = group[H.PARASUT_INVOICE_ID] ? "" : "Paraşüt satış faturası taslak ID bekleniyor";
+      if (hasVatZero && !setting_(ss, "ISTISNA_KODU_RESMI", "")) warnings.push("Resmi istisna kodu/onayı yok");
+      var sendStatus = warnings.length ? "Blokaj" : (preparationNote ? "Hazırlık" : "Gönderime Hazır");
+      return {
+        [H.EBELGE_ID]: "EB-" + group[H.INVOICE_GROUP_ID],
+        [H.INVOICE_GROUP_ID]: group[H.INVOICE_GROUP_ID],
+        [H.OPEN_ID]: group[H.OPEN_ID],
+        [H.PARASUT_INVOICE_ID]: group[H.PARASUT_INVOICE_ID],
+        [H.INVOICE_PERSON]: group[H.INVOICE_PERSON],
+        [H.TAX_NO]: group[H.TAX_NO],
+        [H.CARI_TYPE]: group[H.CARI_TYPE],
+        [H.EBELGE_TYPE]: group[H.EBELGE_TYPE] || ebelgeTipiBelirle_(group[H.TAX_NO], group[H.CARI_TYPE]),
+        [H.HAS_SILVER]: hasSilver ? "Evet" : "Hayır",
+        [H.HAS_VAT_ZERO]: hasVatZero ? "Evet" : "Hayır",
+        [H.NEED_EXEMPTION]: hasVatZero ? "Evet" : "Hayır",
+        [H.EXEMPTION_CODE]: hasVatZero ? setting_(ss, "ISTISNA_KODU_RESMI", "") : "",
+        [H.EXEMPTION_DESC]: hasVatZero ? "11_EBELGE_ISTISNA resmi karar alanı" : "",
+        [H.SEND_STATUS]: sendStatus,
+        [H.OFFICIAL_APPROVAL]: yes_(setting_(ss, CFG.liveEbelgeSendSetting, "Hayır")) ? "Evet" : "Hayır",
+        [H.OFFICIAL_BLOCK]: warnings.join(" | "),
+        [H.CONTROL_LEVEL]: warnings.length ? "Blokaj" : (preparationNote ? "Hazırlık" : "OK")
+      };
+    });
+    return replaceRowsForOpen_(ss, CFG.sheets.ebelge, HEADERS.ebelge, openId, out);
+  }
+
+  function controlRowRelatedToOpen_(row, openId) {
+    var sourceId = String(row[H.SOURCE_ID] || "");
+    var warning = String(row[H.WARN] || "");
+    return sourceId === openId || sourceId.indexOf(openId) !== -1 || warning.indexOf(openId) !== -1;
+  }
+
+  function kontrolMerkeziniGuncelleForOpen_(ss, openId) {
+    var issues = [];
+    collectIssues_(issues, CFG.sheets.open, objects_(sheet_(ss, CFG.sheets.open)).filter(function (row) { return row[H.OPEN_ID] === openId; }), H.OPEN_ID, H.BLOCK_REASON, "ERP", "Kritik");
+    collectIssues_(issues, CFG.sheets.items, objects_(sheet_(ss, CFG.sheets.items)).filter(function (row) { return row[H.OPEN_ID] === openId; }), H.ITEM_ID, H.WARN, "Ürün", "Yüksek");
+    collectIssues_(issues, CFG.sheets.payments, objects_(sheet_(ss, CFG.sheets.payments)).filter(function (row) { return row[H.OPEN_ID] === openId; }), H.PAYMENT_ID, H.WARN, "Ödeme", "Yüksek");
+    collectIssues_(issues, CFG.sheets.invoiceGroups, objects_(sheet_(ss, CFG.sheets.invoiceGroups)).filter(function (row) { return row[H.OPEN_ID] === openId; }), H.INVOICE_GROUP_ID, H.WARN, "Fatura", "Kritik");
+    collectIssues_(issues, CFG.sheets.parasut, objects_(sheet_(ss, CFG.sheets.parasut)).filter(function (row) { return row[H.OPEN_ID] === openId; }), H.INVOICE_GROUP_ID, H.DRAFT_BLOCK, "Paraşüt", "Kritik");
+    collectIssues_(issues, CFG.sheets.cargo, objects_(sheet_(ss, CFG.sheets.cargo)).filter(function (row) { return row[H.OPEN_ID] === openId; }), H.CARGO_PACKAGE_ID, H.WARN, "Kargo", "Yüksek");
+    collectIssues_(issues, CFG.sheets.ebelge, objects_(sheet_(ss, CFG.sheets.ebelge)).filter(function (row) { return row[H.OPEN_ID] === openId; }), H.EBELGE_ID, H.OFFICIAL_BLOCK, "e-Belge", "Kritik");
+    var sh = sheet_(ss, CFG.sheets.control);
+    var keep = objects_(sh).filter(function (row) { return !controlRowRelatedToOpen_(row, openId); });
+    writeObjects_(sh, HEADERS.control, keep.concat(issues));
     return true;
   }
 
