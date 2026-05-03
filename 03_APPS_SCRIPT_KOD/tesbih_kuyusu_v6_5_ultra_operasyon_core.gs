@@ -2731,6 +2731,7 @@ var TK6 = (function () {
       ["NAVLUNGO_CANLI_GONDERIM", "Hayır", "Evet olmadan canlı kargo gönderimi yapılmaz", "Evet", now, ""],
       ["NAVLUNGO_ENV", "QA", "QA veya LIVE Navlungo ortamı", "Evet", now, "Varsayılan QA kalır"],
       ["NAVLUNGO_TEST_MODE", "Evet", "Navlungo kargo denemeleri test işaretiyle yürür", "Evet", now, ""],
+      ["NAVLUNGO_LOGIN_URL", "https://navlungo.com/login?target=%2Fauthorize%3Fclient_id%3DNavlungoFEClient%26code_challenge%3DreKPD4SOOWikQq2MR%252FnNjlT8fLh1uEDFPezXpDK15Ck%253D%26redirect_uri%3Dhttps%253A%252F%252Fdomestic.navlungo.com%252Fauth%252Fcallback%26scope%3Dopenid%2Boffline_access%2BIdentityServerApi%2Broles%2Bpostalcode_check", "Operatörün tarayıcıdan giriş yapacağı Navlungo panel adresi", "Hayır", now, "API token endpoint değildir"],
       ["NAVLUNGO_SENDER_ADDRESS_ID", "", "Navlungo kayıtlı gönderici adres ID", "Hayır", now, "Script Properties önceliklidir"],
       ["NAVLUNGO_DEFAULT_CARRIER_ID", "1", "Varsayılan taşıyıcı ID", "Evet", now, "1 otomatik kapsam ayarıdır"],
       ["NAVLUNGO_DEFAULT_POST_TYPE", "2", "Varsayılan gönderi tipi", "Evet", now, "2 standart teslimat"],
@@ -3382,7 +3383,7 @@ var TK6 = (function () {
     var status = response.getResponseCode();
     var text = response.getContentText();
     if (status === 422) {
-      throw new Error("Navlungo token hata 422 (" + env + "): Kullanıcı bilgileri bu ortamda kabul edilmedi. QA ortamı için domestic-qa.navlungo.com üzerinden alınan API bilgileri gerekir; canlı panel bilgileri kullanılıyorsa NAVLUNGO_ENV değerini LIVE yapın. Yanıt: " + sanitizeApiText_(text));
+      throw new Error("Navlungo token hata 422 (" + env + "): Kullanıcı bilgileri seçili API ortamında kabul edilmedi. Operatör paneline giriş adresi NAVLUNGO_LOGIN_URL ayarında tutulur; Apps Script token testi Domestic API endpoint üzerinden yapılır. Canlı panel bilgileri kullanılıyorsa NAVLUNGO_ENV değerini LIVE yapın. Yanıt: " + sanitizeApiText_(text));
     }
     if (status < 200 || status >= 300) throw new Error("Navlungo token hata " + status + ": " + sanitizeApiText_(text));
     var parsed = navlungoJson_(text);
@@ -3424,7 +3425,8 @@ var TK6 = (function () {
       };
     }
     Logger.log("[OK] NAVLUNGO_ENV = " + navlungoEnv_());
-    Logger.log("[OK] Navlungo base URL = " + navlungoBaseUrl_());
+    Logger.log("[OK] Navlungo API base URL = " + navlungoBaseUrl_());
+    Logger.log("[OK] Navlungo panel giriş URL ayarı var");
     var token;
     try {
       token = navlungoTokenAl_();

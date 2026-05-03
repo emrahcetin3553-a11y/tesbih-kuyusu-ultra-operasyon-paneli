@@ -90,6 +90,7 @@ writeTable(workbook, SHEETS.settings, [
   ["NAVLUNGO_CANLI_GONDERIM", "Hayır", "Evet olmadan kargo API gönderimi yapılmaz", "Evet", "", ""],
   ["NAVLUNGO_ENV", "QA", "Navlungo ortamı", "Evet", "", "QA veya LIVE"],
   ["NAVLUNGO_TEST_MODE", "Evet", "Navlungo kargo denemeleri test işaretiyle yürür", "Evet", "", ""],
+  ["NAVLUNGO_LOGIN_URL", "https://navlungo.com/login?target=%2Fauthorize%3Fclient_id%3DNavlungoFEClient%26code_challenge%3DreKPD4SOOWikQq2MR%252FnNjlT8fLh1uEDFPezXpDK15Ck%253D%26redirect_uri%3Dhttps%253A%252F%252Fdomestic.navlungo.com%252Fauth%252Fcallback%26scope%3Dopenid%2Boffline_access%2BIdentityServerApi%2Broles%2Bpostalcode_check", "Operatörün tarayıcıdan giriş yapacağı Navlungo panel adresi", "Hayır", "", "API token endpoint değildir"],
   ["NAVLUNGO_SENDER_ADDRESS_ID", "", "Navlungo kayıtlı gönderici adres ID", "Hayır", "", "Script Properties önceliklidir"],
   ["NAVLUNGO_DEFAULT_CARRIER_ID", "1", "Varsayılan Navlungo taşıyıcı ID", "Evet", "", ""],
   ["NAVLUNGO_DEFAULT_POST_TYPE", "2", "Varsayılan Navlungo gönderi tipi", "Evet", "", ""],
