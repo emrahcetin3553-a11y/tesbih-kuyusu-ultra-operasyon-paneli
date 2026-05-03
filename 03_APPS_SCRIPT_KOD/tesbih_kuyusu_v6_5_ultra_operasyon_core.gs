@@ -2730,12 +2730,13 @@ var TK6 = (function () {
       ["EBELGE_CANLI_GONDERIM", "Hayır", "Evet olmadan e-Belge/e-Fatura canlı gönderimi yapılmaz", "Evet", now, ""],
       ["NAVLUNGO_CANLI_GONDERIM", "Hayır", "Evet olmadan canlı kargo gönderimi yapılmaz", "Evet", now, ""],
       ["NAVLUNGO_ENV", "QA", "QA veya LIVE Navlungo ortamı", "Evet", now, "Varsayılan QA kalır"],
+      ["NAVLUNGO_TEST_MODE", "Evet", "Navlungo kargo denemeleri test işaretiyle yürür", "Evet", now, ""],
       ["NAVLUNGO_SENDER_ADDRESS_ID", "", "Navlungo kayıtlı gönderici adres ID", "Hayır", now, "Script Properties önceliklidir"],
       ["NAVLUNGO_DEFAULT_CARRIER_ID", "1", "Varsayılan taşıyıcı ID", "Evet", now, "1 otomatik kapsam ayarıdır"],
       ["NAVLUNGO_DEFAULT_POST_TYPE", "2", "Varsayılan gönderi tipi", "Evet", now, "2 standart teslimat"],
       ["NAVLUNGO_DEFAULT_DESI", "1", "Varsayılan desi", "Evet", now, ""],
       ["NAVLUNGO_DEFAULT_PACKAGE_COUNT", "1", "Varsayılan paket adedi", "Evet", now, ""],
-      ["NAVLUNGO_CARRIER_ID_MAP_JSON", "{}", "Panel kargo firması -> Navlungo carrier_id map JSON", "Hayır", now, "Boşsa varsayılan carrier ID kullanılır"],
+      ["NAVLUNGO_CARRIER_ID_MAP_JSON", "{\"Aras Kargo\":\"1\",\"Yurtiçi Kargo\":\"2\"}", "Panel kargo firması -> Navlungo carrier_id map JSON", "Evet", now, "Kargo firması varsa map eşleşmesi zorunludur"],
       ["SISTEM_OPERASYON_SAATI_KAPANIS", CFG.cutoff, "Operasyon kapanış saati", "Evet", now, ""],
       ["TCKN_VARSAYILAN_GERCEK_KISI", CFG.defaultTckn, "Gerçek kişi TCKN boş ise kullanılır", "Evet", now, ""],
       ["BANKA_HAREKET_MODULU_AKTIF", "Evet", "14_BANKA_HAREKETLERI ödeme teyit yardımcısıdır", "Evet", now, ""],
@@ -3387,11 +3388,46 @@ var TK6 = (function () {
   }
 
   function navlungoBaglantiTestiTam_() {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
     var props = PropertiesService.getScriptProperties();
     var keys = navlungoRequiredPropertyKeys_();
-    var status = keys.map(function (key) { return { key: key, exists: !!props.getProperty(key) || setting_(SpreadsheetApp.getActiveSpreadsheet(), key, "") !== "" }; });
-    var token = navlungoTokenAl_();
+    var usernameExists = !!props.getProperty("NAVLUNGO_API_USERNAME");
+    var passwordExists = !!props.getProperty("NAVLUNGO_API_PASSWORD");
+    Logger.log((usernameExists ? "[OK] " : "[HATA] ") + "NAVLUNGO_API_USERNAME " + (usernameExists ? "var" : "yok"));
+    Logger.log((passwordExists ? "[OK] " : "[HATA] ") + "NAVLUNGO_API_PASSWORD " + (passwordExists ? "var" : "yok"));
+    var status = keys.map(function (key) {
+      var exists = key === "NAVLUNGO_API_USERNAME" || key === "NAVLUNGO_API_PASSWORD"
+        ? !!props.getProperty(key)
+        : setting_(ss, key, "") !== "";
+      return { key: key, exists: exists };
+    });
+    if (!usernameExists || !passwordExists) {
+      var missingMessage = "NAVLUNGO_API_USERNAME veya NAVLUNGO_API_PASSWORD Script Properties içinde eksik. API testi yapılamaz.";
+      Logger.log("[HATA] " + missingMessage);
+      return {
+        ok: false,
+        env: navlungoEnv_(),
+        baseUrl: navlungoBaseUrl_(),
+        properties: status,
+        token: { ok: false, status: missingMessage },
+        carrier: { ok: false, status: "Credential eksik" },
+        livePost: "Yapılmadı",
+        error: missingMessage
+      };
+    }
+    var token;
+    try {
+      token = navlungoTokenAl_();
+      Logger.log("[OK] Navlungo token alındı");
+    } catch (err) {
+      Logger.log("[HATA] Navlungo token alınamadı: " + safeErrorMessage_(err));
+      throw err;
+    }
     var carrier = navlungoCarrierListesiAl_();
+    Logger.log((carrier.ok ? "[OK] Navlungo carrier kontrolü başarılı" : "[HATA] Navlungo carrier kontrolü başarısız: " + carrier.status));
+    Logger.log("[OK] NAVLUNGO_ENV = " + navlungoEnv_());
+    Logger.log(yes_(setting_(ss, CFG.liveNavlungoSendSetting, "Hayır")) ? "[HATA] NAVLUNGO_CANLI_GONDERIM açık" : "[OK] NAVLUNGO_CANLI_GONDERIM kapalı");
+    Logger.log("[OK] Canlı gönderi POST yapılmadı");
     return {
       ok: status.every(function (x) { return x.exists; }) && token.ok && carrier.ok,
       env: navlungoEnv_(),
@@ -3406,9 +3442,9 @@ var TK6 = (function () {
   function navlungoTaslakPayloadOlustur_(kargoPaketId) {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var cargo = navlungoCargoRow_(ss, kargoPaketId);
-    var issues = navlungoCargoIssues_(cargo);
+    var issues = navlungoCargoIssues_(ss, cargo);
     if (issues.length) {
-      navlungoErrorYaz_(ss, cargo[H.CARGO_PACKAGE_ID], issues.join("; "), "08_KARGO_PAKETLERI kargo alıcı, telefon, il, ilçe ve adres alanlarını tamamlayın.");
+      navlungoErrorYaz_(ss, cargo[H.CARGO_PACKAGE_ID], "Navlungo payload üretilemedi: " + issues.join("; "), "08_KARGO_PAKETLERI kargo alıcı, telefon, il, ilçe, adres ve gönderici adres ID alanlarını tamamlayın.");
       throw new Error("Navlungo kargo payload blokajı: " + issues.join("; "));
     }
     var carrier;
@@ -3440,13 +3476,15 @@ var TK6 = (function () {
         custom_data_4: navlungoEnv_()
       }]
     };
+    var hash = navlungoPayloadHash_(payload);
     patchRowsByKey_(sheet_(ss, CFG.sheets.cargo), H.CARGO_PACKAGE_ID, cargo[H.CARGO_PACKAGE_ID], {
       [H.NAVLUNGO_REFERENCE_ID]: referenceId,
       [H.NAVLUNGO_CARRIER_ID]: carrier.id,
       [H.NAVLUNGO_CARRIER_NAME]: carrier.name,
       [H.NAVLUNGO_STATUS]: "Payload Hazır",
-      [H.NAVLUNGO_TEST]: cargo[H.NAVLUNGO_TEST] || (navlungoEnv_() === "QA" ? "Evet" : "Hayır"),
-      [H.NAVLUNGO_PAYLOAD_HASH]: navlungoPayloadHash_(payload),
+      [H.NAVLUNGO_TEST]: "Evet",
+      [H.NAVLUNGO_PAYLOAD_HASH]: hash,
+      [H.NAVLUNGO_LAST_RESPONSE]: "Payload hazır; reference_id=" + referenceId + "; hash=" + hash,
       [H.NAVLUNGO_LAST_ERROR]: ""
     });
     return payload;
@@ -3581,9 +3619,9 @@ var TK6 = (function () {
   function navlungoRequiredPropertyKeys_() {
     return [
       "NAVLUNGO_API_USERNAME", "NAVLUNGO_API_PASSWORD", "NAVLUNGO_ENV",
-      "NAVLUNGO_CANLI_GONDERIM", "NAVLUNGO_SENDER_ADDRESS_ID",
+      "NAVLUNGO_CANLI_GONDERIM", "NAVLUNGO_TEST_MODE", "NAVLUNGO_SENDER_ADDRESS_ID",
       "NAVLUNGO_DEFAULT_CARRIER_ID", "NAVLUNGO_DEFAULT_POST_TYPE",
-      "NAVLUNGO_DEFAULT_DESI", "NAVLUNGO_DEFAULT_PACKAGE_COUNT"
+      "NAVLUNGO_DEFAULT_DESI", "NAVLUNGO_DEFAULT_PACKAGE_COUNT", "NAVLUNGO_CARRIER_ID_MAP_JSON"
     ];
   }
 
@@ -3649,14 +3687,15 @@ var TK6 = (function () {
     return row;
   }
 
-  function navlungoCargoIssues_(cargo) {
+  function navlungoCargoIssues_(ss, cargo) {
     var issues = [];
     if (!cargo[H.CARGO_PACKAGE_ID]) issues.push("Kargo_Paket_ID eksik");
     if (!cargo[H.CARGO_RECEIVER]) issues.push("Kargo_Alıcısı eksik");
-    if (!normalizePhone_(cargo[H.CARGO_TEL])) issues.push("Kargo_Tel eksik veya geçersiz");
+    if (!normalizePhone_(cargo[H.CARGO_TEL])) issues.push("Kargo_Tel eksik");
     if (!cargo[H.CITY]) issues.push("İl eksik");
     if (!cargo[H.DISTRICT]) issues.push("İlçe eksik");
     if (!cargo[H.ADDRESS]) issues.push("Adres eksik");
+    if (!String(setting_(ss, "NAVLUNGO_SENDER_ADDRESS_ID", "") || "").trim()) issues.push("NAVLUNGO_SENDER_ADDRESS_ID eksik");
     return issues;
   }
 
@@ -3685,7 +3724,7 @@ var TK6 = (function () {
       [H.NAVLUNGO_PAYLOAD_HASH]: navlungoPayloadHash_(payload || {}),
       [H.NAVLUNGO_STATUS]: "Canlı POST yapılmadı",
       [H.NAVLUNGO_LAST_ERROR]: reason,
-      [H.NAVLUNGO_TEST]: navlungoEnv_() === "QA" ? "Evet" : "Hayır"
+      [H.NAVLUNGO_TEST]: yes_(setting_(ss, "NAVLUNGO_TEST_MODE", "Evet")) ? "Evet" : (navlungoEnv_() === "QA" ? "Evet" : "Hayır")
     });
     return { ok: true, kargoPaketId: kargoPaketId, payload: payload, livePost: "Yapılmadı", status: reason };
   }
@@ -3714,8 +3753,15 @@ var TK6 = (function () {
     var raw = setting_(ss, "NAVLUNGO_CARRIER_ID_MAP_JSON", "{}") || "{}";
     var map = {};
     try { map = JSON.parse(raw); } catch (err) { throw new Error("NAVLUNGO_CARRIER_ID_MAP_JSON geçerli JSON değil."); }
-    var carrierId = map[company] || map[normalizeAscii_(company)] || setting_(ss, "NAVLUNGO_DEFAULT_CARRIER_ID", "");
-    if (!carrierId) throw new Error("Carrier ID yok: " + company + " için NAVLUNGO_CARRIER_ID_MAP_JSON veya NAVLUNGO_DEFAULT_CARRIER_ID doldurun.");
+    var carrierId = "";
+    if (company) {
+      carrierId = map[company] || map[normalizeAscii_(company)] || "";
+      if (!carrierId) throw new Error("Navlungo carrier_id bulunamadı: " + company + ". NAVLUNGO_CARRIER_ID_MAP_JSON kontrol edilmeli.");
+    } else {
+      carrierId = setting_(ss, "NAVLUNGO_DEFAULT_CARRIER_ID", "");
+      if (!carrierId) throw new Error("Navlungo carrier_id bulunamadı: varsayılan. NAVLUNGO_DEFAULT_CARRIER_ID kontrol edilmeli.");
+      company = "Varsayılan";
+    }
     carrierId = numberOrDefault_(carrierId, 0);
     if (!carrierId) throw new Error("Carrier ID sayısal değil: " + company + " için carrier_id kontrol edin.");
     return { id: carrierId, name: company || "Varsayılan" };
@@ -3727,8 +3773,11 @@ var TK6 = (function () {
   }
 
   function navlungoFirstReadyCargoId_(ss) {
-    var row = objects_(sheet_(ss, CFG.sheets.cargo)).filter(function (r) { return r[H.CARGO_PACKAGE_ID]; })[0];
-    if (!row) throw new Error("Payload üretilecek kargo paketi yok.");
+    var row = objects_(sheet_(ss, CFG.sheets.cargo)).filter(function (r) {
+      var status = normalizeAscii_(r[H.PACKAGE_STATUS] || "");
+      return r[H.CARGO_PACKAGE_ID] && (status === "bekliyor" || status === "hazir");
+    })[0];
+    if (!row) throw new Error("Dry-run için uygun 08_KARGO_PAKETLERI satırı bulunamadı.");
     return row[H.CARGO_PACKAGE_ID];
   }
 
