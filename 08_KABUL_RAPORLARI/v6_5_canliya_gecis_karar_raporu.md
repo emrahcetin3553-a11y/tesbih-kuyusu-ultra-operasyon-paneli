@@ -40,3 +40,17 @@ Gerçek Apps Script ortamında canlı POST yapılmadığı ayrıca yürütme gü
 ## Sonuç
 
 V6.5 dosya ve mock kapıları geçti. Gerçek UI kanıtı tamamlanmadan `%95 geçti`, `canlı kabul tamamlandı` veya `üretim hazır` denmemelidir.
+
+## V6.5 Navlungo Ek Kontrolü
+
+Yerel testte `navlungoPostCalls = 0` doğrulandı. `NAVLUNGO_CANLI_GONDERIM = Hayır` iken gönderi oluşturma, barkod oluşturma ve iptal POST çağrıları yapılmadı; yalnız dry-run payload ve GET sorgu akışı test edildi.
+
+Gerçek QA test sırası:
+
+1. `NAVLUNGO_ENV = QA`, `NAVLUNGO_TEST_MODE = Evet`, `NAVLUNGO_CANLI_GONDERIM = Hayır` bırakılır.
+2. `NAVLUNGO_API_USERNAME` ve `NAVLUNGO_API_PASSWORD` Script Properties içinde var/yok olarak doğrulanır.
+3. `navlungoApiBaglantiTesti()` çalıştırılır.
+4. Test kargo paketi için `navlungoKargoDryRun(kargoPaketId)` çalıştırılır.
+5. 08 sayfasında `Navlungo_Payload_JSON`, `Navlungo_Durum`, `Test_Kargo_Mu` alanları kontrol edilir.
+6. İlk gerçek QA gönderi denemesi yalnız kontrollü alıcıyla ve en fazla 3 barkodla yapılır.
+7. 3/3 başarı, sorgu ve iptal kanıtı olmadan 10 veya 50 barkod testine geçilmez.

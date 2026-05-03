@@ -103,12 +103,27 @@ const props = {
   PARASUT_CANLI_GONDERIM: "Hayır",
   PARASUT_CARI_CANLI_OLUSTURMA: "Hayır",
   EBELGE_CANLI_GONDERIM: "Hayır",
-  NAVLUNGO_CANLI_GONDERIM: "Hayır"
+  NAVLUNGO_API_USERNAME: "qa_user",
+  NAVLUNGO_API_PASSWORD: "qa_pass",
+  NAVLUNGO_ENV: "QA",
+  NAVLUNGO_CANLI_GONDERIM: "Hayır",
+  NAVLUNGO_TEST_MODE: "Evet",
+  NAVLUNGO_SENDER_ADDRESS_ID: "ADDR-1",
+  NAVLUNGO_DEFAULT_CARRIER_ID: "1",
+  NAVLUNGO_DEFAULT_POST_TYPE: "2",
+  NAVLUNGO_DEFAULT_BARCODE_FORMAT: "pdf",
+  NAVLUNGO_SENDER_NAME: "Tesbih Kuyusu",
+  NAVLUNGO_SENDER_PHONE: "+905551110000",
+  NAVLUNGO_SENDER_ADDRESS: "Kontrollü gönderici adresi",
+  NAVLUNGO_SENDER_CITY: "İzmir",
+  NAVLUNGO_SENDER_DISTRICT: "Menderes"
 };
 const docProps = {};
 let salesPostCalls = 0;
 let contactPostCalls = 0;
 let tokenRefreshCalls = 0;
+let navlungoAuthCalls = 0;
+let navlungoPostCalls = 0;
 function response(status, body) {
   return { getResponseCode: () => status, getContentText: () => JSON.stringify(body || {}) };
 }
@@ -158,6 +173,25 @@ const sandbox = {
       if (url.includes("/oauth/token")) {
         tokenRefreshCalls++;
         return response(200, { access_token: "token-" + tokenRefreshCalls, refresh_token: "refresh-" + tokenRefreshCalls, expires_in: 7200 });
+      }
+      if (url.includes("domestic-api") && url.includes("auth/api")) {
+        navlungoAuthCalls++;
+        return response(200, { access_token: "nav-token-" + navlungoAuthCalls, token_type: "Bearer", expires_in: 3600 });
+      }
+      if (url.includes("domestic-api") && method === "post" && url.includes("post/create")) {
+        navlungoPostCalls++;
+        return response(201, { post_number: "NL-QA-1", tracking_url: "https://qa.navlungo.test/track/NL-QA-1", barcode_url: "https://qa.navlungo.test/label/NL-QA-1.pdf" });
+      }
+      if (url.includes("domestic-api") && method === "post" && url.includes("barcode/getBarcode")) {
+        navlungoPostCalls++;
+        return response(200, { data: { barcode_url: "https://qa.navlungo.test/label/NL-QA-1.pdf" } });
+      }
+      if (url.includes("domestic-api") && method === "get" && url.includes("post/check/")) {
+        return response(200, { data: { status: { status_name: "QA hazır" }, tracking_url: "https://qa.navlungo.test/track/NL-QA-1", barcode: "https://qa.navlungo.test/label/NL-QA-1.pdf" } });
+      }
+      if (url.includes("domestic-api") && method === "post" && url.includes("post/cancel")) {
+        navlungoPostCalls++;
+        return response(200, { ok: true, message: "QA iptal edildi" });
       }
       if (method === "post" && url.includes("/sales_invoices")) {
         salesPostCalls++;
@@ -278,10 +312,31 @@ assert(html.includes("Yeni sipariş ekle"), "Çoklu sipariş aynı panelde yeni 
 assert(!/Toplu sipariş paneli/.test(html), "Ayrı toplu panel metni aktif panelde olmamalı");
 assert(!/sipariÅ|MÃ|Ãœ|Ã–|ParaÅ/.test(html), "Panelde bozuk Türkçe karakter kalmamalı");
 
+const cargoPackageId = rows(CFG.sheets.cargo)[0][H.CARGO_PACKAGE_ID];
+const navDry = sandbox.navlungoKargoDryRun(cargoPackageId);
+assert(navDry.ok === true, "Navlungo dry-run payload üretmeli");
+assert(navDry.payload.posts[0].recipient.name === "Navlungo QA Test Alıcı", "Test modunda kontrollü Navlungo alıcısı kullanılmalı");
+assert(rows(CFG.sheets.cargo)[0][H.NAVLUNGO_PAYLOAD_JSON], "08_KARGO_PAKETLERI Navlungo payload JSON readback içermeli");
+assert(rows(CFG.sheets.cargo)[0][H.TEST_CARGO] === "Evet", "Navlungo test kargo işareti yazılmalı");
+const navApi = sandbox.navlungoApiBaglantiTesti();
+assert(navApi.ok === true && navlungoAuthCalls > 0, "Navlungo token testi çalışmalı");
+const navCreateClosed = sandbox.navlungoKargoOlusturOnayli(cargoPackageId);
+assert(navCreateClosed.livePost === "Yapılmadı", "NAVLUNGO_CANLI_GONDERIM Hayır iken gönderi POST yapılmamalı");
+patchRows(CFG.sheets.cargo, H.CARGO_PACKAGE_ID, cargoPackageId, { [H.NAVLUNGO_POST_ID]: "NL-QA-1", [H.TEST_CARGO]: "Evet" });
+const navCheck = sandbox.navlungoKargoSorgula(cargoPackageId);
+assert(navCheck.ok === true, "Navlungo kargo sorgulama GET akışı çalışmalı");
+const navBarcodeClosed = sandbox.navlungoBarkodOlustur(cargoPackageId);
+assert(navBarcodeClosed.livePost === "Yapılmadı", "NAVLUNGO_CANLI_GONDERIM Hayır iken barkod POST yapılmamalı");
+const navCancelClosed = sandbox.navlungoKargoIptalEt(cargoPackageId);
+assert(navCancelClosed.livePost === "Yapılmadı", "NAVLUNGO_CANLI_GONDERIM Hayır iken iptal POST yapılmamalı");
+const navBulk = sandbox.navlungoTopluKargoTestEt(3);
+assert(navBulk.livePost === "Yapılmadı", "Navlungo toplu test dry-run kalmalı");
+
 const api = sandbox.parasutApiBaglantiTestiTam();
 assert(api.ok === false || api, "Paraşüt GET test fonksiyonu çalışmalı");
 assert(salesPostCalls === 0, "PARASUT_CANLI_GONDERIM Hayır iken sales invoice POST yapılmamalı");
 assert(contactPostCalls === 0, "PARASUT_CARI_CANLI_OLUSTURMA Hayır iken contact POST yapılmamalı");
+assert(navlungoPostCalls === 0, "NAVLUNGO_CANLI_GONDERIM Hayır iken Navlungo POST yapılmamalı");
 
 console.log(JSON.stringify({
   ok: true,
@@ -290,5 +345,7 @@ console.log(JSON.stringify({
   addressRows: rows(CFG.sheets.addressMemory).length,
   salesPostCalls,
   contactPostCalls,
-  tokenRefreshCalls
+  tokenRefreshCalls,
+  navlungoAuthCalls,
+  navlungoPostCalls
 }, null, 2));

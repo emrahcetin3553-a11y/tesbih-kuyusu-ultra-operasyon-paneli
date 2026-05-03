@@ -40,6 +40,8 @@
     .status { white-space:pre-wrap; border:1px solid var(--line); border-radius:8px; padding:10px; background:#fff; min-height:74px; }
     .badge { display:inline-block; padding:3px 7px; border-radius:999px; background:#e8eef6; margin-right:6px; font-size:12px; }
     .muted { color:var(--muted); font-size:12px; }
+    .actions-inline { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+    .actions-inline button { padding:8px 10px; }
     .readonly { background:#f4f7fb; }
     .silver { display:none; }
     .line.is-silver .silver { display:block; }
@@ -91,6 +93,16 @@
         <div class="c2"><label>Kargo_Firması</label><select data-field="kargoFirmasi" class="cargo-company"></select></div>
         <div class="c8"><label>Adres</label><input data-field="adres"></div>
         <div class="c4"><label>Paket_Notu</label><input data-field="paketNotu"></div>
+        <div class="c12">
+          <label>Navlungo durumu</label>
+          <div class="actions-inline">
+            <button type="button" class="secondary" onclick="navlungoAction(this.closest('.order-card'), 'dry')">Payload hazırla</button>
+            <button type="button" class="secondary" onclick="navlungoAction(this.closest('.order-card'), 'create')">Kargo oluştur</button>
+            <button type="button" class="secondary" onclick="navlungoAction(this.closest('.order-card'), 'barcode')">Barkod oluştur</button>
+            <button type="button" class="secondary" onclick="navlungoAction(this.closest('.order-card'), 'check')">Kargo sorgula</button>
+            <button type="button" class="secondary" onclick="navlungoAction(this.closest('.order-card'), 'cancel')">Kargo iptal et</button>
+          </div>
+        </div>
       </div>
     </section>
     <section>
@@ -706,6 +718,27 @@
     google.script.run.withSuccessHandler(res => setCardStatus(card, summarize(res)))
       .withFailureHandler(err => setCardStatus(card, "HATA: " + (err.message || err)))
       .faturaVeKargoOlustur(openId);
+  }
+  function currentCargoPackageId(card) {
+    const openId = card.dataset.openId || "";
+    return openId ? `KP-${openId}` : "";
+  }
+  function navlungoAction(card, action) {
+    const kargoPaketId = currentCargoPackageId(card);
+    if (!kargoPaketId) {
+      setCardStatus(card, "Navlungo işlemi için önce Kaydet ve ERP güncelle çalıştırılmalı.");
+      return;
+    }
+    setCardStatus(card, "Navlungo işlemi çalışıyor...");
+    const runner = google.script.run
+      .withSuccessHandler(res => setCardStatus(card, summarize(res)))
+      .withFailureHandler(err => setCardStatus(card, "HATA: " + (err.message || err)));
+    if (action === "dry") runner.navlungoKargoDryRun(kargoPaketId);
+    else if (action === "create") runner.navlungoKargoOlusturOnayli(kargoPaketId);
+    else if (action === "barcode") runner.navlungoBarkodOlustur(kargoPaketId);
+    else if (action === "check") runner.navlungoKargoSorgula(kargoPaketId);
+    else if (action === "cancel") runner.navlungoKargoIptalEt(kargoPaketId);
+    else setCardStatus(card, "Bilinmeyen Navlungo işlemi.");
   }
 
   google.script.run.withSuccessHandler(data => {
