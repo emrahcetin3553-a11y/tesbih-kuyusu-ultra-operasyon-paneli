@@ -158,18 +158,19 @@ var TK6 = (function () {
     TRACKING_NO: "Takip_No",
     LATE_ADD: "Geç_Ekleme_Var_Mı",
     PACKAGE_NOTE: "Paket_Notu",
-    NAVLUNGO_POST_ID: "Navlungo_Gonderi_ID",
-    NAVLUNGO_BARCODE_NO: "Navlungo_Barkod_No",
-    NAVLUNGO_TRACKING_NO: "Navlungo_Takip_No",
-    NAVLUNGO_LABEL_URL: "Navlungo_Etiket_URL",
-    NAVLUNGO_STATUS: "Navlungo_Durum",
-    NAVLUNGO_ERROR: "Navlungo_Hata_Mesaji",
-    NAVLUNGO_PAYLOAD_JSON: "Navlungo_Payload_JSON",
-    NAVLUNGO_RESPONSE_JSON: "Navlungo_Response_JSON",
-    TEST_CARGO: "Test_Kargo_Mu",
-    NAVLUNGO_CREATED_AT: "Navlungo_Olusturma_Tarihi",
-    NAVLUNGO_CANCELLED_AT: "Navlungo_Iptal_Tarihi",
-    NAVLUNGO_CANCEL_RESULT: "Navlungo_Iptal_Sonucu",
+    NAVLUNGO_POST_NUMBER: "Navlungo_Post_Number",
+    NAVLUNGO_REFERENCE_ID: "Navlungo_Reference_ID",
+    NAVLUNGO_TRACKING_URL: "Navlungo_Tracking_URL",
+    NAVLUNGO_BARCODE_URL: "Navlungo_Barcode_URL",
+    NAVLUNGO_CARRIER_ID: "Navlungo_Carrier_ID",
+    NAVLUNGO_CARRIER_NAME: "Navlungo_Carrier_Name",
+    NAVLUNGO_STATUS: "Navlungo_Status",
+    NAVLUNGO_LAST_RESPONSE: "Navlungo_Last_Response",
+    NAVLUNGO_LAST_ERROR: "Navlungo_Last_Error",
+    NAVLUNGO_CREATED_AT: "Navlungo_Created_At",
+    NAVLUNGO_CANCELLED_AT: "Navlungo_Cancelled_At",
+    NAVLUNGO_TEST: "Navlungo_Test_Mu",
+    NAVLUNGO_PAYLOAD_HASH: "Navlungo_Payload_Hash",
     ADDRESS_ID: "Adres_ID",
     DEFAULT_ADDRESS: "Varsayılan_Mı",
     ADDRESS_STATUS: "Adres_Durumu",
@@ -263,10 +264,10 @@ var TK6 = (function () {
     cargo: [
       H.CARGO_PACKAGE_ID, H.OPEN_ID, H.CARGO_RECEIVER, H.CARGO_TEL, H.CITY, H.DISTRICT,
       H.ADDRESS, H.CARGO_COMPANY, H.PACKAGE_STATUS, H.BARCODE, H.TRACKING_NO, H.LATE_ADD,
-      H.PACKAGE_NOTE, H.NAVLUNGO_POST_ID, H.NAVLUNGO_BARCODE_NO, H.NAVLUNGO_TRACKING_NO,
-      H.NAVLUNGO_LABEL_URL, H.NAVLUNGO_STATUS, H.NAVLUNGO_ERROR, H.NAVLUNGO_PAYLOAD_JSON,
-      H.NAVLUNGO_RESPONSE_JSON, H.TEST_CARGO, H.NAVLUNGO_CREATED_AT, H.NAVLUNGO_CANCELLED_AT,
-      H.NAVLUNGO_CANCEL_RESULT, H.WARN
+      H.PACKAGE_NOTE, H.NAVLUNGO_POST_NUMBER, H.NAVLUNGO_REFERENCE_ID, H.NAVLUNGO_TRACKING_URL,
+      H.NAVLUNGO_BARCODE_URL, H.NAVLUNGO_CARRIER_ID, H.NAVLUNGO_CARRIER_NAME, H.NAVLUNGO_STATUS,
+      H.NAVLUNGO_LAST_RESPONSE, H.NAVLUNGO_LAST_ERROR, H.NAVLUNGO_CREATED_AT, H.NAVLUNGO_CANCELLED_AT,
+      H.NAVLUNGO_TEST, H.NAVLUNGO_PAYLOAD_HASH, H.WARN
     ],
     memory: [
       H.PHONE, H.OWNER, "Son_Kargo_Alıcısı", "Son_Kargo_Tel", "Son_İl", "Son_İlçe",
@@ -323,8 +324,8 @@ var TK6 = (function () {
       .addItem("Banka hareketlerini içeri al", "bankaHareketleriniIceriAl")
       .addItem("Banka hareketlerini eşleştir", "bankaHareketleriniEsle")
       .addItem("Banka eşleşmelerini kontrol et", "bankaEslesmeKontrolMerkeziniGuncelle")
-      .addItem("Navlungo API bağlantı testi", "navlungoApiBaglantiTesti")
-      .addItem("Navlungo toplu kargo testi", "navlungoTopluKargoTestEt");
+      .addItem("Navlungo API bağlantı testi", "navlungoBaglantiTestiTam")
+      .addItem("Navlungo toplu kargo oluştur", "navlungoTopluKargoOlustur");
     ui.createMenu("TESBİH KUYUSU PANEL")
       .addItem("Ultra sipariş paneli", "ultraSiparisPaneli")
       .addItem("Seçili siparişi düzenle", "seciliSiparisiDuzenle")
@@ -2145,7 +2146,7 @@ var TK6 = (function () {
     return true;
   }
 
-  function kontrolMerkezineTeknikBlokajYaz_(ss, sourceSheet, sourceId, message, action) {
+  function kontrolMerkezineTeknikBlokajYaz_(ss, sourceSheet, sourceId, message, action, moduleName) {
     var rows = objects_(sheet_(ss, CFG.sheets.control)).filter(function (row) {
       return !(row[H.SOURCE_SHEET] === sourceSheet && row[H.SOURCE_ID] === sourceId && row[H.CTRL_TYPE] === "Panel teknik kontrol");
     });
@@ -2161,7 +2162,7 @@ var TK6 = (function () {
       [H.ACTION_EXPECTED]: action,
       [H.RESPONSIBLE]: "Operatör",
       [H.IS_BLOCK]: "Evet",
-      [H.MODULE]: "Paraşüt"
+      [H.MODULE]: moduleName || "Paraşüt"
     });
     writeObjects_(sheet_(ss, CFG.sheets.control), HEADERS.control, rows);
   }
@@ -2728,12 +2729,13 @@ var TK6 = (function () {
       ["PARASUT_CARI_CANLI_OLUSTURMA", "Hayır", "Evet olmadan Paraşüt cari POST yapılmaz", "Evet", now, ""],
       ["EBELGE_CANLI_GONDERIM", "Hayır", "Evet olmadan e-Belge/e-Fatura canlı gönderimi yapılmaz", "Evet", now, ""],
       ["NAVLUNGO_CANLI_GONDERIM", "Hayır", "Evet olmadan canlı kargo gönderimi yapılmaz", "Evet", now, ""],
-      ["NAVLUNGO_ENV", "QA", "QA veya LIVE Navlungo ortamı", "Evet", now, "İlk test QA olmalı"],
-      ["NAVLUNGO_TEST_MODE", "Evet", "İlk gerçek testlerde Evet kalmalı", "Evet", now, "Evet iken kontrollü alıcı bilgisi kullanılır"],
+      ["NAVLUNGO_ENV", "QA", "QA veya LIVE Navlungo ortamı", "Evet", now, "Varsayılan QA kalır"],
       ["NAVLUNGO_SENDER_ADDRESS_ID", "", "Navlungo kayıtlı gönderici adres ID", "Hayır", now, "Script Properties önceliklidir"],
       ["NAVLUNGO_DEFAULT_CARRIER_ID", "1", "Varsayılan taşıyıcı ID", "Evet", now, "1 otomatik kapsam ayarıdır"],
       ["NAVLUNGO_DEFAULT_POST_TYPE", "2", "Varsayılan gönderi tipi", "Evet", now, "2 standart teslimat"],
-      ["NAVLUNGO_DEFAULT_BARCODE_FORMAT", "pdf", "Varsayılan barkod tipi", "Evet", now, "barcode/getBarcode için pdf"],
+      ["NAVLUNGO_DEFAULT_DESI", "1", "Varsayılan desi", "Evet", now, ""],
+      ["NAVLUNGO_DEFAULT_PACKAGE_COUNT", "1", "Varsayılan paket adedi", "Evet", now, ""],
+      ["NAVLUNGO_CARRIER_ID_MAP_JSON", "{}", "Panel kargo firması -> Navlungo carrier_id map JSON", "Hayır", now, "Boşsa varsayılan carrier ID kullanılır"],
       ["SISTEM_OPERASYON_SAATI_KAPANIS", CFG.cutoff, "Operasyon kapanış saati", "Evet", now, ""],
       ["TCKN_VARSAYILAN_GERCEK_KISI", CFG.defaultTckn, "Gerçek kişi TCKN boş ise kullanılır", "Evet", now, ""],
       ["BANKA_HAREKET_MODULU_AKTIF", "Evet", "14_BANKA_HAREKETLERI ödeme teyit yardımcısıdır", "Evet", now, ""],
@@ -2957,9 +2959,9 @@ var TK6 = (function () {
     sh.getRange(2, 1, values.length, sh.getLastColumn()).setValues(values);
   }
 
-  function kontrolMerkezindeKritikBlokajVar_(ss) {
+  function kontrolMerkezindeKritikBlokajVar_(ss, moduleName) {
     return objects_(sheet_(ss, CFG.sheets.control)).some(function (row) {
-      return row[H.STATUS] === "Açık" && row[H.IS_BLOCK] === "Evet";
+      return row[H.STATUS] === "Açık" && row[H.IS_BLOCK] === "Evet" && (!moduleName || row[H.MODULE] === moduleName);
     });
   }
 
@@ -3384,160 +3386,204 @@ var TK6 = (function () {
     return { ok: true, status: "Navlungo token alındı", tokenType: parsed.token_type || "Bearer", expiresIn: parsed.expires_in || "" };
   }
 
-  function navlungoApiBaglantiTesti_() {
+  function navlungoBaglantiTestiTam_() {
     var props = PropertiesService.getScriptProperties();
     var keys = navlungoRequiredPropertyKeys_();
     var status = keys.map(function (key) { return { key: key, exists: !!props.getProperty(key) || setting_(SpreadsheetApp.getActiveSpreadsheet(), key, "") !== "" }; });
     var token = navlungoTokenAl_();
-    return { ok: status.every(function (x) { return x.exists; }) && token.ok, env: navlungoEnv_(), baseUrl: navlungoBaseUrl_(), properties: status, token: token, livePost: "Yapılmadı" };
+    var carrier = navlungoCarrierListesiAl_();
+    return {
+      ok: status.every(function (x) { return x.exists; }) && token.ok && carrier.ok,
+      env: navlungoEnv_(),
+      baseUrl: navlungoBaseUrl_(),
+      properties: status,
+      token: token,
+      carrier: carrier,
+      livePost: "Yapılmadı"
+    };
   }
 
-  function navlungoTaslakPayloadHazirla_(kargoPaketId) {
+  function navlungoTaslakPayloadOlustur_(kargoPaketId) {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var cargo = navlungoCargoRow_(ss, kargoPaketId);
     var issues = navlungoCargoIssues_(cargo);
-    if (issues.length) throw new Error("Navlungo kargo payload blokajı: " + issues.join("; "));
-    var testMode = yes_(setting_(ss, "NAVLUNGO_TEST_MODE", "Evet"));
-    var recipient = testMode ? navlungoControlledRecipient_(cargo) : navlungoRecipientFromCargo_(cargo);
+    if (issues.length) {
+      navlungoErrorYaz_(ss, cargo[H.CARGO_PACKAGE_ID], issues.join("; "), "08_KARGO_PAKETLERI kargo alıcı, telefon, il, ilçe ve adres alanlarını tamamlayın.");
+      throw new Error("Navlungo kargo payload blokajı: " + issues.join("; "));
+    }
+    var carrier;
+    try { carrier = navlungoCarrierInfo_(ss, cargo); }
+    catch (err) {
+      navlungoErrorYaz_(ss, cargo[H.CARGO_PACKAGE_ID], safeErrorMessage_(err), "01_AYARLAR içindeki Navlungo taşıyıcı ayarlarını tamamlayın.");
+      throw err;
+    }
+    var referenceId = cargo[H.NAVLUNGO_REFERENCE_ID] || cargo[H.CARGO_PACKAGE_ID] || cargo[H.OPEN_ID];
+    var recipient = navlungoRecipientFromCargo_(ss, cargo);
     var payload = {
       platform: "tesbih_kuyusu",
       posts: [{
-        reference_id: cargo[H.CARGO_PACKAGE_ID],
-        carrier_id: numberOrDefault_(setting_(ss, "NAVLUNGO_DEFAULT_CARRIER_ID", "1"), 1),
+        reference_id: referenceId,
+        carrier_id: carrier.id,
         post_type: numberOrDefault_(setting_(ss, "NAVLUNGO_DEFAULT_POST_TYPE", "2"), 2),
         cod_payment_type: "",
-        sender_address_id: setting_(ss, "NAVLUNGO_SENDER_ADDRESS_ID", ""),
-        sender: navlungoSender_(ss),
+        sender: { addressId: String(setting_(ss, "NAVLUNGO_SENDER_ADDRESS_ID", "") || "") },
         recipient: recipient,
         post: {
-          desi: 1,
-          package_count: 1,
+          desi: numberOrDefault_(setting_(ss, "NAVLUNGO_DEFAULT_DESI", "1"), 1),
+          package_count: numberOrDefault_(setting_(ss, "NAVLUNGO_DEFAULT_PACKAGE_COUNT", "1"), 1),
           price: "",
           note: cargo[H.PACKAGE_NOTE] || cargo[H.OPEN_ID] || ""
         },
-        barcode_format: setting_(ss, "NAVLUNGO_DEFAULT_BARCODE_FORMAT", "pdf") || "pdf",
         custom_data_1: cargo[H.OPEN_ID] || "",
         custom_data_2: cargo[H.CARGO_PACKAGE_ID] || "",
         custom_data_3: "TESBIH_KUYUSU",
-        custom_data_4: testMode ? "TEST" : ""
+        custom_data_4: navlungoEnv_()
       }]
     };
     patchRowsByKey_(sheet_(ss, CFG.sheets.cargo), H.CARGO_PACKAGE_ID, cargo[H.CARGO_PACKAGE_ID], {
-      [H.NAVLUNGO_PAYLOAD_JSON]: JSON.stringify(payload),
-      [H.NAVLUNGO_STATUS]: "Payload hazır",
-      [H.TEST_CARGO]: testMode ? "Evet" : "Hayır",
-      [H.NAVLUNGO_ERROR]: ""
+      [H.NAVLUNGO_REFERENCE_ID]: referenceId,
+      [H.NAVLUNGO_CARRIER_ID]: carrier.id,
+      [H.NAVLUNGO_CARRIER_NAME]: carrier.name,
+      [H.NAVLUNGO_STATUS]: "Payload Hazır",
+      [H.NAVLUNGO_TEST]: cargo[H.NAVLUNGO_TEST] || (navlungoEnv_() === "QA" ? "Evet" : "Hayır"),
+      [H.NAVLUNGO_PAYLOAD_HASH]: navlungoPayloadHash_(payload),
+      [H.NAVLUNGO_LAST_ERROR]: ""
     });
     return payload;
   }
 
-  function navlungoKargoDryRun_(kargoPaketId) {
-    var payload = navlungoTaslakPayloadHazirla_(kargoPaketId);
-    return { ok: true, kargoPaketId: kargoPaketId, payload: payload, livePost: "Yapılmadı", status: "Navlungo dry-run hazır" };
+  function navlungoKargoTaslakTestEt_(kargoPaketId) {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var target = kargoPaketId || navlungoFirstReadyCargoId_(ss);
+    var payload = navlungoTaslakPayloadOlustur_(target);
+    return { ok: true, kargoPaketId: target, payload: payload, livePost: "Yapılmadı", status: "Navlungo payload hazır" };
   }
 
   function navlungoKargoOlusturOnayli_(kargoPaketId) {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var cargo = navlungoCargoRow_(ss, kargoPaketId);
-    var payload = navlungoTaslakPayloadHazirla_(cargo[H.CARGO_PACKAGE_ID]);
+    var payload = navlungoTaslakPayloadOlustur_(cargo[H.CARGO_PACKAGE_ID]);
     if (!yes_(setting_(ss, CFG.liveNavlungoSendSetting, "Hayır"))) return navlungoNoPostResult_(cargo[H.CARGO_PACKAGE_ID], payload, "Canlı kargo gönderim kapısı kapalı");
-    navlungoRequireTestMode_(ss);
-    navlungoRequireFirstThreeLimit_(ss);
-    if (kontrolMerkezindeKritikBlokajVar_(ss, "NAVLUNGO")) throw new Error("Kontrol merkezi Navlungo blokajı içeriyor; kargo gönderimi durdu.");
-    var response = navlungoApiFetch_("post", "post/create", payload);
-    var postNumber = response.post_number || response.data && response.data.post_number || "";
-    var barcodeUrl = response.barcode_url || response.data && (response.data.barcode_url || response.data.barcode) || "";
-    var trackingUrl = response.tracking_url || response.data && response.data.tracking_url || "";
+    if (kontrolMerkezindeKritikBlokajVar_(ss, "Navlungo")) throw new Error("Kontrol merkezi Navlungo blokajı içeriyor; kargo gönderimi durdu.");
+    var response;
+    try { response = navlungoApiFetch_("post", "post/create", payload); }
+    catch (err) {
+      navlungoErrorYaz_(ss, cargo[H.CARGO_PACKAGE_ID], safeErrorMessage_(err), "Navlungo post/create payload ve hesap ayarlarını kontrol edin.");
+      throw err;
+    }
+    var postNumber = navlungoResponseValue_(response, ["post_number", "postNumber", "number"]);
+    var barcodeUrl = navlungoResponseValue_(response, ["barcode_url", "barcode", "barcodeUrl", "label_url"]);
+    var trackingUrl = navlungoResponseValue_(response, ["tracking_url", "trackingUrl", "carrier_tracking_url"]);
     patchRowsByKey_(sheet_(ss, CFG.sheets.cargo), H.CARGO_PACKAGE_ID, cargo[H.CARGO_PACKAGE_ID], {
-      [H.NAVLUNGO_POST_ID]: postNumber,
-      [H.NAVLUNGO_TRACKING_NO]: trackingUrl,
-      [H.NAVLUNGO_LABEL_URL]: barcodeUrl,
-      [H.NAVLUNGO_STATUS]: "Gönderi oluşturuldu",
-      [H.NAVLUNGO_RESPONSE_JSON]: JSON.stringify(response),
+      [H.NAVLUNGO_POST_NUMBER]: postNumber,
+      [H.NAVLUNGO_TRACKING_URL]: trackingUrl,
+      [H.NAVLUNGO_BARCODE_URL]: barcodeUrl,
+      [H.NAVLUNGO_STATUS]: "Gönderi Oluşturuldu",
+      [H.NAVLUNGO_LAST_RESPONSE]: navlungoSafeJson_(response),
       [H.NAVLUNGO_CREATED_AT]: new Date(),
-      [H.NAVLUNGO_ERROR]: ""
+      [H.NAVLUNGO_LAST_ERROR]: ""
     });
     return { ok: true, kargoPaketId: cargo[H.CARGO_PACKAGE_ID], postNumber: postNumber, trackingUrl: trackingUrl, barcodeUrl: barcodeUrl };
   }
 
-  function navlungoBarkodOlustur_(kargoPaketId) {
+  function navlungoBarkodAl_(kargoPaketId) {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var cargo = navlungoCargoRow_(ss, kargoPaketId);
-    var postNumber = cargo[H.NAVLUNGO_POST_ID] || cargo[H.NAVLUNGO_BARCODE_NO] || "";
+    var postNumber = cargo[H.NAVLUNGO_POST_NUMBER] || "";
     if (!postNumber) throw new Error("Navlungo barkod için gönderi ID yok.");
-    var payload = { post_number: postNumber, barcode_type: setting_(ss, "NAVLUNGO_DEFAULT_BARCODE_FORMAT", "pdf") || "pdf" };
+    var payload = { post_number: postNumber };
     if (!yes_(setting_(ss, CFG.liveNavlungoSendSetting, "Hayır"))) return navlungoNoPostResult_(cargo[H.CARGO_PACKAGE_ID], payload, "Canlı barkod kapısı kapalı");
-    navlungoRequireTestMode_(ss);
-    var response = navlungoApiFetch_("post", "barcode/getBarcode", payload);
-    var data = response.data || response;
+    var response;
+    try { response = navlungoApiFetch_("post", "barcode/getBarcode", payload); }
+    catch (err) {
+      navlungoErrorYaz_(ss, cargo[H.CARGO_PACKAGE_ID], safeErrorMessage_(err), "Navlungo barkod endpoint yanıtını kontrol edin.");
+      throw err;
+    }
+    var barcodeUrl = navlungoResponseValue_(response, ["barcode_url", "barcode", "url", "label_url"]);
     patchRowsByKey_(sheet_(ss, CFG.sheets.cargo), H.CARGO_PACKAGE_ID, cargo[H.CARGO_PACKAGE_ID], {
-      [H.NAVLUNGO_BARCODE_NO]: postNumber,
-      [H.NAVLUNGO_LABEL_URL]: data.barcode_url || "",
-      [H.NAVLUNGO_STATUS]: "Barkod oluşturuldu",
-      [H.NAVLUNGO_RESPONSE_JSON]: JSON.stringify(response),
-      [H.NAVLUNGO_ERROR]: ""
+      [H.NAVLUNGO_BARCODE_URL]: barcodeUrl,
+      [H.NAVLUNGO_STATUS]: "Barkod Hazır",
+      [H.NAVLUNGO_LAST_RESPONSE]: navlungoSafeJson_(response),
+      [H.NAVLUNGO_LAST_ERROR]: ""
     });
-    return { ok: true, kargoPaketId: cargo[H.CARGO_PACKAGE_ID], barcodeUrl: data.barcode_url || "" };
+    return { ok: true, kargoPaketId: cargo[H.CARGO_PACKAGE_ID], barcodeUrl: barcodeUrl };
   }
 
-  function navlungoKargoSorgula_(kargoPaketId) {
+  function navlungoGonderiSorgula_(kargoPaketId) {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var cargo = navlungoCargoRow_(ss, kargoPaketId);
-    var postNumber = cargo[H.NAVLUNGO_POST_ID] || cargo[H.NAVLUNGO_BARCODE_NO] || cargo[H.CARGO_PACKAGE_ID];
-    var response = navlungoApiFetch_("get", "post/check/" + encodeURIComponent(String(postNumber)), null);
-    var data = response.data || response;
+    var postNumber = cargo[H.NAVLUNGO_POST_NUMBER] || cargo[H.CARGO_PACKAGE_ID];
+    var response;
+    try { response = navlungoApiFetch_("get", "post/check/" + encodeURIComponent(String(postNumber)), null); }
+    catch (err) {
+      navlungoErrorYaz_(ss, cargo[H.CARGO_PACKAGE_ID], safeErrorMessage_(err), "Navlungo gönderi sorgulama yanıtını kontrol edin.");
+      throw err;
+    }
+    var data = navlungoFirstData_(response);
     patchRowsByKey_(sheet_(ss, CFG.sheets.cargo), H.CARGO_PACKAGE_ID, cargo[H.CARGO_PACKAGE_ID], {
-      [H.NAVLUNGO_STATUS]: data.status && data.status.status_name || response.message || "Sorgulandı",
-      [H.NAVLUNGO_TRACKING_NO]: data.tracking_url || data.carrier_tracking_url || cargo[H.NAVLUNGO_TRACKING_NO] || "",
-      [H.NAVLUNGO_LABEL_URL]: data.barcode || data.barcode_url || cargo[H.NAVLUNGO_LABEL_URL] || "",
-      [H.NAVLUNGO_RESPONSE_JSON]: JSON.stringify(response),
-      [H.NAVLUNGO_ERROR]: ""
+      [H.NAVLUNGO_STATUS]: data.status && data.status.status_name || data.status_name || response.message || "Sorgulandı",
+      [H.NAVLUNGO_TRACKING_URL]: data.tracking_url || data.carrier_tracking_url || cargo[H.NAVLUNGO_TRACKING_URL] || "",
+      [H.NAVLUNGO_BARCODE_URL]: data.barcode || data.barcode_url || cargo[H.NAVLUNGO_BARCODE_URL] || "",
+      [H.NAVLUNGO_LAST_RESPONSE]: navlungoSafeJson_(response),
+      [H.NAVLUNGO_LAST_ERROR]: ""
     });
     return { ok: true, kargoPaketId: cargo[H.CARGO_PACKAGE_ID], response: response };
   }
 
-  function navlungoKargoIptalEt_(kargoPaketId) {
+  function navlungoGonderiIptalEt_(kargoPaketId) {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var cargo = navlungoCargoRow_(ss, kargoPaketId);
-    var postNumber = cargo[H.NAVLUNGO_POST_ID] || cargo[H.NAVLUNGO_BARCODE_NO] || "";
+    var postNumber = cargo[H.NAVLUNGO_POST_NUMBER] || "";
     if (!postNumber) throw new Error("Navlungo iptal için gönderi ID yok.");
     var payload = { post_number: postNumber };
     if (!yes_(setting_(ss, CFG.liveNavlungoSendSetting, "Hayır"))) return navlungoNoPostResult_(cargo[H.CARGO_PACKAGE_ID], payload, "Canlı iptal kapısı kapalı");
-    navlungoRequireTestMode_(ss);
-    if (!yes_(cargo[H.TEST_CARGO])) throw new Error("İlk aşamada yalnız Test_Kargo_Mu = Evet olan gönderi iptal edilebilir.");
-    var response = navlungoApiFetch_("post", "post/cancel", payload);
+    var response;
+    try { response = navlungoApiFetch_("post", "post/cancel", payload); }
+    catch (err) {
+      navlungoErrorYaz_(ss, cargo[H.CARGO_PACKAGE_ID], safeErrorMessage_(err), "Navlungo iptal endpoint yanıtını kontrol edin.");
+      throw err;
+    }
     patchRowsByKey_(sheet_(ss, CFG.sheets.cargo), H.CARGO_PACKAGE_ID, cargo[H.CARGO_PACKAGE_ID], {
-      [H.NAVLUNGO_STATUS]: "İptal edildi",
+      [H.NAVLUNGO_STATUS]: "İptal Edildi",
       [H.NAVLUNGO_CANCELLED_AT]: new Date(),
-      [H.NAVLUNGO_CANCEL_RESULT]: JSON.stringify(response),
-      [H.NAVLUNGO_RESPONSE_JSON]: JSON.stringify(response),
-      [H.NAVLUNGO_ERROR]: ""
+      [H.NAVLUNGO_LAST_RESPONSE]: navlungoSafeJson_(response),
+      [H.NAVLUNGO_LAST_ERROR]: ""
     });
     return { ok: true, kargoPaketId: cargo[H.CARGO_PACKAGE_ID], response: response };
   }
 
-  function navlungoTopluKargoTestEt_(limit) {
+  function navlungoTopluKargoOlustur_(seciliPaketler) {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var max = Math.min(Number(limit || 3) || 3, yes_(setting_(ss, "NAVLUNGO_TEST_MODE", "Evet")) ? 3 : 1);
-    var rows = objects_(sheet_(ss, CFG.sheets.cargo)).filter(function (row) { return row[H.CARGO_PACKAGE_ID] && !row[H.NAVLUNGO_POST_ID]; }).slice(0, max);
+    var rows = navlungoSelectedCargoRows_(ss, seciliPaketler);
     var results = rows.map(function (row) {
-      try { return navlungoKargoDryRun_(row[H.CARGO_PACKAGE_ID]); }
+      try { return navlungoKargoOlusturOnayli_(row[H.CARGO_PACKAGE_ID]); }
       catch (err) { return { ok: false, kargoPaketId: row[H.CARGO_PACKAGE_ID], error: safeErrorMessage_(err) }; }
     });
-    return { ok: results.every(function (r) { return r.ok; }), limit: max, results: results, livePost: "Yapılmadı" };
+    return { ok: results.every(function (r) { return r.ok !== false; }), count: results.length, results: results };
+  }
+
+  function navlungoTopluBarkodAl_(seciliPaketler) {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var rows = navlungoSelectedCargoRows_(ss, seciliPaketler).filter(function (row) { return row[H.NAVLUNGO_POST_NUMBER]; });
+    var results = rows.map(function (row) {
+      try { return navlungoBarkodAl_(row[H.CARGO_PACKAGE_ID]); }
+      catch (err) { return { ok: false, kargoPaketId: row[H.CARGO_PACKAGE_ID], error: safeErrorMessage_(err) }; }
+    });
+    return { ok: results.every(function (r) { return r.ok !== false; }), count: results.length, results: results };
   }
 
   function navlungoAdresDegisikligiKontrolEt_(acikSiparisId) {
     var cargo = objects_(sheet_(SpreadsheetApp.getActiveSpreadsheet(), CFG.sheets.cargo)).filter(function (r) { return r[H.OPEN_ID] === acikSiparisId; })[0] || {};
-    var needsReview = !!(cargo[H.BARCODE] || cargo[H.NAVLUNGO_POST_ID] || cargo[H.NAVLUNGO_BARCODE_NO]) && !!cargo[H.ADDRESS];
+    var needsReview = !!(cargo[H.BARCODE] || cargo[H.NAVLUNGO_POST_NUMBER]) && !!cargo[H.ADDRESS];
     return { ok: true, openId: acikSiparisId, barkodVar: needsReview, yenidenBasimKontrolu: needsReview ? "Gerekli" : "Gerekli değil" };
   }
 
   function navlungoRequiredPropertyKeys_() {
     return [
       "NAVLUNGO_API_USERNAME", "NAVLUNGO_API_PASSWORD", "NAVLUNGO_ENV",
-      "NAVLUNGO_CANLI_GONDERIM", "NAVLUNGO_TEST_MODE", "NAVLUNGO_SENDER_ADDRESS_ID",
-      "NAVLUNGO_DEFAULT_CARRIER_ID", "NAVLUNGO_DEFAULT_POST_TYPE", "NAVLUNGO_DEFAULT_BARCODE_FORMAT"
+      "NAVLUNGO_CANLI_GONDERIM", "NAVLUNGO_SENDER_ADDRESS_ID",
+      "NAVLUNGO_DEFAULT_CARRIER_ID", "NAVLUNGO_DEFAULT_POST_TYPE",
+      "NAVLUNGO_DEFAULT_DESI", "NAVLUNGO_DEFAULT_PACKAGE_COUNT"
     ];
   }
 
@@ -3561,7 +3607,8 @@ var TK6 = (function () {
       headers: {
         "Authorization": "Bearer " + token,
         "X-localization": "tr",
-        "Accept": "application/json"
+        "Accept": "application/json",
+        "Content-Type": "application/json"
       }
     };
     if (upper !== "GET") {
@@ -3613,24 +3660,11 @@ var TK6 = (function () {
     return issues;
   }
 
-  function navlungoControlledRecipient_(cargo) {
-    return {
-      name: "Navlungo QA Test Alıcı",
-      phone: "+905551111111",
-      email: "qa-test@tesbihkuyusu.local",
-      address: "QA kontrollü test adresi",
-      country: "tr",
-      city: cargo[H.CITY] || "İstanbul",
-      district: cargo[H.DISTRICT] || "Ataşehir",
-      post_code: ""
-    };
-  }
-
-  function navlungoRecipientFromCargo_(cargo) {
+  function navlungoRecipientFromCargo_(ss, cargo) {
     return {
       name: normalizePersonName_(cargo[H.CARGO_RECEIVER] || ""),
       phone: navlungoPhone_(cargo[H.CARGO_TEL]),
-      email: "",
+      email: navlungoRecipientEmail_(ss, cargo),
       address: String(cargo[H.ADDRESS] || ""),
       country: "tr",
       city: String(cargo[H.CITY] || ""),
@@ -3639,46 +3673,113 @@ var TK6 = (function () {
     };
   }
 
-  function navlungoSender_(ss) {
-    return {
-      name: setting_(ss, "NAVLUNGO_SENDER_NAME", "Tesbih Kuyusu"),
-      phone: navlungoPhone_(setting_(ss, "NAVLUNGO_SENDER_PHONE", "+905551111111")),
-      email: setting_(ss, "NAVLUNGO_SENDER_EMAIL", "operasyon@tesbihkuyusu.local"),
-      address: setting_(ss, "NAVLUNGO_SENDER_ADDRESS", "Gönderici adresi Script Properties ile güncellenmeli"),
-      country: "tr",
-      city: setting_(ss, "NAVLUNGO_SENDER_CITY", "İstanbul"),
-      district: setting_(ss, "NAVLUNGO_SENDER_DISTRICT", "Ataşehir"),
-      post_code: setting_(ss, "NAVLUNGO_SENDER_POST_CODE", "")
-    };
-  }
-
   function navlungoPhone_(value) {
     var normalized = normalizePhone_(value);
     if (!normalized) return "";
-    return normalized.replace(/^\+90(\d{3})(\d{3})(\d{2})(\d{2})$/, "+90 $1 $2 $3 $4");
+    return normalized;
   }
 
   function navlungoNoPostResult_(kargoPaketId, payload, reason) {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     patchRowsByKey_(sheet_(ss, CFG.sheets.cargo), H.CARGO_PACKAGE_ID, kargoPaketId, {
-      [H.NAVLUNGO_PAYLOAD_JSON]: JSON.stringify(payload || {}),
+      [H.NAVLUNGO_PAYLOAD_HASH]: navlungoPayloadHash_(payload || {}),
       [H.NAVLUNGO_STATUS]: "Canlı POST yapılmadı",
-      [H.NAVLUNGO_ERROR]: reason,
-      [H.TEST_CARGO]: yes_(setting_(ss, "NAVLUNGO_TEST_MODE", "Evet")) ? "Evet" : "Hayır"
+      [H.NAVLUNGO_LAST_ERROR]: reason,
+      [H.NAVLUNGO_TEST]: navlungoEnv_() === "QA" ? "Evet" : "Hayır"
     });
-    kontrolMerkezineTeknikBlokajYaz_(ss, CFG.sheets.cargo, kargoPaketId, reason, "NAVLUNGO_CANLI_GONDERIM ve NAVLUNGO_TEST_MODE ayarlarını kontrol edin.");
     return { ok: true, kargoPaketId: kargoPaketId, payload: payload, livePost: "Yapılmadı", status: reason };
   }
 
-  function navlungoRequireTestMode_(ss) {
-    if (!yes_(setting_(ss, "NAVLUNGO_TEST_MODE", "Evet"))) throw new Error("İlk Navlungo canlı denemeleri için NAVLUNGO_TEST_MODE = Evet zorunlu.");
+  function navlungoErrorYaz_(ss, kargoPaketId, message, action) {
+    patchRowsByKey_(sheet_(ss, CFG.sheets.cargo), H.CARGO_PACKAGE_ID, kargoPaketId, {
+      [H.NAVLUNGO_STATUS]: "Hata",
+      [H.NAVLUNGO_LAST_ERROR]: message
+    });
+    kontrolMerkezineTeknikBlokajYaz_(ss, CFG.sheets.cargo, kargoPaketId, message, action, "Navlungo");
   }
 
-  function navlungoRequireFirstThreeLimit_(ss) {
-    var used = objects_(sheet_(ss, CFG.sheets.cargo)).filter(function (row) {
-      return yes_(row[H.TEST_CARGO]) && row[H.NAVLUNGO_POST_ID];
-    }).length;
-    if (used >= 3) throw new Error("İlk Navlungo canlı QA gönderi testi 3 kayıtla sınırlı. 3/3 başarı ve iptal testi doğrulanmadan devam edilmez.");
+  function navlungoCarrierListesiAl_() {
+    try {
+      var response = navlungoApiFetch_("get", "carrier/my-carriers", null);
+      var data = response.data || response.carriers || response;
+      var count = Array.isArray(data) ? data.length : "";
+      return { ok: true, status: "Taşıyıcı erişimi başarılı", count: count, response: navlungoSafeJson_(response) };
+    } catch (err) {
+      return { ok: false, status: safeErrorMessage_(err), response: "" };
+    }
+  }
+
+  function navlungoCarrierInfo_(ss, cargo) {
+    var company = String(cargo[H.CARGO_COMPANY] || setting_(ss, "VARSAYILAN_KARGO_FIRMASI", CFG.defaultCargoCompany) || "").trim();
+    var raw = setting_(ss, "NAVLUNGO_CARRIER_ID_MAP_JSON", "{}") || "{}";
+    var map = {};
+    try { map = JSON.parse(raw); } catch (err) { throw new Error("NAVLUNGO_CARRIER_ID_MAP_JSON geçerli JSON değil."); }
+    var carrierId = map[company] || map[normalizeAscii_(company)] || setting_(ss, "NAVLUNGO_DEFAULT_CARRIER_ID", "");
+    if (!carrierId) throw new Error("Carrier ID yok: " + company + " için NAVLUNGO_CARRIER_ID_MAP_JSON veya NAVLUNGO_DEFAULT_CARRIER_ID doldurun.");
+    carrierId = numberOrDefault_(carrierId, 0);
+    if (!carrierId) throw new Error("Carrier ID sayısal değil: " + company + " için carrier_id kontrol edin.");
+    return { id: carrierId, name: company || "Varsayılan" };
+  }
+
+  function navlungoRecipientEmail_(ss, cargo) {
+    var group = objects_(sheet_(ss, CFG.sheets.invoiceGroups)).filter(function (row) { return row[H.OPEN_ID] === cargo[H.OPEN_ID] && row[H.INVOICE_EMAIL]; })[0];
+    return group ? String(group[H.INVOICE_EMAIL] || "") : "";
+  }
+
+  function navlungoFirstReadyCargoId_(ss) {
+    var row = objects_(sheet_(ss, CFG.sheets.cargo)).filter(function (r) { return r[H.CARGO_PACKAGE_ID]; })[0];
+    if (!row) throw new Error("Payload üretilecek kargo paketi yok.");
+    return row[H.CARGO_PACKAGE_ID];
+  }
+
+  function navlungoSelectedCargoRows_(ss, selected) {
+    var rows = objects_(sheet_(ss, CFG.sheets.cargo)).filter(function (row) { return row[H.CARGO_PACKAGE_ID]; });
+    if (!selected) return rows;
+    var keys = Array.isArray(selected) ? selected : String(selected).split(/[,\n;]/).map(function (x) { return x.trim(); }).filter(Boolean);
+    if (!keys.length) return rows;
+    return rows.filter(function (row) { return keys.indexOf(row[H.CARGO_PACKAGE_ID]) !== -1 || keys.indexOf(row[H.OPEN_ID]) !== -1; });
+  }
+
+  function navlungoPayloadHash_(payload) {
+    var text = JSON.stringify(payload || {});
+    if (typeof Utilities !== "undefined" && Utilities.computeDigest) {
+      var bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, text);
+      return bytes.map(function (b) { var n = b < 0 ? b + 256 : b; return ("0" + n.toString(16)).slice(-2); }).join("");
+    }
+    return safeKey_(text).slice(0, 64);
+  }
+
+  function navlungoSafeJson_(response) {
+    return sanitizeApiText_(JSON.stringify(response || {})).slice(0, 5000);
+  }
+
+  function navlungoFirstData_(response) {
+    var data = response && response.data !== undefined ? response.data : response;
+    if (Array.isArray(data)) return data[0] || {};
+    return data || {};
+  }
+
+  function navlungoResponseValue_(response, keys) {
+    var seen = [];
+    var found = "";
+    function walk(node) {
+      if (found !== "" || node === null || node === undefined) return;
+      if (typeof node !== "object") return;
+      if (seen.indexOf(node) !== -1) return;
+      seen.push(node);
+      for (var i = 0; i < keys.length; i++) {
+        var v = node[keys[i]];
+        if (v !== "" && v !== null && v !== undefined) { found = v; return; }
+      }
+      if (Array.isArray(node)) {
+        node.forEach(walk);
+      } else {
+        Object.keys(node).forEach(function (key) { walk(node[key]); });
+      }
+    }
+    walk(response);
+    if (found !== "") return found;
+    return "";
   }
 
   function numberOrDefault_(value, fallback) {
@@ -4448,16 +4549,15 @@ var TK6 = (function () {
     parasutTekTaslakGonderOnayli: parasutTekTaslakGonderOnayli_,
     parasutFaturaTaslakGonderOnayli: parasutFaturaTaslakGonderOnayli_,
     navlungoTokenAl: navlungoTokenAl_,
-    navlungoApiBaglantiTesti: navlungoApiBaglantiTesti_,
-    navlungoTaslakPayloadHazirla: navlungoTaslakPayloadHazirla_,
-    navlungoKargoPayloadHazirla: navlungoTaslakPayloadHazirla_,
-    navlungoKargoDryRun: navlungoKargoDryRun_,
-    navlungoKargoTaslakTestEt: navlungoKargoDryRun_,
+    navlungoBaglantiTestiTam: navlungoBaglantiTestiTam_,
+    navlungoTaslakPayloadOlustur: navlungoTaslakPayloadOlustur_,
+    navlungoKargoTaslakTestEt: navlungoKargoTaslakTestEt_,
     navlungoKargoOlusturOnayli: navlungoKargoOlusturOnayli_,
-    navlungoBarkodOlustur: navlungoBarkodOlustur_,
-    navlungoKargoSorgula: navlungoKargoSorgula_,
-    navlungoKargoIptalEt: navlungoKargoIptalEt_,
-    navlungoTopluKargoTestEt: navlungoTopluKargoTestEt_,
+    navlungoBarkodAl: navlungoBarkodAl_,
+    navlungoGonderiSorgula: navlungoGonderiSorgula_,
+    navlungoGonderiIptalEt: navlungoGonderiIptalEt_,
+    navlungoTopluKargoOlustur: navlungoTopluKargoOlustur_,
+    navlungoTopluBarkodAl: navlungoTopluBarkodAl_,
     navlungoAdresDegisikligiKontrolEt: navlungoAdresDegisikligiKontrolEt_,
     faturaVeKargoOlustur: faturaVeKargoOlustur_,
     ilgiliSiparisSatirlariniBul: ilgiliSiparisSatirlariniBul_,
@@ -4553,16 +4653,15 @@ function parasutCanliTaslakTestHazirla(groupId) { return TK6.parasutCanliTaslakT
 function parasutTekTaslakGonderOnayli(groupId) { return TK6.parasutTekTaslakGonderOnayli(groupId); }
 function parasutFaturaTaslakGonderOnayli(groupId) { return TK6.parasutFaturaTaslakGonderOnayli(groupId); }
 function navlungoTokenAl() { return TK6.navlungoTokenAl(); }
-function navlungoApiBaglantiTesti() { return TK6.navlungoApiBaglantiTesti(); }
-function navlungoTaslakPayloadHazirla(kargoPaketId) { return TK6.navlungoTaslakPayloadHazirla(kargoPaketId); }
-function navlungoKargoPayloadHazirla(kargoPaketId) { return TK6.navlungoKargoPayloadHazirla(kargoPaketId); }
-function navlungoKargoDryRun(kargoPaketId) { return TK6.navlungoKargoDryRun(kargoPaketId); }
+function navlungoBaglantiTestiTam() { return TK6.navlungoBaglantiTestiTam(); }
+function navlungoTaslakPayloadOlustur(kargoPaketId) { return TK6.navlungoTaslakPayloadOlustur(kargoPaketId); }
 function navlungoKargoTaslakTestEt(kargoPaketId) { return TK6.navlungoKargoTaslakTestEt(kargoPaketId); }
 function navlungoKargoOlusturOnayli(kargoPaketId) { return TK6.navlungoKargoOlusturOnayli(kargoPaketId); }
-function navlungoBarkodOlustur(kargoPaketId) { return TK6.navlungoBarkodOlustur(kargoPaketId); }
-function navlungoKargoSorgula(kargoPaketId) { return TK6.navlungoKargoSorgula(kargoPaketId); }
-function navlungoKargoIptalEt(kargoPaketId) { return TK6.navlungoKargoIptalEt(kargoPaketId); }
-function navlungoTopluKargoTestEt(limit) { return TK6.navlungoTopluKargoTestEt(limit); }
+function navlungoBarkodAl(kargoPaketId) { return TK6.navlungoBarkodAl(kargoPaketId); }
+function navlungoGonderiSorgula(kargoPaketId) { return TK6.navlungoGonderiSorgula(kargoPaketId); }
+function navlungoGonderiIptalEt(kargoPaketId) { return TK6.navlungoGonderiIptalEt(kargoPaketId); }
+function navlungoTopluKargoOlustur(seciliPaketler) { return TK6.navlungoTopluKargoOlustur(seciliPaketler); }
+function navlungoTopluBarkodAl(seciliPaketler) { return TK6.navlungoTopluBarkodAl(seciliPaketler); }
 function navlungoAdresDegisikligiKontrolEt(acikSiparisId) { return TK6.navlungoAdresDegisikligiKontrolEt(acikSiparisId); }
 function faturaVeKargoOlustur(openId) { return TK6.faturaVeKargoOlustur(openId); }
 function ilgiliSiparisSatirlariniBul(acikSiparisId) { return TK6.ilgiliSiparisSatirlariniBul(acikSiparisId); }

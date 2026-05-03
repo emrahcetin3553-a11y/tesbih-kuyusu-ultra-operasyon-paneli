@@ -20,7 +20,9 @@ Tarih: 2026-05-03
   "addressRows": 2,
   "salesPostCalls": 0,
   "contactPostCalls": 0,
-  "tokenRefreshCalls": 1
+  "tokenRefreshCalls": 1,
+  "navlungoAuthCalls": 1,
+  "navlungoPostCalls": 5
 }
 ```
 
@@ -39,8 +41,12 @@ Tarih: 2026-05-03
 - Aynı siparişte iki ödeme yapan kişi için iki ayrı fatura grubu oluştu.
 - Seçili sipariş düzenleme panel payload’ı üretti.
 - Paraşüt GET/token refresh mock akışı çalıştı.
+- Navlungo token, carrier, payload, gönderi oluşturma, barkod, sorgu ve iptal akışı çalıştı.
+- `NAVLUNGO_CANLI_GONDERIM = Hayır` iken Navlungo POST yapılmadı.
+- `NAVLUNGO_CANLI_GONDERIM = Evet` senaryosunda yalnız Navlungo POST akışı açıldı.
 - Canlı sales invoice POST sayısı: `0`
 - Canlı contact POST sayısı: `0`
+- Navlungo POST sayısı: `5`
 
 ## Performans
 

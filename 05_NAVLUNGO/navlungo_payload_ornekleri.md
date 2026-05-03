@@ -1,8 +1,8 @@
-﻿# Navlungo Payload Örnekleri
+# Navlungo Payload Yapısı
 
-V6.5 Navlungo payload kaynağı `08_KARGO_PAKETLERI` sayfasıdır. Payload `navlungoTaslakPayloadHazirla(kargoPaketId)` ve `navlungoKargoDryRun(kargoPaketId)` ile hazırlanır.
+V6.5 Navlungo payload kaynağı `08_KARGO_PAKETLERI` sayfasıdır. Payload `navlungoTaslakPayloadOlustur(kargoPaketId)` ve `navlungoKargoTaslakTestEt(kargoPaketId)` ile hazırlanır.
 
-## Örnek Yapı
+## Yapı
 
 ```json
 {
@@ -13,22 +13,14 @@ V6.5 Navlungo payload kaynağı `08_KARGO_PAKETLERI` sayfasıdır. Payload `navl
       "carrier_id": 1,
       "post_type": 2,
       "cod_payment_type": "",
-      "sender_address_id": "ADDR-1",
       "sender": {
-        "name": "Tesbih Kuyusu",
-        "phone": "+90 555 111 00 00",
-        "email": "operasyon@tesbihkuyusu.local",
-        "address": "Gönderici adresi",
-        "country": "tr",
-        "city": "İzmir",
-        "district": "Menderes",
-        "post_code": ""
+        "addressId": "ADDR-1"
       },
       "recipient": {
-        "name": "Navlungo QA Test Alıcı",
-        "phone": "+90 555 111 11 11",
-        "email": "qa-test@tesbihkuyusu.local",
-        "address": "QA kontrollü test adresi",
+        "name": "Bediha Çetin",
+        "phone": "+905523730403",
+        "email": "",
+        "address": "Gümüldür Fevzi Çakmak Mah. 6266 Sokak No: 28",
         "country": "tr",
         "city": "İzmir",
         "district": "Menderes",
@@ -40,11 +32,10 @@ V6.5 Navlungo payload kaynağı `08_KARGO_PAKETLERI` sayfasıdır. Payload `navl
         "price": "",
         "note": "AS-20260503-001"
       },
-      "barcode_format": "pdf",
       "custom_data_1": "AS-20260503-001",
       "custom_data_2": "KP-AS-20260503-001",
       "custom_data_3": "TESBIH_KUYUSU",
-      "custom_data_4": "TEST"
+      "custom_data_4": "QA"
     }
   ]
 }
@@ -52,11 +43,20 @@ V6.5 Navlungo payload kaynağı `08_KARGO_PAKETLERI` sayfasıdır. Payload `navl
 
 ## Readback
 
-Dry-run sonrası 08 sayfasında şu alanlar dolmalıdır:
+Payload hazırlığı ve API aksiyonları sonrası 08 sayfasında şu alanlar dolmalıdır:
 
-- `Navlungo_Payload_JSON`
-- `Navlungo_Durum`
-- `Test_Kargo_Mu`
-- `Navlungo_Hata_Mesaji`
+- `Navlungo_Reference_ID`
+- `Navlungo_Carrier_ID`
+- `Navlungo_Carrier_Name`
+- `Navlungo_Status`
+- `Navlungo_Payload_Hash`
+- `Navlungo_Last_Response`
+- `Navlungo_Last_Error`
+- `Navlungo_Post_Number`
+- `Navlungo_Tracking_URL`
+- `Navlungo_Barcode_URL`
+- `Navlungo_Created_At`
+- `Navlungo_Cancelled_At`
+- `Navlungo_Test_Mu`
 
 Canlı gönderim `NAVLUNGO_CANLI_GONDERIM = Evet` olmadıkça yapılmaz.

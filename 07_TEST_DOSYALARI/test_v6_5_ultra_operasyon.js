@@ -107,11 +107,12 @@ const props = {
   NAVLUNGO_API_PASSWORD: "qa_pass",
   NAVLUNGO_ENV: "QA",
   NAVLUNGO_CANLI_GONDERIM: "Hayır",
-  NAVLUNGO_TEST_MODE: "Evet",
   NAVLUNGO_SENDER_ADDRESS_ID: "ADDR-1",
   NAVLUNGO_DEFAULT_CARRIER_ID: "1",
   NAVLUNGO_DEFAULT_POST_TYPE: "2",
-  NAVLUNGO_DEFAULT_BARCODE_FORMAT: "pdf",
+  NAVLUNGO_DEFAULT_DESI: "1",
+  NAVLUNGO_DEFAULT_PACKAGE_COUNT: "1",
+  NAVLUNGO_CARRIER_ID_MAP_JSON: JSON.stringify({ "Aras Kargo": 1 }),
   NAVLUNGO_SENDER_NAME: "Tesbih Kuyusu",
   NAVLUNGO_SENDER_PHONE: "+905551110000",
   NAVLUNGO_SENDER_ADDRESS: "Kontrollü gönderici adresi",
@@ -177,6 +178,9 @@ const sandbox = {
       if (url.includes("domestic-api") && url.includes("auth/api")) {
         navlungoAuthCalls++;
         return response(200, { access_token: "nav-token-" + navlungoAuthCalls, token_type: "Bearer", expires_in: 3600 });
+      }
+      if (url.includes("domestic-api") && method === "get" && url.includes("carrier/my-carriers")) {
+        return response(200, { data: [{ id: 1, name: "Aras Kargo" }] });
       }
       if (url.includes("domestic-api") && method === "post" && url.includes("post/create")) {
         navlungoPostCalls++;
@@ -313,30 +317,42 @@ assert(!/Toplu sipariş paneli/.test(html), "Ayrı toplu panel metni aktif panel
 assert(!/sipariÅ|MÃ|Ãœ|Ã–|ParaÅ/.test(html), "Panelde bozuk Türkçe karakter kalmamalı");
 
 const cargoPackageId = rows(CFG.sheets.cargo)[0][H.CARGO_PACKAGE_ID];
-const navDry = sandbox.navlungoKargoDryRun(cargoPackageId);
+const navDry = sandbox.navlungoKargoTaslakTestEt(cargoPackageId);
 assert(navDry.ok === true, "Navlungo dry-run payload üretmeli");
-assert(navDry.payload.posts[0].recipient.name === "Navlungo QA Test Alıcı", "Test modunda kontrollü Navlungo alıcısı kullanılmalı");
-assert(rows(CFG.sheets.cargo)[0][H.NAVLUNGO_PAYLOAD_JSON], "08_KARGO_PAKETLERI Navlungo payload JSON readback içermeli");
-assert(rows(CFG.sheets.cargo)[0][H.TEST_CARGO] === "Evet", "Navlungo test kargo işareti yazılmalı");
-const navApi = sandbox.navlungoApiBaglantiTesti();
+assert(navDry.payload.posts[0].recipient.name, "Navlungo alıcı bilgisi 08 kargo satırından gelmeli");
+assert(rows(CFG.sheets.cargo)[0][H.NAVLUNGO_PAYLOAD_HASH], "08_KARGO_PAKETLERI Navlungo payload hash readback içermeli");
+assert(rows(CFG.sheets.cargo)[0][H.NAVLUNGO_TEST] === "Evet", "QA ortamında Navlungo test işareti yazılmalı");
+const navApi = sandbox.navlungoBaglantiTestiTam();
 assert(navApi.ok === true && navlungoAuthCalls > 0, "Navlungo token testi çalışmalı");
 const navCreateClosed = sandbox.navlungoKargoOlusturOnayli(cargoPackageId);
 assert(navCreateClosed.livePost === "Yapılmadı", "NAVLUNGO_CANLI_GONDERIM Hayır iken gönderi POST yapılmamalı");
-patchRows(CFG.sheets.cargo, H.CARGO_PACKAGE_ID, cargoPackageId, { [H.NAVLUNGO_POST_ID]: "NL-QA-1", [H.TEST_CARGO]: "Evet" });
-const navCheck = sandbox.navlungoKargoSorgula(cargoPackageId);
+patchRows(CFG.sheets.cargo, H.CARGO_PACKAGE_ID, cargoPackageId, { [H.NAVLUNGO_POST_NUMBER]: "NL-QA-1", [H.NAVLUNGO_TEST]: "Evet" });
+const navCheck = sandbox.navlungoGonderiSorgula(cargoPackageId);
 assert(navCheck.ok === true, "Navlungo kargo sorgulama GET akışı çalışmalı");
-const navBarcodeClosed = sandbox.navlungoBarkodOlustur(cargoPackageId);
+const navBarcodeClosed = sandbox.navlungoBarkodAl(cargoPackageId);
 assert(navBarcodeClosed.livePost === "Yapılmadı", "NAVLUNGO_CANLI_GONDERIM Hayır iken barkod POST yapılmamalı");
-const navCancelClosed = sandbox.navlungoKargoIptalEt(cargoPackageId);
+const navCancelClosed = sandbox.navlungoGonderiIptalEt(cargoPackageId);
 assert(navCancelClosed.livePost === "Yapılmadı", "NAVLUNGO_CANLI_GONDERIM Hayır iken iptal POST yapılmamalı");
-const navBulk = sandbox.navlungoTopluKargoTestEt(3);
-assert(navBulk.livePost === "Yapılmadı", "Navlungo toplu test dry-run kalmalı");
+props.NAVLUNGO_CANLI_GONDERIM = "Evet";
+patchRows(CFG.sheets.settings, "Ayar_Kodu", "NAVLUNGO_CANLI_GONDERIM", { "Ayar_Değeri": "Evet" });
+const navCreateOpen = sandbox.navlungoKargoOlusturOnayli(cargoPackageId);
+assert(navCreateOpen.ok === true && rows(CFG.sheets.cargo)[0][H.NAVLUNGO_POST_NUMBER] === "NL-QA-1", "Navlungo gönderi oluşturma sonucu Sheet'e yazılmalı");
+const navBarcodeOpen = sandbox.navlungoBarkodAl(cargoPackageId);
+assert(navBarcodeOpen.ok === true && rows(CFG.sheets.cargo)[0][H.NAVLUNGO_BARCODE_URL], "Navlungo barkod URL Sheet'e yazılmalı");
+const navCancelOpen = sandbox.navlungoGonderiIptalEt(cargoPackageId);
+assert(navCancelOpen.ok === true && rows(CFG.sheets.cargo)[0][H.NAVLUNGO_CANCELLED_AT], "Navlungo iptal sonucu Sheet'e yazılmalı");
+const navBulk = sandbox.navlungoTopluKargoOlustur([cargoPackageId]);
+assert(navBulk.ok === true, "Navlungo toplu kargo oluşturma akışı çalışmalı");
+const navBulkBarcode = sandbox.navlungoTopluBarkodAl([cargoPackageId]);
+assert(navBulkBarcode.ok === true, "Navlungo toplu barkod akışı çalışmalı");
+props.NAVLUNGO_CANLI_GONDERIM = "Hayır";
+patchRows(CFG.sheets.settings, "Ayar_Kodu", "NAVLUNGO_CANLI_GONDERIM", { "Ayar_Değeri": "Hayır" });
 
 const api = sandbox.parasutApiBaglantiTestiTam();
 assert(api.ok === false || api, "Paraşüt GET test fonksiyonu çalışmalı");
 assert(salesPostCalls === 0, "PARASUT_CANLI_GONDERIM Hayır iken sales invoice POST yapılmamalı");
 assert(contactPostCalls === 0, "PARASUT_CARI_CANLI_OLUSTURMA Hayır iken contact POST yapılmamalı");
-assert(navlungoPostCalls === 0, "NAVLUNGO_CANLI_GONDERIM Hayır iken Navlungo POST yapılmamalı");
+assert(navlungoPostCalls === 5, "Sadece NAVLUNGO_CANLI_GONDERIM Evet iken Navlungo POST yapılmalı");
 
 console.log(JSON.stringify({
   ok: true,

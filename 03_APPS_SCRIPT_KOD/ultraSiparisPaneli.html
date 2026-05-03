@@ -733,11 +733,11 @@
     const runner = google.script.run
       .withSuccessHandler(res => setCardStatus(card, summarize(res)))
       .withFailureHandler(err => setCardStatus(card, "HATA: " + (err.message || err)));
-    if (action === "dry") runner.navlungoKargoDryRun(kargoPaketId);
+    if (action === "dry") runner.navlungoKargoTaslakTestEt(kargoPaketId);
     else if (action === "create") runner.navlungoKargoOlusturOnayli(kargoPaketId);
-    else if (action === "barcode") runner.navlungoBarkodOlustur(kargoPaketId);
-    else if (action === "check") runner.navlungoKargoSorgula(kargoPaketId);
-    else if (action === "cancel") runner.navlungoKargoIptalEt(kargoPaketId);
+    else if (action === "barcode") runner.navlungoBarkodAl(kargoPaketId);
+    else if (action === "check") runner.navlungoGonderiSorgula(kargoPaketId);
+    else if (action === "cancel") runner.navlungoGonderiIptalEt(kargoPaketId);
     else setCardStatus(card, "Bilinmeyen Navlungo işlemi.");
   }
 

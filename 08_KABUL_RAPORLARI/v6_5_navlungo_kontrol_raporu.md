@@ -4,11 +4,12 @@ Tarih: 2026-05-03
 
 ## Kapsam
 
-V6.5 core içinde Navlungo QA/LIVE ortam seçimi, token alma, kargo payload hazırlama, dry-run, kontrollü gönderi oluşturma, barkod, sorgu, iptal ve toplu dry-run fonksiyonları üretildi.
+V6.5 core içinde Navlungo QA/LIVE ortam seçimi, token alma, taşıyıcı ayarı kontrolü, kargo payload hazırlama, gönderi oluşturma, barkod alma, gönderi sorgulama, iptal ve toplu kargo/barkod fonksiyonları resmi Domestic API v2.1 akışına bağlandı.
 
 ## Resmi Endpoint Eşleşmesi
 
 - Token: `POST auth/api`
+- Taşıyıcı kontrolü: `GET carrier/my-carriers`
 - Gönderi oluşturma: `POST post/create`
 - Kargo sorgulama: `GET post/check/{POST_NUMBER}`
 - Kargo iptal: `POST post/cancel`
@@ -19,34 +20,36 @@ Base URL:
 - QA: `https://domestic-api-qa.navlungo.com/v2.1/`
 - LIVE: `https://domestic-api.navlungo.com/v2.1/`
 
-## Eklenen Fonksiyonlar
+## Aktif Fonksiyonlar
 
 - `navlungoTokenAl()`
-- `navlungoApiBaglantiTesti()`
-- `navlungoTaslakPayloadHazirla(kargoPaketId)`
-- `navlungoKargoDryRun(kargoPaketId)`
+- `navlungoBaglantiTestiTam()`
+- `navlungoTaslakPayloadOlustur(kargoPaketId)`
+- `navlungoKargoTaslakTestEt(kargoPaketId)`
 - `navlungoKargoOlusturOnayli(kargoPaketId)`
-- `navlungoBarkodOlustur(kargoPaketId)`
-- `navlungoKargoSorgula(kargoPaketId)`
-- `navlungoKargoIptalEt(kargoPaketId)`
-- `navlungoTopluKargoTestEt(limit)`
+- `navlungoBarkodAl(kargoPaketId)`
+- `navlungoGonderiSorgula(kargoPaketId)`
+- `navlungoGonderiIptalEt(kargoPaketId)`
+- `navlungoTopluKargoOlustur(seciliPaketler)`
+- `navlungoTopluBarkodAl(seciliPaketler)`
 
 ## 08_KARGO_PAKETLERI Alanları
 
-Şu alanlar V6.5 Sheet sözleşmesine eklendi ve builder readback kontrolünden geçti:
+Şu alanlar V6.5 Sheet sözleşmesine eklendi:
 
-- `Navlungo_Gonderi_ID`
-- `Navlungo_Barkod_No`
-- `Navlungo_Takip_No`
-- `Navlungo_Etiket_URL`
-- `Navlungo_Durum`
-- `Navlungo_Hata_Mesaji`
-- `Navlungo_Payload_JSON`
-- `Navlungo_Response_JSON`
-- `Test_Kargo_Mu`
-- `Navlungo_Olusturma_Tarihi`
-- `Navlungo_Iptal_Tarihi`
-- `Navlungo_Iptal_Sonucu`
+- `Navlungo_Post_Number`
+- `Navlungo_Reference_ID`
+- `Navlungo_Tracking_URL`
+- `Navlungo_Barcode_URL`
+- `Navlungo_Carrier_ID`
+- `Navlungo_Carrier_Name`
+- `Navlungo_Status`
+- `Navlungo_Last_Response`
+- `Navlungo_Last_Error`
+- `Navlungo_Created_At`
+- `Navlungo_Cancelled_At`
+- `Navlungo_Test_Mu`
+- `Navlungo_Payload_Hash`
 
 ## Güvenlik Kapıları
 
@@ -56,10 +59,9 @@ Varsayılan değerler:
 - `PARASUT_CARI_CANLI_OLUSTURMA = Hayır`
 - `EBELGE_CANLI_GONDERIM = Hayır`
 - `NAVLUNGO_CANLI_GONDERIM = Hayır`
-- `NAVLUNGO_TEST_MODE = Evet`
 - `NAVLUNGO_ENV = QA`
 
-`NAVLUNGO_CANLI_GONDERIM = Hayır` iken gönderi, barkod veya iptal POST çağrısı yapılmaz. Kargo payload ve dry-run 08 sayfasına yazılır.
+`NAVLUNGO_CANLI_GONDERIM = Hayır` iken gönderi, barkod veya iptal POST çağrısı yapılmaz. Payload hash ve durum 08 sayfasına yazılır.
 
 ## Yerel Test Sonucu
 
@@ -67,25 +69,24 @@ Varsayılan değerler:
 
 Sonuç:
 
-- `navlungoAuthCalls = 1`
-- `navlungoPostCalls = 0`
-- `salesPostCalls = 0`
-- `contactPostCalls = 0`
-- Navlungo dry-run payload üretildi.
-- 08 readback içinde `Navlungo_Payload_JSON` ve `Test_Kargo_Mu = Evet` doğrulandı.
-- Canlı kapı kapalıyken gönderi, barkod ve iptal POST yapılmadı.
-- Kargo sorgulama GET akışı test harness içinde çalıştı.
+- Navlungo token alma akışı çalıştı.
+- Taşıyıcı kontrol endpoint çağrısı çalıştı.
+- Payload üretildi ve 08 readback içinde `Navlungo_Payload_Hash` doğrulandı.
+- Kapı kapalıyken Navlungo POST yapılmadı.
+- Kapı açık senaryoda yalnız Navlungo gönderi, barkod ve iptal POST akışları test edildi.
+- Paraşüt sales invoice POST yapılmadı.
+- Paraşüt cari POST yapılmadı.
 
 ## Dürüst Sınır
 
-Gerçek Navlungo QA kullanıcı adı/şifre ile canlı QA gönderi oluşturma, barkod ve iptal testi bu yerel çalışmada yapılmadı. Bu nedenle `QA gönderi oluşturma OK`, `Barkod oluşturma OK` ve `Gönderi iptal OK` gerçek ortam kanıtı olarak yazılmadı. Bu testler Apps Script ana projede Script Properties girildikten sonra ve kontrollü test alıcı verisiyle yapılmalıdır.
+Gerçek Navlungo QA/LIVE kullanıcı bilgileri bu yerel çalışmada kullanılmadı. Bu nedenle gerçek ortamda `post_number`, `tracking_url`, `barcode_url`, sorgu ve iptal kanıtı için Apps Script ana projede Script Properties girildikten sonra kontrollü test kargo satırıyla çalıştırma gerekir.
 
 ## Çalıştırma Sırası
 
 1. Script Properties içine `NAVLUNGO_API_USERNAME` ve `NAVLUNGO_API_PASSWORD` gir.
-2. `NAVLUNGO_ENV = QA`, `NAVLUNGO_TEST_MODE = Evet`, `NAVLUNGO_CANLI_GONDERIM = Hayır` bırak.
-3. `navlungoApiBaglantiTesti()` çalıştır.
-4. Test kargo paketinde `navlungoKargoDryRun(kargoPaketId)` çalıştır.
-5. 08 sayfasında payload ve test kargo alanlarını kontrol et.
-6. Kontrollü QA canlı denemeye geçilecekse önce yalnız 3 test kargo için kapı bilinçli açılır.
-7. 3/3 gönderi, barkod, sorgu ve iptal doğrulanmadan 10 veya 50 testine geçilmez.
+2. `NAVLUNGO_ENV = QA`, `NAVLUNGO_CANLI_GONDERIM = Hayır` bırak.
+3. `navlungoBaglantiTestiTam()` çalıştır.
+4. Test kargo paketinde `navlungoKargoTaslakTestEt(kargoPaketId)` çalıştır.
+5. 08 sayfasında `Navlungo_Reference_ID`, `Navlungo_Carrier_ID`, `Navlungo_Status`, `Navlungo_Payload_Hash` alanlarını kontrol et.
+6. Kontrollü canlı kargo denemesi yapılacaksa yalnız `NAVLUNGO_CANLI_GONDERIM = Evet` açılır.
+7. `navlungoKargoOlusturOnayli(kargoPaketId)`, `navlungoBarkodAl(kargoPaketId)`, `navlungoGonderiSorgula(kargoPaketId)` ve gerekirse `navlungoGonderiIptalEt(kargoPaketId)` sırayla çalıştırılır.

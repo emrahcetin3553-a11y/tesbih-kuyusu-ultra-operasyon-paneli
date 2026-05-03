@@ -28,6 +28,8 @@ Tarih: 2026-05-03
 - `Kargo_Alıcısı`, `Ödeme_Yapan`, `Fatura_Kişisi`, telefon, adres, il/ilçe alanlarının birbirini ezmeden akması güçlendirildi.
 - `Paraşüt_Cari_ID` boşken payload dry-run başarı sayılmıyor; kontrol merkezine açık blokaj yazılıyor.
 - Panelde `Cari seç / cari oluştur` akışı `parasutCariPanelAksiyonu` üzerinden gerçek core callback’e bağlandı.
+- Navlungo Domestic API v2.1 için token, carrier kontrol, payload, gönderi oluşturma, barkod, sorgu, iptal ve toplu kargo/barkod fonksiyonları aktif core’a eklendi.
+- `08_KARGO_PAKETLERI` Navlungo kolonları kullanıcı sözleşmesindeki resmi isimlere taşındı.
 
 ## Kontrol sonuçları
 
@@ -37,13 +39,13 @@ Tarih: 2026-05-03
 - Üretim dosyalarında yasak kelime taraması: temiz
 - Aktif HTML callback kontrolü: temiz
 - Aktif ayrı toplu panel referansı: yok
-- Function count: `344`
+- Function count: `381`
 
 ## SHA256
 
-- Core: `9DF5A23E2D81DCF9FF1749F16A69B62334BCC1EE351EAC4DC57B0E856D08C078`
-- Ultra panel HTML: `BEC49E00FDAE82B07AE7B5CE02EA0E8A97D540039DE3AB32BB8FAF502A1178BA`
-- Sheet: `2C14175BC27D1FBE1A8D85E1A74BEBA7874E2AFF3F97F4568B6D35AA3F7F09DE`
+- Core: `D76587C63D8E4EFE2E1EFFA190EE22C005938CF1B1C81B80053281C5C1027470`
+- Ultra panel HTML: `C5E588BE22B5CDDCC5D13ED69DCCBC8CA4BC7C852505FDAC94A25D09DEA4AA62`
+- Sheet: `582041B2D078A36B55D0DC10A21D9B2B83381E974D3D6D8B4635274A461FDE12`
 
 ## Sonuç
 
