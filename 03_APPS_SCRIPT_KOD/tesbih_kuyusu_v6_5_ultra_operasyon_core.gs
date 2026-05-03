@@ -3384,7 +3384,7 @@ var TK6 = (function () {
     var status = response.getResponseCode();
     var text = response.getContentText();
     if (status === 422) {
-      throw new Error("Navlungo token hata 422 (" + env + "): Kullanıcı bilgileri seçili API ortamında kabul edilmedi. Okunan property çifti: " + credential.usernameKey + " / " + credential.passwordKey + ". Panel giriş e-posta/şifresi API credential değildir. QA için QA panelindeki Entegrasyonlar alanından API kullanıcı adı ve API şifresi alınmalı; LIVE için canlı API kullanıcı adı ve API şifresi kullanılmalıdır. Yanıt: " + sanitizeApiText_(text));
+      throw new Error("Navlungo token hata 422 (" + env + "): Kullanıcı bilgileri seçili API ortamında kabul edilmedi. Okunan property çifti: " + credential.usernameKey + " / " + credential.passwordKey + ". Panel giriş e-posta/şifresi API credential değildir. QA için QA panelindeki Entegrasyonlar alanından API kullanıcı adı ve API şifresi alınmalı; LIVE için canlı API kullanıcı adı ve API şifresi kullanılmalıdır." + navlungoCredentialEnvHint_(env) + " Yanıt: " + sanitizeApiText_(text));
     }
     if (status < 200 || status >= 300) throw new Error("Navlungo token hata " + status + ": " + sanitizeApiText_(text));
     var parsed = navlungoJson_(text);
@@ -3709,6 +3709,15 @@ var TK6 = (function () {
       passwordExists: partial ? partial.passwordExists : false,
       message: message
     };
+  }
+
+  function navlungoCredentialEnvHint_(env) {
+    var props = PropertiesService.getScriptProperties();
+    var liveReady = !!props.getProperty("NAVLUNGO_LIVE_API_USERNAME") && !!props.getProperty("NAVLUNGO_LIVE_API_PASSWORD");
+    var qaReady = !!props.getProperty("NAVLUNGO_QA_API_USERNAME") && !!props.getProperty("NAVLUNGO_QA_API_PASSWORD");
+    if (env === "QA" && liveReady) return " Script Properties içinde LIVE API credential da var; bu değerlerle token almak için NAVLUNGO_ENV=LIVE olmalı.";
+    if (env === "LIVE" && qaReady) return " Script Properties içinde QA API credential da var; bu değerlerle token almak için NAVLUNGO_ENV=QA olmalı.";
+    return "";
   }
 
   function navlungoEnv_() {
