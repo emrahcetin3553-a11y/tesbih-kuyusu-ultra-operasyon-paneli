@@ -15,8 +15,8 @@
       --warn:#b45309;
     }
     * { box-sizing:border-box; }
-    html, body { margin:0; width:100%; height:100%; font-family:Arial, sans-serif; color:var(--ink); background:#eef3f8; }
-    .shell { width:100vw; height:100vh; padding:14px 18px 86px; display:flex; flex-direction:column; gap:12px; overflow:hidden; }
+    html, body { margin:0; width:100%; height:100%; font-family:Arial, sans-serif; color:var(--ink); background:#eef3f8; overflow:hidden; }
+    .shell { width:100%; height:100vh; padding:14px 18px 86px; display:flex; flex-direction:column; gap:12px; overflow:hidden; }
     .topbar { display:flex; align-items:center; justify-content:space-between; gap:12px; }
     h2 { margin:0; font-size:25px; }
     .orders { flex:1; overflow:auto; padding-right:6px; }
@@ -32,8 +32,9 @@
     .c1 { grid-column:span 1; } .c2 { grid-column:span 2; } .c3 { grid-column:span 3; } .c4 { grid-column:span 4; }
     .c5 { grid-column:span 5; } .c6 { grid-column:span 6; } .c7 { grid-column:span 7; } .c8 { grid-column:span 8; } .c12 { grid-column:span 12; }
     .line { border:1px solid #dde8f4; border-radius:8px; padding:10px; margin:8px 0; background:#fff; }
-    .footer { position:fixed; left:0; right:0; bottom:0; background:#f8fafc; border-top:1px solid var(--line); padding:12px 18px; display:flex; justify-content:flex-end; gap:10px; }
+    .footer { position:fixed; left:0; right:0; bottom:0; background:#f8fafc; border-top:1px solid var(--line); padding:12px 18px; display:flex; justify-content:flex-end; gap:10px; z-index:20; }
     button { border:0; border-radius:7px; padding:10px 13px; font-weight:700; cursor:pointer; }
+    button:disabled { opacity:.65; cursor:wait; }
     .primary { background:var(--brand); color:#fff; }
     .secondary { background:#e8eef6; color:#10233f; }
     .danger { background:#fee2e2; color:#991b1b; }
@@ -98,6 +99,7 @@
         <div class="c4"><label>Paket_Notu</label><input data-field="paketNotu"></div>
         <div class="c12">
           <label>Navlungo durumu</label>
+          <input type="hidden" data-field="kargoPaketId">
           <div class="actions-inline">
             <button type="button" class="secondary" onclick="navlungoAction(this.closest('.order-card'), 'dry')">Payload hazırla</button>
             <button type="button" class="secondary" onclick="navlungoAction(this.closest('.order-card'), 'create')">Kargo oluştur</button>
@@ -144,6 +146,7 @@
 <script>
   let meta = { products: [], paymentSources: [], cargoCompanies: [], today: "", editOrders: [] };
   let orderSeq = 0;
+  let saveInProgress = false;
 
   function esc(v) { return String(v == null ? "" : v).replace(/[&<>"']/g, s => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[s])); }
   function cardOf(el) { return el.closest(".order-card"); }
@@ -152,14 +155,108 @@
   function setValue(card, name, val, force) {
     const el = field(card, name);
     if (!el) return;
-    if (!force && el.dataset.touched === "1") return;
-    if (!force && el.value && el.dataset.auto !== "1") return;
-    el.value = val || "";
+    const next = String(val || "");
+    const current = String(el.value || "");
+    if (!force && el.dataset.touched === "1" && el.dataset.auto !== "1") return;
+    if (!force && current && el.dataset.auto !== "1" && !shouldReplacePartial_(current, next)) return;
+    el.value = next;
     if (force) {
       delete el.dataset.auto;
       return;
     }
-    if (val) el.dataset.auto = "1";
+    if (next) el.dataset.auto = "1";
+  }
+
+  function mirrorOwnerToCargo(card, force) {
+    const ownerRaw = value(card, "siparisSahibi");
+    const owner = titleCaseTR(ownerRaw);
+    const cargoEl = field(card, "kargoAlicisi");
+    if (!cargoEl) return;
+
+    const current = String(cargoEl.value || "").trim();
+    const lastMirror = card.dataset.lastOwnerCargoMirror || "";
+    const currentKey = asciiKey(current);
+    const lastKey = asciiKey(lastMirror);
+    const ownerKey = asciiKey(owner);
+
+    const canOverwrite =
+      force ||
+      !current ||
+      cargoEl.dataset.auto === "1" ||
+      currentKey === lastKey ||
+      (lastKey && currentKey && (lastKey.indexOf(currentKey) === 0 || currentKey.indexOf(lastKey) === 0)) ||
+      (ownerKey && currentKey && (ownerKey.indexOf(currentKey) === 0 || currentKey.indexOf(ownerKey) === 0));
+
+    if (!ownerRaw.trim()) {
+      if (canOverwrite) {
+        cargoEl.value = "";
+        cargoEl.dataset.auto = "1";
+        card.dataset.lastOwnerCargoMirror = "";
+        delete cargoEl.dataset.manualCargoOverride;
+      }
+      return;
+    }
+
+    if (canOverwrite) {
+      cargoEl.value = owner;
+      cargoEl.dataset.auto = "1";
+      card.dataset.lastOwnerCargoMirror = owner;
+      delete cargoEl.dataset.manualCargoOverride;
+    }
+  }
+
+  function mirrorPhoneToCargo(card, force) {
+    const phone = completePhoneTR(value(card, "whatsAppTel"));
+    const el = field(card, "kargoTel");
+    if (!el || !phone) return;
+    const canOverwrite = force || !el.value || el.dataset.auto === "1" || asciiKey(el.value) === asciiKey(card.dataset.lastPhoneCargoMirror || "");
+    if (canOverwrite) {
+      el.value = phone;
+      el.dataset.auto = "1";
+      card.dataset.lastPhoneCargoMirror = phone;
+      delete el.dataset.manualCargoOverride;
+    }
+  }
+
+  function smartMirrorValue(card, name, val) {
+    if (name === "kargoAlicisi") {
+      const el = field(card, name);
+      if (!el) return;
+      const next = titleCaseTR(val || "");
+      if (!next) return;
+      const currentKey = asciiKey(el.value);
+      const nextKey = asciiKey(next);
+      const lastKey = asciiKey(card.dataset.lastOwnerCargoMirror || "");
+      const canOverwrite = !el.value || el.dataset.auto === "1" || currentKey === lastKey || (currentKey && nextKey.indexOf(currentKey) === 0);
+      if (canOverwrite) {
+        el.value = next;
+        el.dataset.auto = "1";
+        card.dataset.lastOwnerCargoMirror = next;
+        delete el.dataset.manualCargoOverride;
+      }
+      return;
+    }
+    if (name === "kargoTel") {
+      mirrorPhoneToCargo(card, false);
+      return;
+    }
+    const el = field(card, name);
+    if (!el) return;
+    const next = val || "";
+    if (!next) return;
+    const cur = String(el.value || "").trim();
+    const curKey = asciiKey(cur);
+    const nextKey = asciiKey(next);
+    const canOverwrite = !cur || el.dataset.auto === "1" || curKey === nextKey || (curKey && nextKey.indexOf(curKey) === 0);
+    if (canOverwrite) {
+      el.value = next;
+      el.dataset.auto = "1";
+    }
+  }
+
+  function syncOwnerToCargo(card) {
+    mirrorOwnerToCargo(card, false);
+    mirrorPhoneToCargo(card, false);
   }
   function optionList(rows, valueKey, labelKey) {
     return (rows || []).map(r => {
@@ -242,11 +339,13 @@
     const card = tpl.querySelector(".order-card");
     card.dataset.orderNo = String(++orderSeq);
     if (data.openId) card.dataset.openId = data.openId;
-    if (data.cargoPackageId || (data.kargo && data.kargo.kargoPaketId)) card.dataset.cargoPackageId = data.cargoPackageId || data.kargo.kargoPaketId;
+    const kargoPaketId = data.kargoPaketId || data.cargoPackageId || (data.kargo && (data.kargo.kargoPaketId || data.kargo.cargoPackageId)) || "";
+    if (kargoPaketId) card.dataset.kargoPaketId = kargoPaketId;
     card.querySelector(".cargo-company").innerHTML = optionList(meta.cargoCompanies || []);
     card.querySelector(".cargo-company").value = "Aras Kargo";
     document.getElementById("orders").appendChild(card);
     bindCard(card);
+    setValue(card, "kargoPaketId", card.dataset.kargoPaketId || "", true);
     setValue(card, "whatsAppTel", data.whatsAppTel || "", true);
     setValue(card, "siparisSahibi", data.siparisSahibi || "", true);
     setValue(card, "hamWhatsappMesaji", data.hamWhatsappMesaji || "", true);
@@ -296,15 +395,28 @@
       });
       el.addEventListener("blur", () => normalizeField(card, el));
     });
-    field(card, "whatsAppTel").addEventListener("input", () => applyCustomerDefaults(card));
-    field(card, "siparisSahibi").addEventListener("input", () => applyCustomerDefaults(card));
+    field(card, "whatsAppTel").addEventListener("input", () => {
+      syncOwnerToCargo(card);
+      applyCustomerDefaults(card);
+    });
+    field(card, "siparisSahibi").addEventListener("input", () => {
+      mirrorOwnerToCargo(card, false);
+      syncPaymentDefaults(card);
+      rebuildInvoiceBlocks(card);
+    });
     ["kargoAlicisi", "kargoTel", "il", "ilce", "adres"].forEach(name => field(card, name).addEventListener("input", () => {
+      const el = field(card, name);
+      if (name === "kargoAlicisi" || name === "kargoTel") {
+        el.dataset.manualCargoOverride = "1";
+        delete el.dataset.auto;
+      }
       syncPaymentDefaults(card);
       rebuildInvoiceBlocks(card);
     }));
   }
   function normalizeField(card, el) {
     if (el.dataset.role === "person") el.value = titleCaseTR(el.value);
+    if (el.dataset.field === "siparisSahibi") mirrorOwnerToCargo(card, true);
     if (el.dataset.role === "phone") {
       const phone = completePhoneTR(el.value);
       if (phone) el.value = phone;
@@ -320,10 +432,8 @@
   function applyCustomerDefaults(card) {
     const owner = titleCaseTR(value(card, "siparisSahibi"));
     const phone = completePhoneTR(value(card, "whatsAppTel"));
-    if (owner && personReadyTR(owner)) {
-      setValue(card, "kargoAlicisi", owner, false);
-    }
-    if (phone) setValue(card, "kargoTel", phone, false);
+    mirrorOwnerToCargo(card, false);
+    mirrorPhoneToCargo(card, false);
     syncPaymentDefaults(card);
     rebuildInvoiceBlocks(card);
     if (!phone) return;
@@ -332,8 +442,10 @@
       if (!res || !res.ok) return;
       if (!owner && res.owner) setValue(card, "siparisSahibi", res.owner, false);
       if (res.cargo) {
-        setValue(card, "kargoAlicisi", res.cargo.receiver || owner, false);
-        setValue(card, "kargoTel", completePhoneTR(res.cargo.phone || "") || phone, false);
+        if (owner) mirrorOwnerToCargo(card, false);
+        else smartMirrorValue(card, "kargoAlicisi", res.cargo.receiver || "");
+        if (phone) mirrorPhoneToCargo(card, false);
+        else smartMirrorValue(card, "kargoTel", completePhoneTR(res.cargo.phone || ""));
         setValue(card, "il", res.cargo.city || "", false);
         setValue(card, "ilce", res.cargo.district || "", false);
         setValue(card, "adres", res.cargo.address || "", false);
@@ -378,11 +490,18 @@
   }
   function setAutoInput(row, selector, val) {
     const el = row.querySelector(selector);
-    if (!el || !val) return;
-    if (el.dataset.touched === "1") return;
-    if (!el.value || el.dataset.auto === "1") {
-      el.value = val;
+    const next = String(val == null ? "" : val).trim();
+    if (!el || !next) return;
+    const current = String(el.value || "").trim();
+    const canRepair =
+      !current ||
+      el.dataset.auto === "1" ||
+      asciiKey(current) === asciiKey(next) ||
+      shouldReplacePartial_(current, next);
+    if (canRepair) {
+      el.value = next;
       el.dataset.auto = "1";
+      delete el.dataset.touched;
     }
   }
   function syncPaymentDefaults(card) {
@@ -390,7 +509,7 @@
     const phone = completePhoneTR(value(card, "kargoTel")) || completePhoneTR(value(card, "whatsAppTel"));
     const city = cityTR(value(card, "il"));
     const district = cityTR(value(card, "ilce"));
-    const address = value(card, "adres");
+    const address = String(value(card, "adres") || "").trim();
     card.querySelectorAll(".payments .line").forEach(row => {
       if (owner && personReadyTR(owner)) setAutoInput(row, ".odemeYapan", owner);
       setAutoInput(row, ".odemeYapanTel", phone);
@@ -419,6 +538,8 @@
   function addProductLine(card, data = {}) {
     const wrap = document.createElement("div");
     wrap.className = "line";
+    wrap.dataset.urunKalemId = data.urunKalemId || data.itemId || "";
+    wrap.dataset.faturaCariBaglantiId = data.faturaCariBaglantiId || "";
     wrap.innerHTML = `
       <div class="grid">
         <div class="c2"><label>Ürün</label><select class="urunAdi">${optionList(meta.products, "name", "name")}</select></div>
@@ -427,6 +548,7 @@
         <div class="c1"><label>Birim</label><input class="birim" value="${esc(data.birim || "Adet")}"></div>
         <div class="c2"><label>Birim fiyat</label><input class="birimFiyatKdvDahil" value="${esc(data.birimFiyatKdvDahil || "")}"></div>
         <div class="c1"><label>KDV</label><input class="kdvOrani" value="${esc(data.kdvOrani || "0,20")}"></div>
+        <div class="c2"><label>KDV Modeli</label><select class="kdvModeli"><option>Standart KDV</option><option>KDV 0</option><option>11 katmanı karar verecek</option></select></div>
         <div class="c1"><label>KDV hariç</label><input class="kdvHaric readonly" readonly></div>
         <div class="c1"><label>KDV tutarı</label><input class="kdvTutari readonly" readonly></div>
         <div class="c2"><label>Toplam</label><input class="toplamKdvDahil readonly" readonly></div>
@@ -435,7 +557,7 @@
           <div class="c2"><label>Gram</label><input class="gumusGram" value="${esc(data.gumusGram || "")}"></div>
           <div class="c2"><label>Alış fiyatı</label><input class="gumusAlisBirim" value="${esc(data.gumusAlisBirim || "")}"></div>
           <div class="c2"><label>Satış fiyatı</label><input class="gumusSatisBirim" value="${esc(data.gumusSatisBirim || "")}"></div>
-          <div class="c2"><label>KDV modeli</label><select class="kdvModeli"><option>Standart KDV</option><option>KDV 0</option><option>11 katmanı karar verecek</option></select></div>
+          <div class="c2"><label>Gümüş vergi modeli</label><input class="gumusVergiModeli readonly" readonly value="17/4-g kontrolü"></div>
           <div class="c2"><label>Marj</label><input class="gumusMarj readonly" readonly></div>
         </div></div>
         <div class="c1"><button class="danger" onclick="this.closest('.line').remove()">Sil</button></div>
@@ -443,6 +565,7 @@
     card.querySelector(".products").appendChild(wrap);
     wrap.querySelector(".urunAdi").value = data.urunAdi || "Tesbih";
     wrap.querySelector(".productPayer").value = data.odemeYapan || "";
+    if (wrap.querySelector(".kdvModeli")) wrap.querySelector(".kdvModeli").value = data.kdvModeli || "Standart KDV";
     wrap.querySelector(".urunAdi").addEventListener("change", () => productChanged(wrap));
     wrap.querySelectorAll("input,select").forEach(el => el.addEventListener("blur", () => calcProduct(wrap)));
     productChanged(wrap);
@@ -454,6 +577,9 @@
     row.classList.toggle("is-silver", name === "Gümüş");
     row.querySelector(".birim").value = cfg.unit || (name === "Gümüş" ? "Gram" : "Adet");
     row.querySelector(".kdvOrani").value = String(cfg.vatRate == null ? 0.20 : cfg.vatRate).replace(".", ",");
+    if (row.querySelector(".kdvModeli") && row.querySelector(".kdvModeli").dataset.touched !== "1") {
+      row.querySelector(".kdvModeli").value = name === "Gümüş" ? "KDV 0" : "Standart KDV";
+    }
     row.querySelector(".parasutUrunId").value = cfg.productId || "";
     calcProduct(row);
   }
@@ -473,6 +599,8 @@
   function addPaymentLine(card, data = {}) {
     const wrap = document.createElement("div");
     wrap.className = "line";
+    wrap.dataset.odemeId = data.odemeId || data.paymentId || "";
+    wrap.dataset.faturaCariBaglantiId = data.faturaCariBaglantiId || "";
     wrap.innerHTML = `
       <div class="grid">
         <div class="c3"><label>Ödeme_Yapan</label><input class="odemeYapan" value="${esc(data.odemeYapan || "")}"></div>
@@ -521,12 +649,64 @@
   function existingInvoiceValues(card) {
     const out = {};
     card.querySelectorAll(".invoice-line").forEach(line => {
-      const name = line.querySelector(".faturaKisisi").value;
+      const name = line.querySelector(".faturaKisisi") ? line.querySelector(".faturaKisisi").value : "";
+      if (!name) return;
       out[name] = {};
-      line.querySelectorAll("input,select").forEach(el => out[name][el.className.split(" ")[0]] = el.value);
+      line.querySelectorAll("input,select").forEach(el => {
+        const key = el.className.split(" ")[0];
+        out[name][key] = {
+          value: el.value,
+          touched: el.dataset.touched === "1",
+          auto: el.dataset.auto === "1"
+        };
+      });
     });
     return out;
   }
+  function invRaw_(obj, key) {
+    const v = obj && obj[key];
+    return v && typeof v === "object" && "value" in v ? v.value : (v || "");
+  }
+  function invTouched_(obj, key) {
+    const v = obj && obj[key];
+    return !!(v && typeof v === "object" && v.touched && !v.auto);
+  }
+  function shouldReplacePartial_(current, fallback) {
+    const cur = String(current || "").trim();
+    const full = String(fallback || "").trim();
+    if (!cur || !full) return !cur && !!full;
+    const ck = asciiKey(cur);
+    const fk = asciiKey(full);
+    if (!ck || !fk) return false;
+    return ck !== fk && fk.indexOf(ck) === 0;
+  }
+  function bestAutoValue_(candidate, fallback) {
+    const cand = String(candidate || "").trim();
+    const full = String(fallback || "").trim();
+    if (!cand) return full;
+    if (!full) return cand;
+    return shouldReplacePartial_(cand, full) ? full : cand;
+  }
+  function invoiceValue_(source, prior, key, fallback, formatter) {
+    const fmt = formatter || (x => x || "");
+    const fallbackValue = String(fmt(fallback || "") || "").trim();
+    const sourceValue = String(fmt(invRaw_(source, key)) || "").trim();
+    const priorValue = String(fmt(invRaw_(prior, key)) || "").trim();
+    if (invTouched_(prior, key) && priorValue && !shouldReplacePartial_(priorValue, fallbackValue)) return priorValue;
+    if (fallbackValue && shouldReplacePartial_(sourceValue, fallbackValue)) return fallbackValue;
+    if (fallbackValue && shouldReplacePartial_(priorValue, fallbackValue)) return fallbackValue;
+    if (sourceValue) return sourceValue;
+    if (fallbackValue) return fallbackValue;
+    return priorValue || "";
+  }
+  function markInvoiceAutoFields_(block, autoMap) {
+    Object.keys(autoMap || {}).forEach(cls => {
+      const el = block.querySelector("." + cls);
+      if (!el) return;
+      if (autoMap[cls]) el.dataset.auto = "1";
+    });
+  }
+
   function rebuildInvoiceBlocks(card, sourceRows = []) {
     syncPaymentDefaults(card);
     const fromSource = {};
@@ -534,6 +714,7 @@
       const name = titleCaseTR(row.faturaKisisi || row.odemeYapan || "");
       if (!name) return;
       fromSource[name] = {
+        faturaGrubuId: row.faturaGrubuId,
         cariTipi: row.cariTipi,
         faturaTel: row.faturaTel,
         faturaEmail: row.faturaEmail,
@@ -549,42 +730,66 @@
         cariAksiyon: row.cariAksiyon
       };
     });
-    const prior = Object.assign({}, fromSource, existingInvoiceValues(card));
+    const prior = existingInvoiceValues(card);
     const area = card.querySelector(".invoice-blocks");
     area.innerHTML = "";
     payerNames(card).forEach((payer, idx) => {
       const pLine = [...card.querySelectorAll(".payments .line")].find(r => titleCaseTR(r.querySelector(".odemeYapan").value) === payer);
-      const saved = prior[payer] || {};
-      const tax = saved.faturaTcknVkn || (pLine && pLine.querySelector(".odemeYapanTcknVkn").value) || "11111111111";
-      const tel = saved.faturaTel || (pLine && pLine.querySelector(".odemeYapanTel").value) || value(card, "kargoTel") || value(card, "whatsAppTel");
-      const city = saved.faturaIl || (pLine && pLine.querySelector(".odemeYapanIl").value) || value(card, "il");
-      const district = saved.faturaIlce || (pLine && pLine.querySelector(".odemeYapanIlce").value) || value(card, "ilce");
-      const address = saved.faturaAdres || (pLine && pLine.querySelector(".odemeYapanAdres").value) || value(card, "adres");
+      const saved = fromSource[payer] || {};
+      const previousInvoice = prior[payer] || {};
+      const fallbackTel = bestAutoValue_(pLine && pLine.querySelector(".odemeYapanTel").value, value(card, "kargoTel")) || value(card, "whatsAppTel");
+      const fallbackCity = bestAutoValue_(pLine && pLine.querySelector(".odemeYapanIl").value, value(card, "il"));
+      const fallbackDistrict = bestAutoValue_(pLine && pLine.querySelector(".odemeYapanIlce").value, value(card, "ilce"));
+      const fallbackAddress = bestAutoValue_(pLine && pLine.querySelector(".odemeYapanAdres").value, value(card, "adres"));
+      const tax = invoiceValue_(saved, previousInvoice, "faturaTcknVkn", (pLine && pLine.querySelector(".odemeYapanTcknVkn").value) || "11111111111");
+      const tel = invoiceValue_(saved, previousInvoice, "faturaTel", fallbackTel, phoneTR);
+      const city = invoiceValue_(saved, previousInvoice, "faturaIl", fallbackCity, cityTR);
+      const district = invoiceValue_(saved, previousInvoice, "faturaIlce", fallbackDistrict, cityTR);
+      const address = invoiceValue_(saved, previousInvoice, "faturaAdres", fallbackAddress);
+      const cariTipi = invoiceValue_(saved, previousInvoice, "cariTipi", "Gerçek Kişi");
+      const faturaEmail = invoiceValue_(saved, previousInvoice, "faturaEmail", "");
+      const faturaVergiDairesi = invoiceValue_(saved, previousInvoice, "faturaVergiDairesi", "");
+      const eBelgeTipi = invoiceValue_(saved, previousInvoice, "eBelgeTipi", tax === "11111111111" ? "e-Arşiv" : "e-Belge mükellef kontrolü gerekli");
+      const parasutCariId = invoiceValue_(saved, previousInvoice, "parasutCariId", "");
+      const cariPuan = invoiceValue_(saved, previousInvoice, "cariPuan", "");
+      const cariDurum = invoiceValue_(saved, previousInvoice, "cariDurum", "Cari çözümü gerekli");
+      const cariAksiyon = invoiceValue_(saved, previousInvoice, "cariAksiyon", "Kaydet sırasında aday aranacak");
       const block = document.createElement("div");
       block.className = "line invoice-line";
+      block.dataset.faturaGrubuId = saved.faturaGrubuId || "";
       block.innerHTML = `
         <div><span class="badge">Fatura/Cari ${idx + 1}</span><strong>${esc(payer)}</strong></div>
         <div class="grid">
           <div class="c3"><label>Fatura_Kişisi</label><input class="faturaKisisi readonly" readonly value="${esc(payer)}"></div>
           <div class="c2"><label>Cari_Tipi</label><select class="cariTipi"><option>Gerçek Kişi</option><option>Tüzel Kişi</option></select></div>
           <div class="c2"><label>Fatura_Tel</label><input class="faturaTel" value="${esc(phoneTR(tel))}"></div>
-          <div class="c2"><label>Fatura_Eposta</label><input class="faturaEmail" value="${esc(saved.faturaEmail || "")}"></div>
+          <div class="c2"><label>Fatura_Eposta</label><input class="faturaEmail" value="${esc(faturaEmail)}"></div>
           <div class="c2"><label>Fatura_TCKN_VKN</label><input class="faturaTcknVkn" value="${esc(tax || "11111111111")}"></div>
-          <div class="c3"><label>Fatura_Vergi_Dairesi</label><input class="faturaVergiDairesi" value="${esc(saved.faturaVergiDairesi || "")}"></div>
+          <div class="c3"><label>Fatura_Vergi_Dairesi</label><input class="faturaVergiDairesi" value="${esc(faturaVergiDairesi)}"></div>
           <div class="c2"><label>Fatura_İl</label><input class="faturaIl" value="${esc(cityTR(city))}"></div>
           <div class="c2"><label>Fatura_İlçe</label><input class="faturaIlce" value="${esc(cityTR(district))}"></div>
-          <div class="c3"><label>E_Belge_Tipi</label><input class="eBelgeTipi readonly" readonly value="${tax === "11111111111" ? "e-Arşiv" : (saved.eBelgeTipi || "e-Belge mükellef kontrolü gerekli")}"></div>
-          <div class="c3"><label>Paraşüt_Cari_ID</label><input class="parasutCariId" value="${esc(saved.parasutCariId || "")}"></div>
-          <div class="c2"><label>Cari_Eşleşme_Güven_Puanı</label><input class="cariPuan readonly" readonly value="${esc(saved.cariPuan || "")}"></div>
-          <div class="c3"><label>Cari_Eşleşme_Durumu</label><input class="cariDurum readonly" readonly value="${esc(saved.cariDurum || "Cari çözümü gerekli")}"></div>
-          <div class="c4"><label>Cari_Aksiyon</label><input class="cariAksiyon readonly" readonly value="${esc(saved.cariAksiyon || "Kaydet sırasında aday aranacak")}"></div>
+          <div class="c3"><label>E_Belge_Tipi</label><input class="eBelgeTipi readonly" readonly value="${esc(eBelgeTipi)}"></div>
+          <div class="c3"><label>Paraşüt_Cari_ID</label><input class="parasutCariId" value="${esc(parasutCariId)}"></div>
+          <div class="c2"><label>Cari_Eşleşme_Güven_Puanı</label><input class="cariPuan readonly" readonly value="${esc(cariPuan)}"></div>
+          <div class="c3"><label>Cari_Eşleşme_Durumu</label><input class="cariDurum readonly" readonly value="${esc(cariDurum)}"></div>
+          <div class="c4"><label>Cari_Aksiyon</label><input class="cariAksiyon readonly" readonly value="${esc(cariAksiyon)}"></div>
           <div class="c8"><label>Fatura_Adres</label><input class="faturaAdres" value="${esc(address)}"></div>
           <div class="c2"><button type="button" class="secondary cari-auto">Cari seç / ara</button></div>
           <div class="c2"><button type="button" class="secondary cari-create">Cari oluştur</button></div>
         </div>`;
-      block.querySelector(".cariTipi").value = saved.cariTipi || "Gerçek Kişi";
+      block.querySelector(".cariTipi").value = cariTipi || "Gerçek Kişi";
+      markInvoiceAutoFields_(block, {
+        faturaTel: !!fallbackTel,
+        faturaIl: !!fallbackCity,
+        faturaIlce: !!fallbackDistrict,
+        faturaAdres: !!fallbackAddress,
+        faturaTcknVkn: true
+      });
       block.querySelectorAll("input,select").forEach(el => {
-        el.addEventListener("input", () => { el.dataset.touched = "1"; });
+        el.addEventListener("input", () => {
+          el.dataset.touched = "1";
+          delete el.dataset.auto;
+        });
         el.addEventListener("blur", () => {
           if (el.classList.contains("faturaTel")) {
             const phone = completePhoneTR(el.value);
@@ -599,11 +804,14 @@
     });
     refreshPayerOptions(card);
   }
+
   function collectOrder(card) {
     syncPaymentDefaults(card);
+    const kargoPaketId = currentCargoPackageId(card);
     return {
       openId: card.dataset.openId || "",
-      cargoPackageId: card.dataset.cargoPackageId || "",
+      cargoPackageId: kargoPaketId,
+      kargoPaketId: kargoPaketId,
       whatsAppTel: phoneTR(value(card, "whatsAppTel")),
       siparisSahibi: titleCaseTR(value(card, "siparisSahibi")),
       hamWhatsappMesaji: value(card, "hamWhatsappMesaji"),
@@ -611,11 +819,14 @@
       hizliOdemeGirisi: value(card, "hizliOdemeGirisi"),
       hizliKargoGirisi: value(card, "hizliKargoGirisi"),
       urunler: [...card.querySelectorAll(".products .line")].map(row => ({
+        urunKalemId: row.dataset.urunKalemId || "",
+        faturaCariBaglantiId: row.dataset.faturaCariBaglantiId || "",
         urunAdi: row.querySelector(".urunAdi").value,
         odemeYapan: row.querySelector(".productPayer").value,
         miktar: row.querySelector(".miktar").value,
         birim: row.querySelector(".birim").value,
         birimFiyatKdvDahil: row.querySelector(".birimFiyatKdvDahil").value,
+        kdvModeli: row.querySelector(".kdvModeli") ? row.querySelector(".kdvModeli").value : "Standart KDV",
         kdvOrani: row.querySelector(".kdvOrani").value,
         gumusGram: row.querySelector(".gumusGram") ? row.querySelector(".gumusGram").value : "",
         gumusAlisBirim: row.querySelector(".gumusAlisBirim") ? row.querySelector(".gumusAlisBirim").value : "",
@@ -623,6 +834,8 @@
         gumusTutarTipi: "Birim"
       })),
       odemeler: [...card.querySelectorAll(".payments .line")].map(row => ({
+        odemeId: row.dataset.odemeId || "",
+        faturaCariBaglantiId: row.dataset.faturaCariBaglantiId || "",
         odemeYapan: titleCaseTR(row.querySelector(".odemeYapan").value),
         odemeTutari: row.querySelector(".odemeTutari").value,
         odemeTarihi: row.querySelector(".odemeTarihi").value,
@@ -635,6 +848,7 @@
         odemeYapanIlce: row.querySelector(".odemeYapanIlce").value
       })),
       faturalar: [...card.querySelectorAll(".invoice-line")].map(row => ({
+        faturaGrubuId: row.dataset.faturaGrubuId || "",
         faturaKisisi: row.querySelector(".faturaKisisi").value,
         cariTipi: row.querySelector(".cariTipi").value,
         faturaTel: phoneTR(row.querySelector(".faturaTel").value),
@@ -648,7 +862,8 @@
         parasutCariId: row.querySelector(".parasutCariId").value
       })),
       kargo: {
-        kargoPaketId: card.dataset.cargoPackageId || "",
+        kargoPaketId: kargoPaketId,
+        cargoPackageId: kargoPaketId,
         kargoAlicisi: titleCaseTR(value(card, "kargoAlicisi")),
         kargoTel: phoneTR(value(card, "kargoTel")),
         il: cityTR(value(card, "il")),
@@ -662,20 +877,20 @@
   function resolveCari(card, line, mode) {
     const openId = card.dataset.openId || "";
     if (!openId) {
-      setCardStatus(card, "Cari çözümü için önce Kaydet ve ERP güncelle çalıştırılmalı.");
+      setCardStatus(card, "Cari çözümü için önce Kaydet ve ERP güncelle çalıştırılmalı.", "warn");
       return;
     }
     const payer = line.querySelector(".faturaKisisi").value;
     const contactId = line.querySelector(".parasutCariId").value;
-    setCardStatus(card, `${payer} için cari çözümü çalışıyor...`);
+    setCardStatus(card, `${payer} için cari çözümü çalışıyor...`, "info");
     google.script.run.withSuccessHandler(res => {
       if (res.contactId) line.querySelector(".parasutCariId").value = res.contactId;
       if (res.score) line.querySelector(".cariPuan").value = res.score;
       if (res.status) line.querySelector(".cariDurum").value = res.status;
       line.querySelector(".cariAksiyon").value = res.ok ? "Cari bağlı" : (res.status || "Operatör onayı gerekli");
       const liveInfo = res.livePost ? `\nCanlı cari POST: ${res.livePost}` : "";
-      setCardStatus(card, `${payer}: ${res.status || "Cari sonucu alındı"}${liveInfo}`);
-    }).withFailureHandler(err => setCardStatus(card, failureText("Paraşüt cari", err), "error"))
+      setCardStatus(card, `${payer}: ${res.status || "Cari sonucu alındı"}${liveInfo}`, res.ok === false ? "warn" : "info");
+    }).withFailureHandler(err => setCardStatus(card, "HATA: " + (err.message || err), "error"))
       .parasutCariPanelAksiyonu(openId, payer, mode, contactId);
   }
   function cards() { return [...document.querySelectorAll(".order-card")]; }
@@ -699,10 +914,10 @@
     (lines || []).forEach(line => {
       const text = issueText(line);
       const key = asciiKey(text);
-      if (/parasut|parasüt|cari|fatura/.test(key)) groups["Paraşüt"].push(text);
+      if (/parasut|cari|fatura/.test(key)) groups["Paraşüt"].push(text);
       else if (/navlungo|kargo/.test(key)) groups["Navlungo"].push(text);
-      else if (/banka|odeme|ödeme/.test(key)) groups["Banka"].push(text);
-      else if (/eksik|gecerli|geçerli|uyari|uyarı|once kaydet|önce kaydet/.test(key)) groups["Bilgilendirme"].push(text);
+      else if (/banka|odeme/.test(key)) groups["Banka"].push(text);
+      else if (/eksik|gecerli|uyari|once kaydet/.test(key)) groups["Bilgilendirme"].push(text);
       else groups["Operasyon"].push(text);
     });
     return Object.keys(groups).filter(k => groups[k].length).map(k => `${k}\n- ${groups[k].join("\n- ")}`).join("\n\n");
@@ -714,80 +929,122 @@
     if (res.issues) return groupLines(res.issues);
     return JSON.stringify(res, null, 2);
   }
-  function failureText(module, err) {
-    const msg = err && err.message ? err.message : String(err || "Bilinmeyen hata");
-    return `İşlemi engelleyen hata (${module})\n${msg}`;
-  }
   function checkAll() {
     cards().forEach(card => {
-      setCardStatus(card, "Kontrol ediliyor...");
+      setCardStatus(card, "Kontrol ediliyor...", "info");
       google.script.run.withSuccessHandler(res => setCardStatus(card, res.ok ? "12_KONTROL_MERKEZI temiz" : summarize(res), res.ok ? "info" : "warn"))
-        .withFailureHandler(err => setCardStatus(card, failureText("Kontrol", err), "error"))
+        .withFailureHandler(err => setCardStatus(card, "HATA: " + (err.message || err), "error"))
         .ultraSiparisKontrolEt(collectOrder(card));
     });
   }
+  function setSavingState(active) {
+    saveInProgress = !!active;
+    document.querySelectorAll("button").forEach(btn => {
+      if (btn.textContent && btn.textContent.trim() !== "Kapat") btn.disabled = saveInProgress;
+    });
+  }
   function saveAll() {
+    if (saveInProgress) return;
     const list = cards().map(collectOrder);
-    cards().forEach(card => setCardStatus(card, "Kaydediliyor..."));
-    if (list.length === 1) {
-      google.script.run.withSuccessHandler(res => {
-        const card = cards()[0];
-        card.dataset.openId = res.openId || "";
-        card.dataset.cargoPackageId = res.cargoPackageId || card.dataset.cargoPackageId || "";
+    const started = Date.now();
+    setSavingState(true);
+    cards().forEach(card => setCardStatus(card, "Kaydediliyor... Lütfen ikinci kez basma. Sadece değişen sipariş gönderiliyor.", "info"));
+    const finishOk = (res, targetCards) => {
+      setSavingState(false);
+      const elapsed = ((Date.now() - started) / 1000).toFixed(1);
+      if (targetCards.length === 1) {
+        const card = targetCards[0];
+        card.dataset.openId = res.openId || card.dataset.openId || "";
+        if (res.kargoPaketId || res.cargoPackageId) card.dataset.kargoPaketId = res.kargoPaketId || res.cargoPackageId;
+        setValue(card, "kargoPaketId", card.dataset.kargoPaketId || "", true);
         refreshOrderTitles();
-        setCardStatus(card, summarize(res));
-      }).withFailureHandler(err => setCardStatus(cards()[0], failureText("Kaydet ve ERP güncelle", err), "error")).ultraSiparisKaydet(list[0]);
-      return;
-    }
-    google.script.run.withSuccessHandler(res => {
-      cards().forEach((card, i) => {
+        setCardStatus(card, summarize(res) + "\nKaydetme süresi: " + elapsed + " sn", res.ok === false ? "warn" : "info");
+        return;
+      }
+      targetCards.forEach((card, i) => {
         const r = (res.results || [])[i] || {};
         card.dataset.openId = r.openId || card.dataset.openId || "";
-        card.dataset.cargoPackageId = r.cargoPackageId || card.dataset.cargoPackageId || "";
-        setCardStatus(card, summarize(r));
+        if (r.kargoPaketId || r.cargoPackageId) card.dataset.kargoPaketId = r.kargoPaketId || r.cargoPackageId;
+        setValue(card, "kargoPaketId", card.dataset.kargoPaketId || "", true);
+        setCardStatus(card, summarize(r), r.ok === false ? "warn" : "info");
       });
       refreshOrderTitles();
-    }).withFailureHandler(err => cards().forEach(card => setCardStatus(card, failureText("Kaydet ve ERP güncelle", err), "error"))).topluUltraSiparisKaydet(list);
+    };
+    const finishErr = (err, targetCards) => {
+      setSavingState(false);
+      targetCards.forEach(card => setCardStatus(card, "HATA: " + (err.message || err), "error"));
+    };
+    if (list.length === 1) {
+      google.script.run.withSuccessHandler(res => finishOk(res, cards()))
+        .withFailureHandler(err => finishErr(err, cards()))
+        .ultraSiparisKaydet(list[0]);
+      return;
+    }
+    google.script.run.withSuccessHandler(res => finishOk(res, cards()))
+      .withFailureHandler(err => finishErr(err, cards()))
+      .topluUltraSiparisKaydet(list);
   }
   function invoiceCargo() {
     const card = cards().find(c => c.dataset.openId) || cards()[0];
     const openId = card.dataset.openId || "";
-    if (!openId) { setCardStatus(card, "Önce Kaydet ve ERP güncelle çalıştırılmalı."); return; }
-    setCardStatus(card, "Fatura/kargo son kontrol ediliyor...");
+    if (!openId) { setCardStatus(card, "Önce Kaydet ve ERP güncelle çalıştırılmalı.", "warn"); return; }
+    setCardStatus(card, "Fatura/kargo son kontrol ediliyor...", "info");
     google.script.run.withSuccessHandler(res => setCardStatus(card, summarize(res), res.ok === false ? "warn" : "info"))
-      .withFailureHandler(err => setCardStatus(card, failureText("Fatura ve Kargo", err), "error"))
+      .withFailureHandler(err => setCardStatus(card, "HATA: " + (err.message || err), "error"))
       .faturaVeKargoOlustur(openId);
   }
   function currentCargoPackageId(card) {
-    return card.dataset.cargoPackageId || "";
+    const explicit = card.dataset.kargoPaketId || value(card, "kargoPaketId") || "";
+    return String(explicit || "").trim();
   }
   function navlungoAction(card, action) {
     const kargoPaketId = currentCargoPackageId(card);
     if (!kargoPaketId) {
-      setCardStatus(card, "Navlungo işlemi için önce Kaydet ve ERP güncelle çalıştırılmalı.");
+      setCardStatus(card, "Navlungo işlemi için Kargo_Paket_ID bulunamadı. Önce Fatura ve Kargo oluştur adımını çalıştırın; sonra paneli yeniden açın.", "warn");
       return;
     }
-    setCardStatus(card, "Navlungo işlemi çalışıyor...");
+    setCardStatus(card, "Navlungo işlemi çalışıyor...", "info");
     const runner = google.script.run
       .withSuccessHandler(res => setCardStatus(card, summarize(res), res.ok === false ? "warn" : "info"))
-      .withFailureHandler(err => setCardStatus(card, failureText("Navlungo", err), "error"));
+      .withFailureHandler(err => setCardStatus(card, "HATA: " + (err.message || err), "error"));
     if (action === "dry") runner.navlungoKargoTaslakTestEt(kargoPaketId);
     else if (action === "create") runner.navlungoKargoOlusturOnayli(kargoPaketId);
     else if (action === "barcode") runner.navlungoBarkodAl(kargoPaketId);
     else if (action === "check") runner.navlungoGonderiSorgula(kargoPaketId);
     else if (action === "cancel") runner.navlungoGonderiIptalEt(kargoPaketId);
-    else setCardStatus(card, "Bilinmeyen Navlungo işlemi.");
+    else setCardStatus(card, "Bilinmeyen Navlungo işlemi.", "warn");
   }
 
-  google.script.run.withSuccessHandler(data => {
-    meta = data || meta;
-    const editOrders = meta.editOrders || [];
-    if (editOrders.length) {
-      editOrders.forEach(order => addOrder(order));
-    } else {
+  function resizeDialogFull() {
+    try {
+      const w = Math.max(1200, Math.floor((window.screen && window.screen.availWidth ? window.screen.availWidth : 1600) * 0.96));
+      const h = Math.max(820, Math.floor((window.screen && window.screen.availHeight ? window.screen.availHeight : 950) * 0.92));
+      if (google && google.script && google.script.host) {
+        google.script.host.setWidth(w);
+        google.script.host.setHeight(h);
+      }
+    } catch (e) {}
+  }
+  resizeDialogFull();
+  window.addEventListener("resize", resizeDialogFull);
+
+  google.script.run
+    .withSuccessHandler(data => {
+      meta = data || meta;
+      const editOrders = meta.editOrders || [];
+      if (editOrders.length) {
+        editOrders.forEach(order => addOrder(order));
+      } else {
+        const card = addOrder();
+        if (meta.panelError) setCardStatus(card, meta.panelError, "warn");
+      }
+    })
+    .withFailureHandler(err => {
       addOrder();
-    }
-  }).getDialogData();
+      const card = cards()[0];
+      if (card) setCardStatus(card, "Panel verisi alınamadı: " + (err && err.message ? err.message : err), "error");
+    })
+    .getDialogData();
 </script>
 </body>
 </html>

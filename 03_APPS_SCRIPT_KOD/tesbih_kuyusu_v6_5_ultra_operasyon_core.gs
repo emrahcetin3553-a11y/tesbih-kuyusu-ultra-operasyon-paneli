@@ -513,7 +513,7 @@ var TK6 = (function () {
     setIf_(row, h, H.SILVER_SALE_UNIT, val_(row, h, H.SILVER_SALE_UNIT) || unitGross || "");
     setIf_(row, h, H.SILVER_MARGIN, productType_(productName) === "Gümüş" ? calculateSilverMargin_(row, h, gross) : "");
     setIf_(row, h, H.PARASUT_PRODUCT_ID, productName ? urunIdBul_(productName) : "");
-    setIf_(row, h, H.ITEM_STATUS, warnings.length ? "Kontrol Gerekli" : "Hazır");
+    setIf_(row, h, H.ITEM_STATUS, warnings.length ? "Kontrol Gerekli" : (val_(row, h, H.ITEM_STATUS) || "Hazır"));
     setIf_(row, h, H.WARN, warnings.join(" | "));
     range.setValues([row]);
     return openId;
@@ -634,6 +634,10 @@ var TK6 = (function () {
     var props = documentProperties_();
     var editIds = parseJsonArray_(props.getProperty("ULTRA_PANEL_EDIT_OPEN_IDS"));
     if (props.deleteProperty) props.deleteProperty("ULTRA_PANEL_EDIT_OPEN_IDS");
+    var editOrders = editIds.length ? ultraPanelPayloadsForOpenIds_(editIds) : [];
+    var loaded = {};
+    editOrders.forEach(function (order) { if (order && order.openId) loaded[order.openId] = true; });
+    var missing = editIds.filter(function (id) { return id && !loaded[id]; });
     return {
       openOrders: openOrderOptions_(),
       products: productOptions_(),
@@ -641,7 +645,8 @@ var TK6 = (function () {
       cargoCompanies: ["Aras Kargo", "Yurtiçi Kargo", "MNG Kargo", "Sürat Kargo"],
       paymentSources: ["Manuel", "Dekont", "WhatsApp", "Banka açıklaması"],
       silverAmountTypes: ["Birim", "Toplam"],
-      editOrders: editIds.length ? ultraPanelPayloadsForOpenIds_(editIds) : []
+      editOrders: editOrders,
+      panelError: missing.length ? "Seçili satırdan sipariş verisi bulunamadı: " + missing.join(", ") : ""
     };
   }
 
@@ -698,6 +703,7 @@ var TK6 = (function () {
     return {
       openId: openId,
       cargoPackageId: cargo[H.CARGO_PACKAGE_ID] || "",
+      kargoPaketId: cargo[H.CARGO_PACKAGE_ID] || "",
       whatsAppTel: phone,
       siparisSahibi: q[H.OWNER] || "",
       hamWhatsappMesaji: q[H.RAW] || "",
@@ -1033,19 +1039,34 @@ var TK6 = (function () {
   }
 
   function openIdFromRelatedRow_(ss, sheetName, row) {
-    if (row[H.OPEN_ID]) return row[H.OPEN_ID];
-    var id = row[H.Q_ID] || row[H.ITEM_ID] || row[H.PAYMENT_ID] || row[H.INVOICE_GROUP_ID] || row[H.CARGO_PACKAGE_ID] || "";
-    if (!id) return "";
+    var directOpenId = String(row[H.OPEN_ID] || "").trim();
+    if (directOpenId) return directOpenId;
+    var mapBySheet = {};
+    mapBySheet[CFG.sheets.queue] = H.Q_ID;
+    mapBySheet[CFG.sheets.items] = H.ITEM_ID;
+    mapBySheet[CFG.sheets.payments] = H.PAYMENT_ID;
+    mapBySheet[CFG.sheets.invoiceGroups] = H.INVOICE_GROUP_ID;
+    mapBySheet[CFG.sheets.cargo] = H.CARGO_PACKAGE_ID;
+    var primaryKey = mapBySheet[sheetName];
+    if (primaryKey) {
+      var primaryValue = String(row[primaryKey] || "").trim();
+      if (primaryValue) {
+        var direct = findObjectByKeyText_(sheet_(ss, sheetName), primaryKey, primaryValue);
+        if (direct && direct[H.OPEN_ID]) return String(direct[H.OPEN_ID] || "").trim();
+      }
+    }
     var maps = [
-      [CFG.sheets.queue, H.Q_ID],
-      [CFG.sheets.items, H.ITEM_ID],
-      [CFG.sheets.payments, H.PAYMENT_ID],
-      [CFG.sheets.invoiceGroups, H.INVOICE_GROUP_ID],
-      [CFG.sheets.cargo, H.CARGO_PACKAGE_ID]
+      [CFG.sheets.queue, H.Q_ID, row[H.Q_ID]],
+      [CFG.sheets.items, H.ITEM_ID, row[H.ITEM_ID]],
+      [CFG.sheets.payments, H.PAYMENT_ID, row[H.PAYMENT_ID]],
+      [CFG.sheets.invoiceGroups, H.INVOICE_GROUP_ID, row[H.INVOICE_GROUP_ID]],
+      [CFG.sheets.cargo, H.CARGO_PACKAGE_ID, row[H.CARGO_PACKAGE_ID]]
     ];
     for (var i = 0; i < maps.length; i++) {
-      var found = objects_(sheet_(ss, maps[i][0])).filter(function (r) { return String(r[maps[i][1]] || "") === String(id); })[0];
-      if (found && found[H.OPEN_ID]) return found[H.OPEN_ID];
+      var id = String(maps[i][2] || "").trim();
+      if (!id) continue;
+      var found = findObjectByKeyText_(sheet_(ss, maps[i][0]), maps[i][1], id);
+      if (found && found[H.OPEN_ID]) return String(found[H.OPEN_ID] || "").trim();
     }
     return "";
   }
@@ -1118,11 +1139,15 @@ var TK6 = (function () {
       qid = existing.qid || ("Q-" + editingOpenId);
       queueObj[H.Q_ID] = qid;
       queueObj[H.OPEN_ID] = editingOpenId;
+      delete queueObj[H.CREATED];
+      delete queueObj[H.MSG_DT];
+      delete queueObj[H.OP_DAY];
+      delete queueObj[H.ORDER_STATUS];
+      delete queueObj[H.ROW_STATUS];
       if (queueRow) {
         patchObjectRow_(queue, queueRow, HEADERS.queue, queueObj, true);
       } else {
-        appendObject_(queue, HEADERS.queue, queueObj);
-        queueRow = queue.getLastRow();
+        throw new Error("Düzenleme için mevcut Açık_Sipariş_ID bulunamadı.");
       }
       normalizeQueueSheetRow_(ss, queueRow);
     } else {
@@ -1133,11 +1158,10 @@ var TK6 = (function () {
       openId = rowOpenId_(queue, queueRow);
       qid = queue.getRange(queueRow, headers_(queue)[H.Q_ID] + 1).getValue();
     }
-    if (editingOpenId) markOpenEditableRowsInactive_(ss, openId);
-
+    var submittedItemIds = [];
     (form && form.urunler || []).forEach(function (item, index) {
       if (!item || !item.urunAdi) return;
-      appendProductRowFromParsed_(ss, openId, qid, mergeObjects_(item, {
+      var itemId = appendProductRowFromParsed_(ss, openId, qid, mergeObjects_(item, {
         product: item.urunAdi,
         qty: item.miktar,
         unitGross: item.birimFiyatKdvDahil,
@@ -1150,10 +1174,12 @@ var TK6 = (function () {
         silverAmountType: item.gumusTutarTipi,
         sourceKey: "ULTRA-U-" + (index + 1)
       }));
+      if (itemId) submittedItemIds.push(itemId);
     });
+    var submittedPaymentIds = [];
     (form && form.odemeler || []).forEach(function (payment, index) {
       if (!payment || (!payment.odemeYapan && !payment.odemeTutari)) return;
-      appendPaymentRowFromParsed_(ss, openId, qid, mergeObjects_(payment, {
+      var paymentId = appendPaymentRowFromParsed_(ss, openId, qid, mergeObjects_(payment, {
         payer: payment.odemeYapan,
         amount: payment.odemeTutari,
         source: payment.odemeTeyitKaynagi,
@@ -1166,14 +1192,16 @@ var TK6 = (function () {
         invoiceCariLinkId: payment.faturaCariBaglantiId,
         sourceKey: "ULTRA-O-" + (index + 1)
       }));
+      if (paymentId) submittedPaymentIds.push(paymentId);
     });
+    if (editingOpenId) markMissingPanelRowsInactive_(ss, openId, submittedItemIds, submittedPaymentIds);
     var cargoPackageId = "";
     if (form && form.kargo && form.cargoPackageId && !form.kargo.kargoPaketId) form.kargo.kargoPaketId = form.cargoPackageId;
     if (form && form.kargo) cargoPackageId = upsertQuickCargo_(ss, openId, qid, form.kargo);
     if (queueObj[H.FAST_PRODUCTS] || queueObj[H.FAST_PAYMENTS] || queueObj[H.FAST_CARGO]) processQueueQuickInputs_(ss, queueRow);
     cargoPackageId = cargoPackageId || cargoPackageIdForOpen_(ss, openId);
     if (deferRefresh) {
-      return { ok: true, openId: openId, cargoPackageId: cargoPackageId, queueId: qid, elapsedMs: Date.now() - started, status: "Kaydedildi; toplu ERP güncelleme bekliyor", deferred: true, form: form };
+      return { ok: true, openId: openId, cargoPackageId: cargoPackageId, kargoPaketId: cargoPackageId, queueId: qid, elapsedMs: Date.now() - started, status: "Kaydedildi; toplu ERP güncelleme bekliyor", deferred: true, form: form };
     }
     hafifErpGuncelle_(openId);
     applyInvoicePanelHints_(ss, openId, form || {});
@@ -1188,6 +1216,7 @@ var TK6 = (function () {
       ok: control.ok,
       openId: openId,
       cargoPackageId: cargoPackageId,
+      kargoPaketId: cargoPackageId,
       queueId: qid,
       elapsedMs: Date.now() - started,
       status: control.ok ? "Kaydedildi ve ERP güncellendi; kontrol merkezi temiz" : "Kaydedildi ve ERP güncellendi; kontrol gerekli",
@@ -1450,7 +1479,7 @@ var TK6 = (function () {
     var vatRate = normalizeVatRate_(parsed.vatRate || parsed.kdvOrani || (config && config.vatRate));
     var kdv = hesaplaKdv_(gross, vatRate);
     var sourceKey = parsed.sourceKey || safeKey_([openId, qid, product, qty, unitGross].join("|"));
-    var itemId = "UK-" + openId + "-" + sourceKey;
+    var itemId = String(parsed.urunKalemId || parsed.itemId || "").trim() || "UK-" + openId + "-" + sourceKey;
     var silverType = normalizeSilverAmountType_(parsed.silverAmountType || parsed.gumusTutarTipi || "");
     var payer = normalizePersonName_(parsed.payer || parsed.odemeYapan || parsed.paymentPayer || "");
     var linkId = parsed.invoiceCariLinkId || parsed.faturaCariBaglantiId || (payer ? invoiceCariLinkId_(openId, payer) : "");
@@ -1458,6 +1487,11 @@ var TK6 = (function () {
     if (!product) warnings.push("Ürün seçimi net değil");
     if (!unitGross && !gross) warnings.push("Ürün fiyatı girilmeli");
     if (productType_(product) === "Gümüş" && parsed.silverAmountType && !silverType) warnings.push("Gümüş_Tutar_Tipi Birim veya Toplam olmalı");
+    var itemSheet = sheet_(ss, CFG.sheets.items);
+    var existingRowNum = findRowByKeyText_(itemSheet, H.ITEM_ID, itemId);
+    var existing = existingRowNum ? rowObjectFromSheetRow_(itemSheet, existingRowNum) : {};
+    var nextStatus = existing[H.ITEM_STATUS] || (warnings.length ? "Kontrol Gerekli" : "Hazır");
+    if (warnings.length && !existing[H.ITEM_STATUS]) nextStatus = "Kontrol Gerekli";
     upsertObjectByKey_(sheet_(ss, CFG.sheets.items), HEADERS.items, H.ITEM_ID, itemId, {
       [H.ITEM_ID]: itemId,
       [H.OPEN_ID]: openId,
@@ -1480,10 +1514,11 @@ var TK6 = (function () {
       [H.SILVER_AMOUNT_TYPE]: silverType,
       [H.SILVER_MARGIN]: productType_(product) === "Gümüş" ? calculateSilverMarginFromNumbers_(num_(parsed.silverGram || parsed.gumusGram), num_(parsed.silverCostUnit || parsed.gumusAlisBirim), gross) : "",
       [H.PARASUT_PRODUCT_ID]: product ? urunIdBul_(product) : "",
-      [H.ITEM_STATUS]: warnings.length ? "Kontrol Gerekli" : "Hazır",
+      [H.ITEM_STATUS]: nextStatus,
       [H.WARN]: warnings.join(" | ")
     });
     normalizeItemSheetRow_(ss, findRowByKey_(sheet_(ss, CFG.sheets.items), H.ITEM_ID, itemId));
+    return itemId;
   }
 
   function markOpenEditableRowsInactive_(ss, openId) {
@@ -1504,12 +1539,37 @@ var TK6 = (function () {
     });
   }
 
+  function markMissingPanelRowsInactive_(ss, openId, submittedItemIds, submittedPaymentIds) {
+    markMissingRowsById_(ss, CFG.sheets.items, HEADERS.items, H.ITEM_ID, H.ITEM_STATUS, openId, submittedItemIds || []);
+    markMissingRowsById_(ss, CFG.sheets.payments, HEADERS.payments, H.PAYMENT_ID, H.CONFIRM_STATUS, openId, submittedPaymentIds || []);
+  }
+
+  function markMissingRowsById_(ss, sheetName, headers, idKey, statusKey, openId, submittedIds) {
+    var keep = {};
+    (submittedIds || []).forEach(function (id) { if (id) keep[String(id)] = true; });
+    var sh = sheet_(ss, sheetName);
+    var rows = objects_(sh);
+    var changed = false;
+    rows.forEach(function (row) {
+      if (row[H.OPEN_ID] !== openId) return;
+      var id = String(row[idKey] || "");
+      if (!id || keep[id]) return;
+      if (row[statusKey] === "İptal" || row[statusKey] === "Arşiv") return;
+      row[statusKey] = "İptal";
+      changed = true;
+    });
+    if (changed) writeObjects_(sh, headers, rows);
+  }
+
   function appendPaymentRowFromParsed_(ss, openId, qid, parsed) {
     var payer = normalizePersonName_(parsed.payer || parsed.odemeYapan);
     var amount = normalizeTutar_(parsed.amount || parsed.odemeTutari);
     var sourceKey = parsed.sourceKey || safeKey_([openId, payer, amount].join("|"));
-    var paymentId = "OD-" + openId + "-" + sourceKey;
+    var paymentId = String(parsed.odemeId || parsed.paymentId || "").trim() || "OD-" + openId + "-" + sourceKey;
     var linkId = parsed.invoiceCariLinkId || parsed.faturaCariBaglantiId || (payer ? invoiceCariLinkId_(openId, payer) : "");
+    var paymentSheet = sheet_(ss, CFG.sheets.payments);
+    var existingRowNum = findRowByKeyText_(paymentSheet, H.PAYMENT_ID, paymentId);
+    var existing = existingRowNum ? rowObjectFromSheetRow_(paymentSheet, existingRowNum) : {};
     upsertObjectByKey_(sheet_(ss, CFG.sheets.payments), HEADERS.payments, H.PAYMENT_ID, paymentId, {
       [H.PAYMENT_ID]: paymentId,
       [H.OPEN_ID]: openId,
@@ -1525,16 +1585,20 @@ var TK6 = (function () {
       [H.PAYER_CITY]: normalizeCity_(parsed.payerCity || parsed.odemeYapanIl || ""),
       [H.PAYER_DISTRICT]: normalizeCity_(parsed.payerDistrict || parsed.odemeYapanIlce || ""),
       [H.INVOICE_CARI_LINK_ID]: linkId,
-      [H.CONFIRM_STATUS]: "Bekliyor",
-      [H.OPERATOR_CONFIRM]: parsed.operatorConfirm || "Hayır"
+      [H.CONFIRM_STATUS]: existing[H.CONFIRM_STATUS] || "Bekliyor",
+      [H.OPERATOR_CONFIRM]: parsed.operatorConfirm || existing[H.OPERATOR_CONFIRM] || "Hayır"
     });
     normalizePaymentSheetRow_(ss, findRowByKey_(sheet_(ss, CFG.sheets.payments), H.PAYMENT_ID, paymentId));
+    return paymentId;
   }
 
   function upsertQuickCargo_(ss, openId, qid, cargo) {
     var summary = openSummaryById_(ss, openId);
     var packageId = navlungoIdText_(cargo && (cargo.kargoPaketId || cargo.cargoPackageId)) || cargoPackageIdForOpen_(ss, openId) || ("KP-" + openId);
-    upsertObjectByKey_(sheet_(ss, CFG.sheets.cargo), HEADERS.cargo, H.OPEN_ID, openId, {
+    var cargoSheet = sheet_(ss, CFG.sheets.cargo);
+    var existingRowNum = findRowByKeyText_(cargoSheet, H.CARGO_PACKAGE_ID, packageId) || findRowByKeyText_(cargoSheet, H.OPEN_ID, openId);
+    var existing = existingRowNum ? rowObjectFromSheetRow_(cargoSheet, existingRowNum) : {};
+    upsertObjectByKey_(cargoSheet, HEADERS.cargo, H.OPEN_ID, openId, {
       [H.CARGO_PACKAGE_ID]: packageId,
       [H.OPEN_ID]: openId,
       [H.CARGO_RECEIVER]: normalizePersonName_(cargo.receiver || cargo.kargoAlicisi || summary.owner || ""),
@@ -1543,7 +1607,7 @@ var TK6 = (function () {
       [H.DISTRICT]: normalizeCity_(cargo.district || cargo.ilce || ""),
       [H.ADDRESS]: normalizeAddress_(cargo.address || cargo.adres || ""),
       [H.CARGO_COMPANY]: normalizeCargoCompany_(cargo.company || cargo.kargoFirmasi || setting_(ss, "VARSAYILAN_KARGO_FIRMASI", CFG.defaultCargoCompany)),
-      [H.PACKAGE_STATUS]: "Bekliyor",
+      [H.PACKAGE_STATUS]: existing[H.PACKAGE_STATUS] || "Bekliyor",
       [H.PACKAGE_NOTE]: cargo.note || cargo.paketNotu || "",
       [H.WARN]: cargo.warning || ""
     });
@@ -1585,15 +1649,15 @@ var TK6 = (function () {
       var cariType = normalizeCariTipi_(f.cariTipi || row[H.CARI_TYPE], taxNo, payer);
       if (cariType && row[H.CARI_TYPE] !== cariType) { row[H.CARI_TYPE] = cariType; changed = true; }
       if (requestedType === "Tüzel Kişi" && !rawTax && row[H.TAX_NO] === CFG.defaultTckn) { row[H.TAX_NO] = ""; changed = true; }
-      if (phone && !row[H.INVOICE_TEL]) { row[H.INVOICE_TEL] = phone; changed = true; }
-      if (email && !row[H.INVOICE_EMAIL]) { row[H.INVOICE_EMAIL] = email; changed = true; }
-      if (taxNo && !row[H.TAX_NO]) { row[H.TAX_NO] = taxNo; changed = true; }
-      if (taxOffice && !row[H.TAX_OFFICE]) { row[H.TAX_OFFICE] = taxOffice; changed = true; }
-      if (address && !row[H.INVOICE_ADDRESS]) { row[H.INVOICE_ADDRESS] = address; changed = true; }
-      if (city && !row[H.INVOICE_CITY]) { row[H.INVOICE_CITY] = city; changed = true; }
-      if (district && !row[H.INVOICE_DISTRICT]) { row[H.INVOICE_DISTRICT] = district; changed = true; }
+      if (phone && row[H.INVOICE_TEL] !== phone) { row[H.INVOICE_TEL] = phone; changed = true; }
+      if (email && row[H.INVOICE_EMAIL] !== email) { row[H.INVOICE_EMAIL] = email; changed = true; }
+      if (taxNo && row[H.TAX_NO] !== taxNo) { row[H.TAX_NO] = taxNo; changed = true; }
+      if (taxOffice && row[H.TAX_OFFICE] !== taxOffice) { row[H.TAX_OFFICE] = taxOffice; changed = true; }
+      if (address && row[H.INVOICE_ADDRESS] !== address) { row[H.INVOICE_ADDRESS] = address; changed = true; }
+      if (city && row[H.INVOICE_CITY] !== city) { row[H.INVOICE_CITY] = city; changed = true; }
+      if (district && row[H.INVOICE_DISTRICT] !== district) { row[H.INVOICE_DISTRICT] = district; changed = true; }
       if (!row[H.EBELGE_TYPE]) { row[H.EBELGE_TYPE] = ebelgeTipiBelirle_(row[H.TAX_NO], row[H.CARI_TYPE]); changed = true; }
-      if (contactId && !row[H.PARASUT_CONTACT_ID]) { row[H.PARASUT_CONTACT_ID] = contactId; row[H.CARI_MATCH_STATUS] = "Manuel ID doğrulama gerekli"; row[H.CARI_ACTION] = "Paraşüt cari ID doğrula"; row[H.WARN] = ""; changed = true; }
+      if (contactId && row[H.PARASUT_CONTACT_ID] !== contactId) { row[H.PARASUT_CONTACT_ID] = contactId; row[H.CARI_MATCH_STATUS] = "Manuel ID doğrulama gerekli"; row[H.CARI_ACTION] = "Paraşüt cari ID doğrula"; row[H.WARN] = ""; changed = true; }
     });
     if (changed) writeObjects_(sheet_(ss, CFG.sheets.invoiceGroups), HEADERS.invoiceGroups, rows);
   }
@@ -4288,11 +4352,14 @@ var TK6 = (function () {
   function normalizeUltraForm_(form, ss) {
     form = form || {};
     ss = ss || SpreadsheetApp.getActiveSpreadsheet();
+    form.openId = String(form.openId || "").trim();
+    form.cargoPackageId = navlungoIdText_(form.cargoPackageId || form.kargoPaketId || (form.kargo && form.kargo.kargoPaketId));
     form.whatsAppTel = normalizePhone_(form.whatsAppTel || "");
     form.siparisSahibi = normalizePersonName_(form.siparisSahibi || "");
     form.hamWhatsappMesajiNormalized = normalizeMessageText_(form.hamWhatsappMesaji || "");
     var memory = musteriHafizaVarsayilanlari_(ss, form.whatsAppTel);
     form.kargo = form.kargo || {};
+    form.kargo.kargoPaketId = navlungoIdText_(form.kargo.kargoPaketId || form.kargo.cargoPackageId || form.cargoPackageId);
     form.kargo.kargoAlicisi = normalizePersonName_(form.kargo.kargoAlicisi || form.kargo.receiver || memory.cargoReceiver || form.siparisSahibi || "");
     form.kargo.kargoTel = normalizePhone_(form.kargo.kargoTel || form.kargo.phone || memory.cargoPhone || form.whatsAppTel || "");
     form.kargo.il = normalizeCity_(form.kargo.il || form.kargo.city || memory.city || "");
@@ -4304,6 +4371,7 @@ var TK6 = (function () {
     }
     var payers = {};
     (form.odemeler || []).forEach(function (p) {
+      p.odemeId = String(p.odemeId || p.paymentId || "").trim();
       p.odemeYapan = normalizePersonName_(p.odemeYapan || p.payer || "");
       p.odemeYapanTel = normalizePhone_(p.odemeYapanTel || p.payerTel || form.whatsAppTel || "");
       p.odemeYapanTcknVkn = normalizeTaxNo_(p.odemeYapanTcknVkn || p.payerTaxNo || "") || setting_(ss, "TCKN_VARSAYILAN_GERCEK_KISI", CFG.defaultTckn);
@@ -4315,6 +4383,7 @@ var TK6 = (function () {
     });
     var payerNames = Object.keys(payers);
     (form.urunler || []).forEach(function (it) {
+      it.urunKalemId = String(it.urunKalemId || it.itemId || "").trim();
       it.urunAdi = normalizeUrunAdi_(it.urunAdi || it.product || "");
       it.odemeYapan = normalizePersonName_(it.odemeYapan || it.payer || (payerNames.length === 1 ? payerNames[0] : ""));
       it.faturaCariBaglantiId = it.faturaCariBaglantiId || "";
@@ -4356,6 +4425,7 @@ var TK6 = (function () {
       var taxNo = rawTax || (requestedType === "Tüzel Kişi" ? "" : setting_(ss, "TCKN_VARSAYILAN_GERCEK_KISI", CFG.defaultTckn));
       var cariTipi = normalizeCariTipi_(current.cariTipi || "", taxNo, p.odemeYapan);
       return {
+        faturaGrubuId: String(current.faturaGrubuId || current.invoiceGroupId || "").trim(),
         faturaKisisi: p.odemeYapan,
         odemeYapan: p.odemeYapan,
         cariTipi: cariTipi,
@@ -4441,6 +4511,24 @@ var TK6 = (function () {
     var values = sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getValues();
     for (var i = 0; i < values.length; i++) {
       if (values[i][h[keyName]] === keyValue) return i + 2;
+    }
+    return 0;
+  }
+
+  function findObjectByKeyText_(sh, keyName, keyValue) {
+    var rowNum = findRowByKeyText_(sh, keyName, keyValue);
+    return rowNum ? rowObjectFromSheetRow_(sh, rowNum) : null;
+  }
+
+  function findRowByKeyText_(sh, keyName, keyValue) {
+    if (!sh || sh.getLastRow() < 2) return 0;
+    var h = headers_(sh);
+    if (h[keyName] === undefined) return 0;
+    var key = String(keyValue || "").trim();
+    if (!key) return 0;
+    var values = sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getValues();
+    for (var i = 0; i < values.length; i++) {
+      if (String(values[i][h[keyName]] || "").trim() === key) return i + 2;
     }
     return 0;
   }

@@ -309,6 +309,39 @@ const queue = ss.getSheetByName(CFG.sheets.queue);
 ss.setActiveRange(queue.getRange(2, 1, 1, queue.getLastColumn()));
 sandbox.seciliSiparisiDuzenle();
 const dialogData = sandbox.getDialogData();
+assert(dialogData.editOrders[0].kargo && dialogData.editOrders[0].kargo.kargoPaketId, "Selected edit payload must include Kargo_Paket_ID");
+const editPayload = JSON.parse(JSON.stringify(dialogData.editOrders[0]));
+const editOpenId = editPayload.openId;
+const editCargoPackageId = editPayload.kargo.kargoPaketId || editPayload.cargoPackageId;
+const editItemId = editPayload.urunler[0].urunKalemId;
+const editPaymentId = editPayload.odemeler[0].odemeId;
+const beforeEditCounts = {
+  queue: rows(CFG.sheets.queue).length,
+  items: rows(CFG.sheets.items).filter(r => r[H.OPEN_ID] === editOpenId).length,
+  payments: rows(CFG.sheets.payments).filter(r => r[H.OPEN_ID] === editOpenId).length,
+  invoiceGroups: rows(CFG.sheets.invoiceGroups).filter(r => r[H.OPEN_ID] === editOpenId).length,
+  cargo: rows(CFG.sheets.cargo).filter(r => r[H.OPEN_ID] === editOpenId).length
+};
+editPayload.kargo.ilce = "gaziemir";
+editPayload.kargo.adres = "Guncel teslimat adresi 2";
+editPayload.urunler[0].birimFiyatKdvDahil = 360;
+editPayload.odemeler[0].odemeTutari = 360;
+editPayload.odemeler[0].odemeYapanIlce = "gaziemir";
+editPayload.odemeler[0].odemeYapanAdres = "Guncel teslimat adresi 2";
+editPayload.faturalar[0].faturaIlce = "gaziemir";
+editPayload.faturalar[0].faturaAdres = "Guncel teslimat adresi 2";
+const edited = sandbox.ultraSiparisKaydet(editPayload);
+assert(edited.openId === editOpenId, "Edit save must not create a new open order");
+assert((edited.kargoPaketId || edited.cargoPackageId) === editCargoPackageId, "Edit save must keep the existing cargo package id");
+assert(rows(CFG.sheets.queue).length === beforeEditCounts.queue, "Edit save must not append a queue row");
+assert(rows(CFG.sheets.items).filter(r => r[H.OPEN_ID] === editOpenId).length === beforeEditCounts.items, "Edit save must not duplicate item rows");
+assert(rows(CFG.sheets.payments).filter(r => r[H.OPEN_ID] === editOpenId).length === beforeEditCounts.payments, "Edit save must not duplicate payment rows");
+assert(rows(CFG.sheets.invoiceGroups).filter(r => r[H.OPEN_ID] === editOpenId).length === beforeEditCounts.invoiceGroups, "Edit save must not duplicate invoice groups");
+assert(rows(CFG.sheets.cargo).filter(r => r[H.OPEN_ID] === editOpenId).length === beforeEditCounts.cargo, "Edit save must not create a new cargo package");
+assert(rows(CFG.sheets.items).filter(r => r[H.ITEM_ID] === editItemId)[0][H.UNIT_GROSS] === 360, "Edit save must update the item row by id");
+assert(rows(CFG.sheets.payments).filter(r => r[H.PAYMENT_ID] === editPaymentId)[0][H.PAYMENT_AMOUNT] === 360, "Edit save must update the payment row by id");
+assert(rows(CFG.sheets.cargo).filter(r => r[H.CARGO_PACKAGE_ID] === editCargoPackageId)[0][H.DISTRICT] === "Gaziemir", "Edit save must update the existing cargo row by Kargo_Paket_ID");
+assertThrows(() => sandbox.ultraSiparisKaydet(Object.assign({}, editPayload, { openId: "AS-BULUNAMADI-999" })), "Düzenleme için mevcut Açık_Sipariş_ID bulunamadı", "Missing edit open id must not create a new order");
 assert(dialogData.editOrders.length === 1 && dialogData.editOrders[0].openId === saved.openId, "Seçili sipariş düzenleme panel payload üretmeli");
 
 assert(html.includes("Adres geçmişi"), "Panel adres geçmişi bloğunu içermeli");
