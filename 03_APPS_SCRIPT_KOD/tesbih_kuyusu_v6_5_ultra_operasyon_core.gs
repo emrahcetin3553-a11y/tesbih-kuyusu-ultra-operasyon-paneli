@@ -3369,10 +3369,11 @@ var TK6 = (function () {
 
   function navlungoTokenAl_() {
     var props = PropertiesService.getScriptProperties();
-    var username = String(props.getProperty("NAVLUNGO_API_USERNAME") || "").trim();
-    var password = String(props.getProperty("NAVLUNGO_API_PASSWORD") || "").trim();
-    if (!username || !password) throw new Error("Navlungo API kullanıcı adı veya şifre eksik.");
-    var env = navlungoEnv_();
+    var credential = navlungoCredentialState_();
+    if (!credential.ok) throw new Error(credential.message);
+    var username = credential.username;
+    var password = credential.password;
+    var env = credential.env;
     var response = UrlFetchApp.fetch(navlungoBaseUrl_() + "auth/api", {
       method: "post",
       contentType: "application/json",
@@ -3383,7 +3384,7 @@ var TK6 = (function () {
     var status = response.getResponseCode();
     var text = response.getContentText();
     if (status === 422) {
-      throw new Error("Navlungo token hata 422 (" + env + "): Kullanıcı bilgileri seçili API ortamında kabul edilmedi. Operatör paneline giriş adresi NAVLUNGO_LOGIN_URL ayarında tutulur; Apps Script token testi Domestic API endpoint üzerinden yapılır. Canlı panel bilgileri kullanılıyorsa NAVLUNGO_ENV değerini LIVE yapın. Yanıt: " + sanitizeApiText_(text));
+      throw new Error("Navlungo token hata 422 (" + env + "): Kullanıcı bilgileri seçili API ortamında kabul edilmedi. Okunan property çifti: " + credential.usernameKey + " / " + credential.passwordKey + ". Panel giriş e-posta/şifresi API credential değildir. QA için QA panelindeki Entegrasyonlar alanından API kullanıcı adı ve API şifresi alınmalı; LIVE için canlı API kullanıcı adı ve API şifresi kullanılmalıdır. Yanıt: " + sanitizeApiText_(text));
     }
     if (status < 200 || status >= 300) throw new Error("Navlungo token hata " + status + ": " + sanitizeApiText_(text));
     var parsed = navlungoJson_(text);
@@ -3398,20 +3399,18 @@ var TK6 = (function () {
 
   function navlungoBaglantiTestiTam_() {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var props = PropertiesService.getScriptProperties();
     var keys = navlungoRequiredPropertyKeys_();
-    var usernameExists = !!props.getProperty("NAVLUNGO_API_USERNAME");
-    var passwordExists = !!props.getProperty("NAVLUNGO_API_PASSWORD");
-    Logger.log((usernameExists ? "[OK] " : "[HATA] ") + "NAVLUNGO_API_USERNAME " + (usernameExists ? "var" : "yok"));
-    Logger.log((passwordExists ? "[OK] " : "[HATA] ") + "NAVLUNGO_API_PASSWORD " + (passwordExists ? "var" : "yok"));
+    var credential = navlungoCredentialState_();
+    Logger.log((credential.usernameExists ? "[OK] " : "[HATA] ") + credential.usernameLogKey + " " + (credential.usernameExists ? "var" : "yok"));
+    Logger.log((credential.passwordExists ? "[OK] " : "[HATA] ") + credential.passwordLogKey + " " + (credential.passwordExists ? "var" : "yok"));
     var status = keys.map(function (key) {
       var exists = key === "NAVLUNGO_API_USERNAME" || key === "NAVLUNGO_API_PASSWORD"
-        ? !!props.getProperty(key)
+        ? (key === "NAVLUNGO_API_USERNAME" ? credential.usernameExists : credential.passwordExists)
         : setting_(ss, key, "") !== "";
       return { key: key, exists: exists };
     });
-    if (!usernameExists || !passwordExists) {
-      var missingMessage = "NAVLUNGO_API_USERNAME veya NAVLUNGO_API_PASSWORD Script Properties içinde eksik. API testi yapılamaz.";
+    if (!credential.ok) {
+      var missingMessage = credential.message;
       Logger.log("[HATA] " + missingMessage);
       return {
         ok: false,
@@ -3634,6 +3633,82 @@ var TK6 = (function () {
       "NAVLUNGO_DEFAULT_CARRIER_ID", "NAVLUNGO_DEFAULT_POST_TYPE",
       "NAVLUNGO_DEFAULT_DESI", "NAVLUNGO_DEFAULT_PACKAGE_COUNT", "NAVLUNGO_CARRIER_ID_MAP_JSON"
     ];
+  }
+
+  function navlungoCredentialCandidates_(env) {
+    if (env === "LIVE") {
+      return [
+        { usernameKey: "NAVLUNGO_LIVE_API_USERNAME", passwordKey: "NAVLUNGO_LIVE_API_PASSWORD" },
+        { usernameKey: "NAVLUNGO_API_USERNAME", passwordKey: "NAVLUNGO_API_PASSWORD" }
+      ];
+    }
+    return [
+      { usernameKey: "NAVLUNGO_QA_API_USERNAME", passwordKey: "NAVLUNGO_QA_API_PASSWORD" },
+      { usernameKey: "NAVLUNGO_API_USERNAME", passwordKey: "NAVLUNGO_API_PASSWORD" }
+    ];
+  }
+
+  function navlungoCredentialState_() {
+    var props = PropertiesService.getScriptProperties();
+    var env = navlungoEnv_();
+    var candidates = navlungoCredentialCandidates_(env);
+    var partial = null;
+    for (var i = 0; i < candidates.length; i++) {
+      var candidate = candidates[i];
+      var username = String(props.getProperty(candidate.usernameKey) || "").trim();
+      var password = String(props.getProperty(candidate.passwordKey) || "").trim();
+      if (username && password) {
+        return {
+          ok: true,
+          env: env,
+          username: username,
+          password: password,
+          usernameKey: candidate.usernameKey,
+          passwordKey: candidate.passwordKey,
+          usernameLogKey: candidate.usernameKey,
+          passwordLogKey: candidate.passwordKey,
+          usernameExists: true,
+          passwordExists: true,
+          message: ""
+        };
+      }
+      if (!partial && (username || password)) {
+        partial = {
+          usernameKey: candidate.usernameKey,
+          passwordKey: candidate.passwordKey,
+          usernameExists: !!username,
+          passwordExists: !!password
+        };
+      }
+    }
+    var liveUsername = !!props.getProperty("NAVLUNGO_LIVE_API_USERNAME");
+    var livePassword = !!props.getProperty("NAVLUNGO_LIVE_API_PASSWORD");
+    var qaUsername = !!props.getProperty("NAVLUNGO_QA_API_USERNAME");
+    var qaPassword = !!props.getProperty("NAVLUNGO_QA_API_PASSWORD");
+    var logKey = candidates[0];
+    var message = env + " ortamı için Navlungo API credential eksik. ";
+    if (env === "QA" && liveUsername && livePassword) {
+      message += "Script Properties içinde LIVE API credential var, ancak NAVLUNGO_ENV=QA. LIVE credential ile çalışacaksanız NAVLUNGO_ENV değerini LIVE yapın; QA endpoint için NAVLUNGO_QA_API_USERNAME/NAVLUNGO_QA_API_PASSWORD veya NAVLUNGO_API_USERNAME/NAVLUNGO_API_PASSWORD girin.";
+    } else if (env === "LIVE" && qaUsername && qaPassword) {
+      message += "Script Properties içinde QA API credential var, ancak NAVLUNGO_ENV=LIVE. QA endpoint için NAVLUNGO_ENV değerini QA yapın; LIVE endpoint için NAVLUNGO_LIVE_API_USERNAME/NAVLUNGO_LIVE_API_PASSWORD veya NAVLUNGO_API_USERNAME/NAVLUNGO_API_PASSWORD girin.";
+    } else {
+      message += env === "LIVE"
+        ? "NAVLUNGO_LIVE_API_USERNAME/NAVLUNGO_LIVE_API_PASSWORD veya NAVLUNGO_API_USERNAME/NAVLUNGO_API_PASSWORD girilmeli."
+        : "NAVLUNGO_QA_API_USERNAME/NAVLUNGO_QA_API_PASSWORD veya NAVLUNGO_API_USERNAME/NAVLUNGO_API_PASSWORD girilmeli.";
+    }
+    return {
+      ok: false,
+      env: env,
+      username: "",
+      password: "",
+      usernameKey: partial ? partial.usernameKey : logKey.usernameKey,
+      passwordKey: partial ? partial.passwordKey : logKey.passwordKey,
+      usernameLogKey: partial ? partial.usernameKey : logKey.usernameKey,
+      passwordLogKey: partial ? partial.passwordKey : logKey.passwordKey,
+      usernameExists: partial ? partial.usernameExists : false,
+      passwordExists: partial ? partial.passwordExists : false,
+      message: message
+    };
   }
 
   function navlungoEnv_() {
