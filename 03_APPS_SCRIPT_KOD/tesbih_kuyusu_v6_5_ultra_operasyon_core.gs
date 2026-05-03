@@ -697,6 +697,7 @@ var TK6 = (function () {
     var phone = q[H.PHONE] || cargo[H.CARGO_TEL] || "";
     return {
       openId: openId,
+      cargoPackageId: cargo[H.CARGO_PACKAGE_ID] || "",
       whatsAppTel: phone,
       siparisSahibi: q[H.OWNER] || "",
       hamWhatsappMesaji: q[H.RAW] || "",
@@ -704,6 +705,7 @@ var TK6 = (function () {
       hizliOdemeGirisi: q[H.FAST_PAYMENTS] || "",
       hizliKargoGirisi: q[H.FAST_CARGO] || "",
       kargo: {
+        kargoPaketId: cargo[H.CARGO_PACKAGE_ID] || "",
         kargoAlicisi: cargo[H.CARGO_RECEIVER] || q[H.OWNER] || "",
         kargoTel: cargo[H.CARGO_TEL] || phone,
         il: cargo[H.CITY] || "",
@@ -828,8 +830,9 @@ var TK6 = (function () {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var openId = String(form && form.acikSiparisId || "").trim();
     if (!openId) throw new Error("Açık_Sipariş_ID seçilmedi.");
+    var packageId = navlungoIdText_(form && (form.kargoPaketId || form.cargoPackageId)) || cargoPackageIdForOpen_(ss, openId) || ("KP-" + openId);
     upsertObjectByKey_(sheet_(ss, CFG.sheets.cargo), HEADERS.cargo, H.OPEN_ID, openId, {
-      [H.CARGO_PACKAGE_ID]: "KP-" + openId,
+      [H.CARGO_PACKAGE_ID]: packageId,
       [H.OPEN_ID]: openId,
       [H.CARGO_RECEIVER]: form.kargoAlicisi || "",
       [H.CARGO_TEL]: normalizePhone_(form.kargoTel || ""),
@@ -842,7 +845,7 @@ var TK6 = (function () {
     });
     normalizeCargoSheetRow_(ss, findRowByKey_(sheet_(ss, CFG.sheets.cargo), H.OPEN_ID, openId));
     hafifErpGuncelle_(openId);
-    return { ok: true, openId: openId };
+    return { ok: true, openId: openId, cargoPackageId: packageId };
   }
 
   function ultraSiparisPaneli_() {
@@ -1164,10 +1167,13 @@ var TK6 = (function () {
         sourceKey: "ULTRA-O-" + (index + 1)
       }));
     });
-    if (form && form.kargo) upsertQuickCargo_(ss, openId, qid, form.kargo);
+    var cargoPackageId = "";
+    if (form && form.kargo && form.cargoPackageId && !form.kargo.kargoPaketId) form.kargo.kargoPaketId = form.cargoPackageId;
+    if (form && form.kargo) cargoPackageId = upsertQuickCargo_(ss, openId, qid, form.kargo);
     if (queueObj[H.FAST_PRODUCTS] || queueObj[H.FAST_PAYMENTS] || queueObj[H.FAST_CARGO]) processQueueQuickInputs_(ss, queueRow);
+    cargoPackageId = cargoPackageId || cargoPackageIdForOpen_(ss, openId);
     if (deferRefresh) {
-      return { ok: true, openId: openId, queueId: qid, elapsedMs: Date.now() - started, status: "Kaydedildi; toplu ERP güncelleme bekliyor", deferred: true, form: form };
+      return { ok: true, openId: openId, cargoPackageId: cargoPackageId, queueId: qid, elapsedMs: Date.now() - started, status: "Kaydedildi; toplu ERP güncelleme bekliyor", deferred: true, form: form };
     }
     hafifErpGuncelle_(openId);
     applyInvoicePanelHints_(ss, openId, form || {});
@@ -1181,6 +1187,7 @@ var TK6 = (function () {
     return {
       ok: control.ok,
       openId: openId,
+      cargoPackageId: cargoPackageId,
       queueId: qid,
       elapsedMs: Date.now() - started,
       status: control.ok ? "Kaydedildi ve ERP güncellendi; kontrol merkezi temiz" : "Kaydedildi ve ERP güncellendi; kontrol gerekli",
@@ -1526,8 +1533,9 @@ var TK6 = (function () {
 
   function upsertQuickCargo_(ss, openId, qid, cargo) {
     var summary = openSummaryById_(ss, openId);
+    var packageId = navlungoIdText_(cargo && (cargo.kargoPaketId || cargo.cargoPackageId)) || cargoPackageIdForOpen_(ss, openId) || ("KP-" + openId);
     upsertObjectByKey_(sheet_(ss, CFG.sheets.cargo), HEADERS.cargo, H.OPEN_ID, openId, {
-      [H.CARGO_PACKAGE_ID]: "KP-" + openId,
+      [H.CARGO_PACKAGE_ID]: packageId,
       [H.OPEN_ID]: openId,
       [H.CARGO_RECEIVER]: normalizePersonName_(cargo.receiver || cargo.kargoAlicisi || summary.owner || ""),
       [H.CARGO_TEL]: normalizePhone_(cargo.phone || cargo.kargoTel || summary.phone || ""),
@@ -1540,6 +1548,15 @@ var TK6 = (function () {
       [H.WARN]: cargo.warning || ""
     });
     normalizeCargoSheetRow_(ss, findRowByKey_(sheet_(ss, CFG.sheets.cargo), H.OPEN_ID, openId));
+    return packageId;
+  }
+
+  function cargoPackageIdForOpen_(ss, openId) {
+    var rows = objects_(sheet_(ss, CFG.sheets.cargo)).filter(function (row) {
+      return navlungoIdText_(row[H.OPEN_ID]) === navlungoIdText_(openId) && navlungoIdText_(row[H.CARGO_PACKAGE_ID]);
+    });
+    var row = rows[rows.length - 1] || {};
+    return navlungoIdText_(row[H.CARGO_PACKAGE_ID]);
   }
 
   function applyInvoicePanelHints_(ss, openId, form) {
@@ -3515,6 +3532,7 @@ var TK6 = (function () {
   function navlungoKargoOlusturOnayli_(kargoPaketId) {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var cargo = navlungoCargoRow_(ss, kargoPaketId);
+    navlungoAssertCargoCanCreate_(cargo);
     var payload = navlungoTaslakPayloadOlustur_(cargo[H.CARGO_PACKAGE_ID]);
     if (!yes_(setting_(ss, CFG.liveNavlungoSendSetting, "Hayır"))) return navlungoNoPostResult_(cargo[H.CARGO_PACKAGE_ID], payload, "Canlı kargo gönderim kapısı kapalı");
     if (kontrolMerkezindeKritikBlokajVar_(ss, "Navlungo")) throw new Error("Kontrol merkezi Navlungo blokajı içeriyor; kargo gönderimi durdu.");
@@ -3796,15 +3814,19 @@ var TK6 = (function () {
   }
 
   function navlungoCargoRow_(ss, kargoPaketId) {
-    var key = navlungoCargoKeyOrFirstReady_(ss, kargoPaketId);
-    var rows = objects_(sheet_(ss, CFG.sheets.cargo));
+    var key = navlungoCargoKey_(ss, kargoPaketId);
+    var cargoSheet = sheet_(ss, CFG.sheets.cargo);
+    var rows = navlungoCargoRows_(cargoSheet);
     var row = rows.filter(function (r) {
-      return navlungoIdText_(r[H.CARGO_PACKAGE_ID]) === key || navlungoIdText_(r[H.OPEN_ID]) === key;
+      return navlungoIdText_(r[H.CARGO_PACKAGE_ID]) === key;
     })[0];
     if (!row) {
-      var examples = rows.map(function (r) { return navlungoIdText_(r[H.CARGO_PACKAGE_ID]) || navlungoIdText_(r[H.OPEN_ID]); })
+      var ids = rows.map(function (r) { return navlungoIdText_(r[H.CARGO_PACKAGE_ID]); })
         .filter(Boolean).slice(0, 5).join(", ");
-      throw new Error("Navlungo için kargo paketi bulunamadı. Sayfa: " + CFG.sheets.cargo + "; aranan ID: " + key + "; mevcut ID'ler: " + (examples || "yok"));
+      if (navlungoDamagedCargoId_(key)) {
+        throw new Error("Kargo_Paket_ID formatı bozulmuş olabilir: " + key + ". Sayfa: " + CFG.sheets.cargo + "; beklenen Kargo_Paket_ID tireli formatta olmalı. Bulunan ID'ler: " + (ids || "yok"));
+      }
+      throw new Error("Kargo_Paket_ID bulundu ama " + CFG.sheets.cargo + " içinde eşleşen satır yok: " + key + ". Bulunan ID'ler: " + (ids || "yok"));
     }
     if (!row[H.CARGO_PACKAGE_ID]) throw new Error("Navlungo için seçilen satırda Kargo_Paket_ID eksik. Sayfa: " + CFG.sheets.cargo + "; Açık_Sipariş_ID: " + navlungoIdText_(row[H.OPEN_ID]));
     return row;
@@ -3897,42 +3919,91 @@ var TK6 = (function () {
     return group ? String(group[H.INVOICE_EMAIL] || "") : "";
   }
 
-  function navlungoFirstReadyCargoId_(ss) {
-    var rows = objects_(sheet_(ss, CFG.sheets.cargo));
-    var row = rows.filter(navlungoCargoReadyForWork_)[0];
-    if (!row) throw new Error("Navlungo için uygun kargo paketi bulunamadı. Sayfa: " + CFG.sheets.cargo + "; şart: Kargo_Paket_ID dolu, Navlungo_Status boş/Payload Hazır/Hata/gönderime hazır, gönderilmiş veya iptal edilmiş değil.");
-    return row[H.CARGO_PACKAGE_ID];
-  }
-
-  function navlungoCargoKeyOrFirstReady_(ss, kargoPaketId) {
+  function navlungoCargoKey_(ss, kargoPaketId) {
     var key = navlungoIdText_(kargoPaketId);
-    return key || navlungoFirstReadyCargoId_(ss);
+    if (key) return key;
+    return navlungoActiveCargoId_(ss);
   }
 
   function navlungoIdText_(value) {
     return String(value === null || value === undefined ? "" : value).trim();
   }
 
-  function navlungoCargoReadyForWork_(row) {
-    var cargoId = navlungoIdText_(row[H.CARGO_PACKAGE_ID]);
-    if (!cargoId) return false;
-    var packageStatus = normalizeAscii_(row[H.PACKAGE_STATUS] || "");
-    var navStatus = normalizeAscii_(row[H.NAVLUNGO_STATUS] || "");
-    var hasPost = !!navlungoIdText_(row[H.NAVLUNGO_POST_NUMBER]);
-    var cancelledAt = !!row[H.NAVLUNGO_CANCELLED_AT];
-    var finalStatuses = ["iptal", "iptal edildi", "gonderi olusturuldu", "barkod hazir", "teslim edildi", "arsiv", "arsivlendi"];
-    if (finalStatuses.indexOf(packageStatus) !== -1 || finalStatuses.indexOf(navStatus) !== -1 || cancelledAt) return false;
-    if (hasPost && navStatus !== "hata") return false;
-    if (!navStatus) return true;
-    return ["payload hazir", "hata", "canli post yapilmadi", "canli gonderim kapali - payload hazir", "canli gonderim kapali payload hazir", "gonderime hazir", "bekliyor", "hazir"].indexOf(navStatus) !== -1;
+  function navlungoActiveCargoId_(ss) {
+    var sh = ss.getActiveSheet();
+    if (!sh || sh.getName() !== CFG.sheets.cargo) {
+      throw new Error("Kargo_Paket_ID parametresi boş geldi. Aktif satırdan Kargo_Paket_ID okunamadı. Lütfen " + CFG.sheets.cargo + " sayfasında gönderilecek satırı seçin.");
+    }
+    var range = sh.getActiveRange();
+    if (!range || range.getRow() < 2) {
+      throw new Error("Aktif satırdan Kargo_Paket_ID okunamadı. Lütfen " + CFG.sheets.cargo + " sayfasında veri satırı seçin.");
+    }
+    var col = navlungoHeaderIndex_(sh, H.CARGO_PACKAGE_ID);
+    if (col < 0) {
+      throw new Error(CFG.sheets.cargo + " başlık eşleşmesi başarısız: " + H.CARGO_PACKAGE_ID + " kolonu bulunamadı.");
+    }
+    var key = navlungoIdText_(sh.getRange(range.getRow(), col + 1).getValue());
+    if (!key) {
+      throw new Error("Aktif satırdan Kargo_Paket_ID okunamadı. Lütfen " + CFG.sheets.cargo + " sayfasında Kargo_Paket_ID dolu satırı seçin.");
+    }
+    return key;
+  }
+
+  function navlungoCargoRows_(sh) {
+    if (!sh || sh.getLastRow() < 2) return [];
+    var map = {};
+    HEADERS.cargo.forEach(function (name) { map[name] = navlungoHeaderIndex_(sh, name); });
+    var values = sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getValues();
+    return values.map(function (row) {
+      var out = {};
+      Object.keys(map).forEach(function (name) {
+        out[name] = map[name] >= 0 ? row[map[name]] : "";
+      });
+      return out;
+    }).filter(function (row) {
+      return Object.keys(row).some(function (name) { return row[name] !== "" && row[name] !== null && row[name] !== undefined; });
+    });
+  }
+
+  function navlungoHeaderIndex_(sh, name) {
+    var exact = headers_(sh)[name];
+    if (exact !== undefined) return exact;
+    var target = navlungoHeaderKey_(name);
+    var values = sh.getRange(1, 1, 1, Math.max(1, sh.getLastColumn())).getValues()[0];
+    for (var i = 0; i < values.length; i++) {
+      if (navlungoHeaderKey_(values[i]) === target) return i;
+    }
+    return -1;
+  }
+
+  function navlungoHeaderKey_(value) {
+    return normalizeAscii_(String(value || "").trim()).replace(/[\s_]+/g, "").toLowerCase();
+  }
+
+  function navlungoDamagedCargoId_(value) {
+    var key = navlungoIdText_(value);
+    return /^KP-AS-\d{11}$/.test(key) || /^KP-AS-\d{8}\d{3}$/.test(key);
+  }
+
+  function navlungoAssertCargoCanCreate_(cargo) {
+    var key = navlungoIdText_(cargo[H.CARGO_PACKAGE_ID]);
+    var navStatus = normalizeAscii_(cargo[H.NAVLUNGO_STATUS] || "");
+    var packageStatus = normalizeAscii_(cargo[H.PACKAGE_STATUS] || "");
+    if (navlungoIdText_(cargo[H.NAVLUNGO_POST_NUMBER])) throw new Error("Kargo_Paket_ID zaten Navlungo gönderisine bağlı: " + key);
+    if (navlungoIdText_(cargo[H.NAVLUNGO_BARCODE_URL]) || navlungoIdText_(cargo[H.BARCODE])) throw new Error("Kargo_Paket_ID için barkod alınmış; tekrar gönderim yapılmaz: " + key);
+    if (cargo[H.NAVLUNGO_CANCELLED_AT] || navStatus.indexOf("iptal") !== -1 || packageStatus.indexOf("iptal") !== -1) throw new Error("Kargo_Paket_ID iptal durumunda; tekrar gönderim yapılmaz: " + key);
+    if (navStatus === "gonderi olusturuldu" || packageStatus === "gonderi olusturuldu") throw new Error("Kargo_Paket_ID için gönderi daha önce oluşturulmuş: " + key);
   }
 
   function navlungoSelectedCargoRows_(ss, selected) {
-    var rows = objects_(sheet_(ss, CFG.sheets.cargo)).filter(function (row) { return row[H.CARGO_PACKAGE_ID]; });
-    if (!selected) return rows;
+    var rows = navlungoCargoRows_(sheet_(ss, CFG.sheets.cargo)).filter(function (row) { return row[H.CARGO_PACKAGE_ID]; });
+    if (!selected) {
+      var activeKey = navlungoActiveCargoId_(ss);
+      return rows.filter(function (row) { return navlungoIdText_(row[H.CARGO_PACKAGE_ID]) === activeKey; });
+    }
     var keys = Array.isArray(selected) ? selected : String(selected).split(/[,\n;]/).map(function (x) { return x.trim(); }).filter(Boolean);
-    if (!keys.length) return rows;
-    return rows.filter(function (row) { return keys.indexOf(row[H.CARGO_PACKAGE_ID]) !== -1 || keys.indexOf(row[H.OPEN_ID]) !== -1; });
+    if (!keys.length) throw new Error("Kargo_Paket_ID listesi boş geldi.");
+    return rows.filter(function (row) { return keys.indexOf(navlungoIdText_(row[H.CARGO_PACKAGE_ID])) !== -1; });
   }
 
   function navlungoPayloadHash_(payload) {
@@ -3996,7 +4067,10 @@ var TK6 = (function () {
     var cargoResults = objects_(sheet_(ss, CFG.sheets.cargo))
       .filter(function (row) { return !openId || row[H.OPEN_ID] === openId; })
       .map(function (row) {
-        try { return navlungoKargoOlusturOnayli_(row[H.CARGO_PACKAGE_ID] || row[H.OPEN_ID]); }
+        try {
+          if (!row[H.CARGO_PACKAGE_ID]) throw new Error("Kargo_Paket_ID alınamadı. " + CFG.sheets.cargo + " satırında Kargo_Paket_ID dolu olmalı.");
+          return navlungoKargoOlusturOnayli_(row[H.CARGO_PACKAGE_ID]);
+        }
         catch (err) { return { ok: false, kargoPaketId: row[H.CARGO_PACKAGE_ID], error: safeErrorMessage_(err) }; }
       });
     return {

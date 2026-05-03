@@ -242,6 +242,7 @@
     const card = tpl.querySelector(".order-card");
     card.dataset.orderNo = String(++orderSeq);
     if (data.openId) card.dataset.openId = data.openId;
+    if (data.cargoPackageId || (data.kargo && data.kargo.kargoPaketId)) card.dataset.cargoPackageId = data.cargoPackageId || data.kargo.kargoPaketId;
     card.querySelector(".cargo-company").innerHTML = optionList(meta.cargoCompanies || []);
     card.querySelector(".cargo-company").value = "Aras Kargo";
     document.getElementById("orders").appendChild(card);
@@ -602,6 +603,7 @@
     syncPaymentDefaults(card);
     return {
       openId: card.dataset.openId || "",
+      cargoPackageId: card.dataset.cargoPackageId || "",
       whatsAppTel: phoneTR(value(card, "whatsAppTel")),
       siparisSahibi: titleCaseTR(value(card, "siparisSahibi")),
       hamWhatsappMesaji: value(card, "hamWhatsappMesaji"),
@@ -646,6 +648,7 @@
         parasutCariId: row.querySelector(".parasutCariId").value
       })),
       kargo: {
+        kargoPaketId: card.dataset.cargoPackageId || "",
         kargoAlicisi: titleCaseTR(value(card, "kargoAlicisi")),
         kargoTel: phoneTR(value(card, "kargoTel")),
         il: cityTR(value(card, "il")),
@@ -730,6 +733,7 @@
       google.script.run.withSuccessHandler(res => {
         const card = cards()[0];
         card.dataset.openId = res.openId || "";
+        card.dataset.cargoPackageId = res.cargoPackageId || card.dataset.cargoPackageId || "";
         refreshOrderTitles();
         setCardStatus(card, summarize(res));
       }).withFailureHandler(err => setCardStatus(cards()[0], failureText("Kaydet ve ERP güncelle", err), "error")).ultraSiparisKaydet(list[0]);
@@ -739,6 +743,7 @@
       cards().forEach((card, i) => {
         const r = (res.results || [])[i] || {};
         card.dataset.openId = r.openId || card.dataset.openId || "";
+        card.dataset.cargoPackageId = r.cargoPackageId || card.dataset.cargoPackageId || "";
         setCardStatus(card, summarize(r));
       });
       refreshOrderTitles();
@@ -754,8 +759,7 @@
       .faturaVeKargoOlustur(openId);
   }
   function currentCargoPackageId(card) {
-    const openId = card.dataset.openId || "";
-    return openId ? `KP-${openId}` : "";
+    return card.dataset.cargoPackageId || "";
   }
   function navlungoAction(card, action) {
     const kargoPaketId = currentCargoPackageId(card);
