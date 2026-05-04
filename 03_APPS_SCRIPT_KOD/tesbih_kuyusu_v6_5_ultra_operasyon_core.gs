@@ -143,6 +143,9 @@ var TK6 = (function () {
     UNIT_NET: "Birim_Fiyat_KDV_Hariç",
     PARASUT_STATUS: "Paraşüt_Durumu",
     PAYLOAD_CHECK: "Payload_Kontrol",
+    PAYLOAD_JSON: "Payload_JSON",
+    RESPONSE_JSON: "Response_JSON",
+    SEND_DATE: "Gönderim_Tarihi",
     ERROR: "Hata_Mesajı",
     CAN_SEND_DRAFT: "Taslak_Gönderime_Uygun_Mu",
     DRAFT_BLOCK: "Taslak_Blokaj_Nedeni",
@@ -171,6 +174,9 @@ var TK6 = (function () {
     NAVLUNGO_CANCELLED_AT: "Navlungo_Cancelled_At",
     NAVLUNGO_TEST: "Navlungo_Test_Mu",
     NAVLUNGO_PAYLOAD_HASH: "Navlungo_Payload_Hash",
+    CARGO_WAIT: "Kargo_Bekletilsin_Mi",
+    CARGO_WAIT_REASON: "Kargo_Bekletme_Nedeni",
+    CARGO_EXIT_DATE: "Kargo_Cikis_Tarihi",
     ADDRESS_ID: "Adres_ID",
     DEFAULT_ADDRESS: "Varsayılan_Mı",
     ADDRESS_STATUS: "Adres_Durumu",
@@ -258,7 +264,8 @@ var TK6 = (function () {
       H.ACTION, H.INVOICE_GROUP_ID, H.OPEN_ID, H.INVOICE_PERSON, H.CARI_TYPE,
       H.PARASUT_CONTACT_ID, H.ITEM_ID, H.PRODUCT, H.PARASUT_PRODUCT_ID, H.QTY,
       H.UNIT, H.UNIT_NET, H.VAT_RATE, H.VAT_AMOUNT, H.LINE_GROSS, H.PARASUT_INVOICE_ID,
-      H.PARASUT_STATUS, H.SEND_LOCK, H.PAYLOAD_CHECK, H.ERROR, H.CAN_SEND_DRAFT,
+      H.PARASUT_STATUS, H.SEND_LOCK, H.PAYLOAD_CHECK, H.PAYLOAD_JSON, H.RESPONSE_JSON,
+      H.SEND_DATE, H.ERROR, H.CAN_SEND_DRAFT,
       H.DRAFT_BLOCK, H.NOTE
     ],
     cargo: [
@@ -267,7 +274,8 @@ var TK6 = (function () {
       H.PACKAGE_NOTE, H.NAVLUNGO_POST_NUMBER, H.NAVLUNGO_REFERENCE_ID, H.NAVLUNGO_TRACKING_URL,
       H.NAVLUNGO_BARCODE_URL, H.NAVLUNGO_CARRIER_ID, H.NAVLUNGO_CARRIER_NAME, H.NAVLUNGO_STATUS,
       H.NAVLUNGO_LAST_RESPONSE, H.NAVLUNGO_LAST_ERROR, H.NAVLUNGO_CREATED_AT, H.NAVLUNGO_CANCELLED_AT,
-      H.NAVLUNGO_TEST, H.NAVLUNGO_PAYLOAD_HASH, H.WARN
+      H.NAVLUNGO_TEST, H.NAVLUNGO_PAYLOAD_HASH, H.CARGO_WAIT, H.CARGO_WAIT_REASON,
+      H.CARGO_EXIT_DATE, H.WARN
     ],
     memory: [
       H.PHONE, H.OWNER, "Son_Kargo_Alıcısı", "Son_Kargo_Tel", "Son_İl", "Son_İlçe",
@@ -331,7 +339,11 @@ var TK6 = (function () {
       .addItem("Seçili siparişi düzenle", "seciliSiparisiDuzenle")
       .addItem("Seçili siparişleri düzenle", "seciliSiparisleriDuzenle")
       .addItem("Kaydet ve ERP güncelle", "kaydetVeErpGuncelle")
+      .addItem("Sadece fatura oluştur", "sadeceFaturaOlustur")
+      .addItem("Sadece kargo hazırla", "sadeceKargoHazirla")
       .addItem("Fatura ve kargo oluştur", "faturaVeKargoOlustur")
+      .addItem("Kargo beklet", "kargoBeklet")
+      .addItem("Bekleyen kargoyu çıkar", "bekleyenKargoyuCikar")
       .addItem("Sil", "seciliKaydiSil")
       .addItem("Geri al", "seciliKaydiGeriAl")
       .addItem("Arşivle", "seciliKaydiArsivle")
@@ -718,7 +730,15 @@ var TK6 = (function () {
         ilce: cargo[H.DISTRICT] || "",
         adres: cargo[H.ADDRESS] || "",
         kargoFirmasi: cargo[H.CARGO_COMPANY] || CFG.defaultCargoCompany,
-        paketNotu: cargo[H.PACKAGE_NOTE] || ""
+        paketNotu: cargo[H.PACKAGE_NOTE] || "",
+        kargoBekletilsinMi: cargo[H.CARGO_WAIT] || "Hayır",
+        kargoBekletmeNedeni: cargo[H.CARGO_WAIT_REASON] || "",
+        kargoCikisTarihi: cargo[H.CARGO_EXIT_DATE] || "",
+        navlungoPostNumber: cargo[H.NAVLUNGO_POST_NUMBER] || "",
+        navlungoTrackingUrl: cargo[H.NAVLUNGO_TRACKING_URL] || "",
+        navlungoBarcodeUrl: cargo[H.NAVLUNGO_BARCODE_URL] || "",
+        navlungoStatus: cargo[H.NAVLUNGO_STATUS] || "",
+        navlungoLastError: cargo[H.NAVLUNGO_LAST_ERROR] || ""
       },
       urunler: itemRows.map(function (row) {
         return {
@@ -767,6 +787,8 @@ var TK6 = (function () {
           faturaAdres: row[H.INVOICE_ADDRESS] || cargo[H.ADDRESS] || "",
           eBelgeTipi: row[H.EBELGE_TYPE] || "",
           parasutCariId: row[H.PARASUT_CONTACT_ID] || "",
+          parasutFaturaId: row[H.PARASUT_INVOICE_ID] || "",
+          gonderimKilidi: row[H.SEND_LOCK] || "Hayır",
           cariPuan: row[H.CARI_MATCH_SCORE] || "",
           cariDurum: row[H.CARI_MATCH_STATUS] || "",
           cariAksiyon: row[H.CARI_ACTION] || ""
@@ -847,7 +869,10 @@ var TK6 = (function () {
       [H.ADDRESS]: normalizeAddress_(form.adres || ""),
       [H.CARGO_COMPANY]: form.kargoFirmasi || CFG.defaultCargoCompany,
       [H.PACKAGE_STATUS]: "Bekliyor",
-      [H.PACKAGE_NOTE]: form.paketNotu || ""
+      [H.PACKAGE_NOTE]: form.paketNotu || "",
+      [H.CARGO_WAIT]: yes_(form.kargoBekletilsinMi) ? "Evet" : "Hayır",
+      [H.CARGO_WAIT_REASON]: form.kargoBekletmeNedeni || "",
+      [H.CARGO_EXIT_DATE]: form.kargoCikisTarihi || ""
     });
     normalizeCargoSheetRow_(ss, findRowByKey_(sheet_(ss, CFG.sheets.cargo), H.OPEN_ID, openId));
     hafifErpGuncelle_(openId);
@@ -855,7 +880,7 @@ var TK6 = (function () {
   }
 
   function ultraSiparisPaneli_() {
-    showDialog_("ultraSiparisPaneli", "Ultra sipariş paneli", 2000, 1120);
+    showDialog_("ultraSiparisPaneli", "Ultra sipariş paneli", 2200, 1260);
   }
 
   function userNotice_(message) {
@@ -909,7 +934,17 @@ var TK6 = (function () {
       }
     });
     if (changed) writeObjects_(sheet_(ss, CFG.sheets.memory), HEADERS.memory, rows);
-    return { ok: changed, phone: normalizePhone_(phone), status: changed ? "Müşteri hafızası pasifleştirildi" : "Telefon hafızada bulunamadı" };
+    var addressRows = objects_(sheet_(ss, CFG.sheets.addressMemory));
+    var addressChanged = false;
+    addressRows.forEach(function (row) {
+      if (normalizePhone_(row[H.PHONE]) === normalizePhone_(phone)) {
+        row[H.ADDRESS_STATUS] = "Pasif";
+        row[H.WARN] = "Hafıza pasif";
+        addressChanged = true;
+      }
+    });
+    if (addressChanged) writeObjects_(sheet_(ss, CFG.sheets.addressMemory), HEADERS.addressMemory, addressRows);
+    return { ok: changed || addressChanged, phone: normalizePhone_(phone), status: (changed || addressChanged) ? "Müşteri hafızası pasifleştirildi" : "Telefon hafızada bulunamadı" };
   }
 
   function kontrolMerkezi_() {
@@ -958,19 +993,17 @@ var TK6 = (function () {
     var range = sh.getActiveRange();
     if (!range) return userNotice_("Lütfen işlem yapılacak siparişi seçin.");
     var ids = [];
-    var changed = 0;
     for (var offset = 0; offset < range.getNumRows(); offset++) {
       var rowNum = range.getRow() + offset;
       if (rowNum < 2) continue;
       var row = rowObjectFromSheetRow_(sh, rowNum);
       var openId = row[H.OPEN_ID] || openIdFromRelatedRow_(ss, sh.getName(), row);
       if (openId) ids.push(openId);
-      changed += patchLogicalStatusRow_(sh, rowNum, mode);
     }
     ids = uniqueArray_(ids);
-    ids.forEach(function (openId) { hafifErpGuncelle_(openId); });
-    kontrolMerkeziniGuncelle_();
-    return { ok: true, mode: mode, affectedRows: changed, openIds: ids };
+    if (!ids.length) return userNotice_("Seçili satırdan Açık_Sipariş_ID bulunamadı.");
+    var results = ids.map(function (openId) { return applyOrderLifecycle_(ss, openId, mode); });
+    return { ok: results.every(function (r) { return r.ok !== false; }), mode: mode, openIds: ids, results: results };
   }
 
   function patchLogicalStatusRow_(sh, rowNum, mode) {
@@ -1003,6 +1036,60 @@ var TK6 = (function () {
       put(H.WARN, mode === "restore" ? "" : "Operatör işlemi: " + status);
     }
     return patched ? 1 : 0;
+  }
+
+  function applyOrderLifecycle_(ss, openId, mode) {
+    openId = String(openId || "").trim();
+    if (!openId) throw new Error("Açık_Sipariş_ID bulunamadı.");
+    var external = orderExternalState_(ss, openId);
+    if (mode === "cancel" && external.any) {
+      var reason = "Canlı fatura veya kargo kaydı var; iptal için manuel kontrol gerekli";
+      kontrolMerkezineTeknikBlokajYaz_(ss, CFG.sheets.open, openId, reason, "Paraşüt ve Navlungo kayıtlarını kontrol edip iptal sürecini ayrı yürütün.", "Operasyon");
+      return { ok: false, openId: openId, status: reason, external: external };
+    }
+    var status = mode === "restore" ? "Açık" : mode === "archive" ? "Arşiv" : "İptal";
+    var rowStatus = mode === "restore" ? "Staging" : status;
+    var itemStatus = mode === "restore" ? "Hazır" : status;
+    var paymentStatus = mode === "restore" ? "Bekliyor" : status;
+    var invoiceStatus = mode === "restore" ? "Hazır" : status;
+    var cargoStatus = mode === "restore" ? "Hazır" : status;
+    var parasutStatus = mode === "restore" ? "Taslak Hazır" : status;
+    var changed = 0;
+    changed += patchRowsForOpen_(ss, CFG.sheets.queue, HEADERS.queue, openId, { [H.ORDER_STATUS]: status, [H.ROW_STATUS]: rowStatus, [H.WARN]: "" });
+    changed += patchRowsForOpen_(ss, CFG.sheets.open, HEADERS.open, openId, { [H.ORDER_STATUS]: status, [H.WARN]: "", [H.BLOCK_REASON]: "", [H.CONTROL_LEVEL]: mode === "restore" ? "OK" : status });
+    changed += patchRowsForOpen_(ss, CFG.sheets.items, HEADERS.items, openId, { [H.ITEM_STATUS]: itemStatus, [H.WARN]: "" });
+    changed += patchRowsForOpen_(ss, CFG.sheets.payments, HEADERS.payments, openId, { [H.CONFIRM_STATUS]: paymentStatus, [H.CONFIRM_NOTE]: "", [H.WARN]: "" });
+    changed += patchRowsForOpen_(ss, CFG.sheets.invoiceGroups, HEADERS.invoiceGroups, openId, { [H.INVOICE_STATUS]: invoiceStatus, [H.WARN]: "" });
+    changed += patchRowsForOpen_(ss, CFG.sheets.parasut, HEADERS.parasut, openId, { [H.PARASUT_STATUS]: parasutStatus, [H.ERROR]: "", [H.DRAFT_BLOCK]: "", [H.WARN]: "" });
+    changed += patchRowsForOpen_(ss, CFG.sheets.cargo, HEADERS.cargo, openId, { [H.PACKAGE_STATUS]: cargoStatus, [H.WARN]: "" });
+    kontrolMerkeziniGuncelleForOpen_(ss, openId);
+    return { ok: true, openId: openId, mode: mode, status: status, changed: changed };
+  }
+
+  function orderExternalState_(ss, openId) {
+    var invoices = objects_(sheet_(ss, CFG.sheets.invoiceGroups)).filter(function (row) {
+      return row[H.OPEN_ID] === openId && (row[H.PARASUT_INVOICE_ID] || yes_(row[H.SEND_LOCK]));
+    });
+    var parasutRows = objects_(sheet_(ss, CFG.sheets.parasut)).filter(function (row) {
+      return row[H.OPEN_ID] === openId && (row[H.PARASUT_INVOICE_ID] || yes_(row[H.SEND_LOCK]));
+    });
+    var cargos = objects_(sheet_(ss, CFG.sheets.cargo)).filter(function (row) {
+      return row[H.OPEN_ID] === openId && (row[H.NAVLUNGO_POST_NUMBER] || row[H.NAVLUNGO_TRACKING_URL] || row[H.NAVLUNGO_BARCODE_URL]);
+    });
+    return { any: invoices.length + parasutRows.length + cargos.length > 0, invoices: invoices.length, parasutRows: parasutRows.length, cargos: cargos.length };
+  }
+
+  function patchRowsForOpen_(ss, sheetName, headers, openId, patch) {
+    var sh = sheet_(ss, sheetName);
+    var rows = objects_(sh);
+    var changed = 0;
+    rows.forEach(function (row) {
+      if (row[H.OPEN_ID] !== openId) return;
+      Object.keys(patch).forEach(function (key) { row[key] = patch[key]; });
+      changed++;
+    });
+    if (changed) writeObjects_(sh, headers, rows);
+    return changed;
   }
 
   function rowObjectFromSheetRow_(sh, rowNum) {
@@ -1046,6 +1133,7 @@ var TK6 = (function () {
     mapBySheet[CFG.sheets.items] = H.ITEM_ID;
     mapBySheet[CFG.sheets.payments] = H.PAYMENT_ID;
     mapBySheet[CFG.sheets.invoiceGroups] = H.INVOICE_GROUP_ID;
+    mapBySheet[CFG.sheets.parasut] = H.INVOICE_GROUP_ID;
     mapBySheet[CFG.sheets.cargo] = H.CARGO_PACKAGE_ID;
     var primaryKey = mapBySheet[sheetName];
     if (primaryKey) {
@@ -1060,6 +1148,7 @@ var TK6 = (function () {
       [CFG.sheets.items, H.ITEM_ID, row[H.ITEM_ID]],
       [CFG.sheets.payments, H.PAYMENT_ID, row[H.PAYMENT_ID]],
       [CFG.sheets.invoiceGroups, H.INVOICE_GROUP_ID, row[H.INVOICE_GROUP_ID]],
+      [CFG.sheets.parasut, H.INVOICE_GROUP_ID, row[H.INVOICE_GROUP_ID]],
       [CFG.sheets.cargo, H.CARGO_PACKAGE_ID, row[H.CARGO_PACKAGE_ID]]
     ];
     for (var i = 0; i < maps.length; i++) {
@@ -1614,6 +1703,9 @@ var TK6 = (function () {
       [H.CARGO_COMPANY]: normalizeCargoCompany_(cargo.company || cargo.kargoFirmasi || setting_(ss, "VARSAYILAN_KARGO_FIRMASI", CFG.defaultCargoCompany)),
       [H.PACKAGE_STATUS]: existing[H.PACKAGE_STATUS] || "Bekliyor",
       [H.PACKAGE_NOTE]: cargo.note || cargo.paketNotu || "",
+      [H.CARGO_WAIT]: yes_(cargo.kargoBekletilsinMi || cargo.cargoWait) ? "Evet" : (existing[H.CARGO_WAIT] || "Hayır"),
+      [H.CARGO_WAIT_REASON]: cargo.kargoBekletmeNedeni || cargo.cargoWaitReason || existing[H.CARGO_WAIT_REASON] || "",
+      [H.CARGO_EXIT_DATE]: cargo.kargoCikisTarihi || cargo.cargoExitDate || existing[H.CARGO_EXIT_DATE] || "",
       [H.WARN]: cargo.warning || ""
     });
     normalizeCargoSheetRow_(ss, findRowByKey_(sheet_(ss, CFG.sheets.cargo), H.OPEN_ID, openId));
@@ -2072,6 +2164,7 @@ var TK6 = (function () {
     var row = existing.filter(function (r) { return r[H.OPEN_ID] === openId; })[0] || {};
     if (!row[H.CARGO_PACKAGE_ID] && !open[H.OPEN_ID]) return replaceRowsForOpen_(ss, CFG.sheets.cargo, HEADERS.cargo, openId, []);
     var closed = isClosedText_(open[H.ORDER_STATUS]);
+    var wait = yes_(row[H.CARGO_WAIT]);
     var warnings = [];
     [H.CARGO_RECEIVER, H.CARGO_TEL, H.CITY, H.DISTRICT, H.ADDRESS].forEach(function (key) {
       if (!row[key]) warnings.push(key + " eksik");
@@ -2086,12 +2179,15 @@ var TK6 = (function () {
       [H.DISTRICT]: row[H.DISTRICT] || "",
       [H.ADDRESS]: normalizeAddress_(row[H.ADDRESS]),
       [H.CARGO_COMPANY]: row[H.CARGO_COMPANY] || setting_(ss, "VARSAYILAN_KARGO_FIRMASI", CFG.defaultCargoCompany),
-      [H.PACKAGE_STATUS]: warnings.length ? "Blokaj" : "Hazır",
       [H.BARCODE]: row[H.BARCODE] || "",
       [H.TRACKING_NO]: row[H.TRACKING_NO] || "",
       [H.LATE_ADD]: row[H.LATE_ADD] || "Hayır",
       [H.PACKAGE_NOTE]: row[H.PACKAGE_NOTE] || "",
-      [H.WARN]: warnings.join(" | ")
+      [H.PACKAGE_STATUS]: wait ? "Bekletiliyor" : (warnings.length ? "Blokaj" : (row[H.NAVLUNGO_POST_NUMBER] ? "Gönderi Oluşturuldu" : "Hazır")),
+      [H.CARGO_WAIT]: row[H.CARGO_WAIT] || "Hayır",
+      [H.CARGO_WAIT_REASON]: row[H.CARGO_WAIT_REASON] || "",
+      [H.CARGO_EXIT_DATE]: row[H.CARGO_EXIT_DATE] || "",
+      [H.WARN]: wait ? "" : warnings.join(" | ")
     })]);
   }
 
@@ -2130,11 +2226,12 @@ var TK6 = (function () {
       var groupItems = itemsByGroup[gid] || [];
       groupItems.forEach(function (item) {
         var warnings = [];
-        if (group[H.INVOICE_STATUS] !== "Hazır") warnings.push(group[H.WARN] || "Fatura grubu hazır değil");
+        var sent = group[H.SEND_LOCK] === "Evet" || group[H.PARASUT_INVOICE_ID];
         if (!group[H.PARASUT_CONTACT_ID]) warnings.push("Paraşüt cari ID yok");
-        if (!item[H.PARASUT_PRODUCT_ID]) warnings.push("Paraşüt ürün ID mapping yok");
-        if (group[H.SEND_LOCK] === "Evet" || group[H.PARASUT_INVOICE_ID]) warnings.push("Fatura grubu kilitli/gönderilmiş");
+        if (!sent && group[H.INVOICE_STATUS] !== "Hazır") warnings.push(group[H.WARN] || "Fatura grubu hazır değil");
+        if (!sent && !item[H.PARASUT_PRODUCT_ID]) warnings.push("Paraşüt ürün ID mapping yok");
         var canSend = warnings.length ? "Hayır" : "Evet";
+        var sentOk = sent && !warnings.length;
         var saved = previous[gid] || {};
         out.push({
           [H.ACTION]: "Satış Faturası Taslağı",
@@ -2153,13 +2250,16 @@ var TK6 = (function () {
           [H.VAT_AMOUNT]: item[H.VAT_AMOUNT],
           [H.LINE_GROSS]: item[H.LINE_GROSS],
           [H.PARASUT_INVOICE_ID]: saved[H.PARASUT_INVOICE_ID] || group[H.PARASUT_INVOICE_ID] || "",
-          [H.PARASUT_STATUS]: canSend === "Evet" ? "Taslak Hazır" : "Blokaj",
+          [H.PARASUT_STATUS]: sentOk ? "Gönderildi" : (canSend === "Evet" ? "Taslak Hazır" : "Blokaj"),
           [H.SEND_LOCK]: group[H.SEND_LOCK] || "Hayır",
-          [H.PAYLOAD_CHECK]: canSend === "Evet" ? "Payload hazır" : warnings.join(" | "),
-          [H.ERROR]: canSend === "Evet" ? "" : warnings.join(" | "),
-          [H.CAN_SEND_DRAFT]: canSend,
-          [H.DRAFT_BLOCK]: warnings.join(" | "),
-          [H.NOTE]: ""
+          [H.PAYLOAD_CHECK]: sentOk ? "Fatura gönderilmiş; tekrar gönderim kapalı" : (canSend === "Evet" ? "Payload hazır" : warnings.join(" | ")),
+          [H.PAYLOAD_JSON]: saved[H.PAYLOAD_JSON] || "",
+          [H.RESPONSE_JSON]: saved[H.RESPONSE_JSON] || "",
+          [H.SEND_DATE]: saved[H.SEND_DATE] || "",
+          [H.ERROR]: sentOk || canSend === "Evet" ? "" : warnings.join(" | "),
+          [H.CAN_SEND_DRAFT]: sentOk ? "Hayır" : canSend,
+          [H.DRAFT_BLOCK]: sentOk ? "" : warnings.join(" | "),
+          [H.NOTE]: saved[H.NOTE] || ""
         });
       });
     });
@@ -2486,11 +2586,12 @@ var TK6 = (function () {
       var groupItems = itemsByGroup[gid] || [];
       groupItems.forEach(function (item) {
         var warnings = [];
-        if (group[H.INVOICE_STATUS] !== "Hazır") warnings.push(group[H.WARN] || "Fatura grubu hazır değil");
+        var sent = group[H.SEND_LOCK] === "Evet" || group[H.PARASUT_INVOICE_ID];
         if (!group[H.PARASUT_CONTACT_ID]) warnings.push("Paraşüt cari ID yok");
-        if (!item[H.PARASUT_PRODUCT_ID]) warnings.push("Paraşüt ürün ID mapping yok");
-        if (group[H.SEND_LOCK] === "Evet" || group[H.PARASUT_INVOICE_ID]) warnings.push("Fatura grubu kilitli/gönderilmiş");
+        if (!sent && group[H.INVOICE_STATUS] !== "Hazır") warnings.push(group[H.WARN] || "Fatura grubu hazır değil");
+        if (!sent && !item[H.PARASUT_PRODUCT_ID]) warnings.push("Paraşüt ürün ID mapping yok");
         var canSend = warnings.length ? "Hayır" : "Evet";
+        var sentOk = sent && !warnings.length;
         var saved = previous[gid] || {};
         out.push({
           [H.ACTION]: "Satış Faturası Taslağı",
@@ -2509,13 +2610,16 @@ var TK6 = (function () {
           [H.VAT_AMOUNT]: item[H.VAT_AMOUNT],
           [H.LINE_GROSS]: item[H.LINE_GROSS],
           [H.PARASUT_INVOICE_ID]: saved[H.PARASUT_INVOICE_ID] || group[H.PARASUT_INVOICE_ID] || "",
-          [H.PARASUT_STATUS]: canSend === "Evet" ? "Taslak Hazır" : "Blokaj",
+          [H.PARASUT_STATUS]: sentOk ? "Gönderildi" : (canSend === "Evet" ? "Taslak Hazır" : "Blokaj"),
           [H.SEND_LOCK]: group[H.SEND_LOCK] || "Hayır",
-          [H.PAYLOAD_CHECK]: canSend === "Evet" ? "Payload hazır" : warnings.join(" | "),
-          [H.ERROR]: canSend === "Evet" ? "" : warnings.join(" | "),
-          [H.CAN_SEND_DRAFT]: canSend,
-          [H.DRAFT_BLOCK]: warnings.join(" | "),
-          [H.NOTE]: ""
+          [H.PAYLOAD_CHECK]: sentOk ? "Fatura gönderilmiş; tekrar gönderim kapalı" : (canSend === "Evet" ? "Payload hazır" : warnings.join(" | ")),
+          [H.PAYLOAD_JSON]: saved[H.PAYLOAD_JSON] || "",
+          [H.RESPONSE_JSON]: saved[H.RESPONSE_JSON] || "",
+          [H.SEND_DATE]: saved[H.SEND_DATE] || "",
+          [H.ERROR]: sentOk || canSend === "Evet" ? "" : warnings.join(" | "),
+          [H.CAN_SEND_DRAFT]: sentOk ? "Hayır" : canSend,
+          [H.DRAFT_BLOCK]: sentOk ? "" : warnings.join(" | "),
+          [H.NOTE]: saved[H.NOTE] || ""
         });
       });
     });
@@ -2538,6 +2642,7 @@ var TK6 = (function () {
       var closed = isClosedText_(open[H.ORDER_STATUS]);
       if (!row && !closed) return;
       row = row || {};
+      var wait = yes_(row[H.CARGO_WAIT]);
       var warnings = [];
       [H.CARGO_RECEIVER, H.CARGO_TEL, H.CITY, H.DISTRICT, H.ADDRESS].forEach(function (key) {
         if (!row[key]) warnings.push(key + " eksik");
@@ -2552,12 +2657,15 @@ var TK6 = (function () {
         [H.DISTRICT]: row[H.DISTRICT] || "",
         [H.ADDRESS]: normalizeAddress_(row[H.ADDRESS]),
         [H.CARGO_COMPANY]: row[H.CARGO_COMPANY] || setting_(ss, "VARSAYILAN_KARGO_FIRMASI", CFG.defaultCargoCompany),
-        [H.PACKAGE_STATUS]: warnings.length ? "Blokaj" : "Hazır",
+        [H.PACKAGE_STATUS]: wait ? "Bekletiliyor" : (warnings.length ? "Blokaj" : (row[H.NAVLUNGO_POST_NUMBER] ? "Gönderi Oluşturuldu" : "Hazır")),
         [H.BARCODE]: row[H.BARCODE] || "",
         [H.TRACKING_NO]: row[H.TRACKING_NO] || "",
         [H.LATE_ADD]: row[H.LATE_ADD] || "Hayır",
         [H.PACKAGE_NOTE]: row[H.PACKAGE_NOTE] || "",
-        [H.WARN]: warnings.join(" | ")
+        [H.CARGO_WAIT]: row[H.CARGO_WAIT] || "Hayır",
+        [H.CARGO_WAIT_REASON]: row[H.CARGO_WAIT_REASON] || "",
+        [H.CARGO_EXIT_DATE]: row[H.CARGO_EXIT_DATE] || "",
+        [H.WARN]: wait ? "" : warnings.join(" | ")
       }));
     });
 
@@ -2695,6 +2803,7 @@ var TK6 = (function () {
     var result = [];
     Object.keys(rowsByGroup).filter(function (gid) { return !optionalGroupId || gid === optionalGroupId; }).slice(0, batchLimit).forEach(function (gid) {
       var pRows = rowsByGroup[gid];
+      var openId = pRows[0] && pRows[0][H.OPEN_ID] || "";
       var block = pRows.map(function (r) { return r[H.DRAFT_BLOCK]; }).filter(Boolean).join(" | ");
       if (block) {
         result.push({ groupId: gid, status: "Blokaj", message: block });
@@ -2703,7 +2812,7 @@ var TK6 = (function () {
       var alreadySent = pRows.some(function (row) { return row[H.PARASUT_INVOICE_ID] || row[H.SEND_LOCK] === "Evet"; });
       if (alreadySent) {
         updateParasutRows_(ss, gid, { [H.PARASUT_STATUS]: "Kilitli", [H.ERROR]: "Fatura grubu daha önce gönderilmiş; tekrar gönderim durdu" });
-        result.push({ groupId: gid, status: "Kilitli", message: "Fatura grubu daha önce gönderilmiş; tekrar gönderim durdu" });
+        result.push({ groupId: gid, status: "Blokaj", message: "Fatura grubu daha önce gönderilmiş; tekrar gönderim durdu" });
         return;
       }
       var chain = parasutZincirToplamlariUygunMu_(ss, gid, pRows);
@@ -2720,24 +2829,41 @@ var TK6 = (function () {
         return;
       }
       if (!live) {
-        updateParasutRows_(ss, gid, { [H.PARASUT_STATUS]: "Taslak Hazır", [H.PAYLOAD_CHECK]: payloadCheck.status, [H.ERROR]: "", [H.NOTE]: "Canlı gönderim kapalı; create payload hazır" });
+        updateParasutRows_(ss, gid, {
+          [H.PARASUT_STATUS]: "Taslak Hazır",
+          [H.PAYLOAD_CHECK]: payloadCheck.status,
+          [H.PAYLOAD_JSON]: safeJson_(payload),
+          [H.ERROR]: "",
+          [H.NOTE]: "Canlı gönderim kapalı; create payload hazır"
+        });
         result.push({ groupId: gid, status: "Canlı Gönderim Kapalı", payload: payload });
         return;
       }
-      kontrolMerkeziniGuncelle_();
-      if (kontrolMerkezindeKritikBlokajVar_(ss)) {
+      if (openId) kontrolMerkeziniGuncelleForOpen_(ss, openId);
+      else kontrolMerkeziniGuncelle_();
+      if (openId ? kontrolMerkezindeKritikBlokajVarForOpen_(ss, openId) : kontrolMerkezindeKritikBlokajVar_(ss)) {
         result.push({ groupId: gid, status: "Blokaj", message: "Kontrol merkezi açık blokaj içeriyor" });
         return;
       }
       try {
         var apiResult = parasutApiPost_("/sales_invoices", payload);
         var invoiceId = apiResult && apiResult.data ? apiResult.data.id : "";
-        updateParasutRows_(ss, gid, { [H.PARASUT_INVOICE_ID]: invoiceId, [H.PARASUT_STATUS]: "Gönderildi", [H.SEND_LOCK]: "Evet", [H.PAYLOAD_CHECK]: payloadCheck.status, [H.ERROR]: "", [H.NOTE]: "Paraşüt yanıt ID: " + invoiceId });
+        updateParasutRows_(ss, gid, {
+          [H.PARASUT_INVOICE_ID]: invoiceId,
+          [H.PARASUT_STATUS]: "Gönderildi",
+          [H.SEND_LOCK]: "Evet",
+          [H.PAYLOAD_CHECK]: payloadCheck.status,
+          [H.PAYLOAD_JSON]: safeJson_(payload),
+          [H.RESPONSE_JSON]: safeJson_(apiResult),
+          [H.SEND_DATE]: new Date(),
+          [H.ERROR]: "",
+          [H.NOTE]: "Paraşüt yanıt ID: " + invoiceId
+        });
         updateInvoiceGroupSendResult_(ss, gid, invoiceId, "Gönderildi", "Evet", "");
         result.push({ groupId: gid, status: "Gönderildi", result: apiResult });
       } catch (err) {
         var msg = safeErrorMessage_(err);
-        updateParasutRows_(ss, gid, { [H.PARASUT_STATUS]: "Hata", [H.ERROR]: msg });
+        updateParasutRows_(ss, gid, { [H.PARASUT_STATUS]: "Hata", [H.PAYLOAD_JSON]: safeJson_(payload), [H.ERROR]: msg });
         updateInvoiceGroupSendResult_(ss, gid, "", "Hata", "Hayır", msg);
         result.push({ groupId: gid, status: "Hata", message: msg });
       }
@@ -2761,7 +2887,13 @@ var TK6 = (function () {
     }
     var payload = parasutSalesInvoicePayload_(ids[0], groups[ids[0]]);
     var check = parasutPayloadKontrol_(payload);
-    updateParasutRows_(ss, ids[0], { [H.PARASUT_STATUS]: check.ok ? "Taslak Hazır" : "Blokaj", [H.PAYLOAD_CHECK]: check.status, [H.ERROR]: check.ok ? "" : check.status, [H.NOTE]: check.ok ? "API POST yapılmadan create payload üretildi" : "" });
+    updateParasutRows_(ss, ids[0], {
+      [H.PARASUT_STATUS]: check.ok ? "Taslak Hazır" : "Blokaj",
+      [H.PAYLOAD_CHECK]: check.status,
+      [H.PAYLOAD_JSON]: check.ok ? safeJson_(payload) : "",
+      [H.ERROR]: check.ok ? "" : check.status,
+      [H.NOTE]: check.ok ? "API POST yapılmadan create payload üretildi" : ""
+    });
     return { ok: check.ok, groupId: ids[0], status: check.status, payload: payload };
   }
 
@@ -3267,6 +3399,7 @@ var TK6 = (function () {
       ["NAVLUNGO_DEFAULT_POST_TYPE", "2", "Varsayılan gönderi tipi", "Evet", now, "2 standart teslimat"],
       ["NAVLUNGO_DEFAULT_DESI", "1", "Varsayılan desi", "Evet", now, ""],
       ["NAVLUNGO_DEFAULT_PACKAGE_COUNT", "1", "Varsayılan paket adedi", "Evet", now, ""],
+      ["NAVLUNGO_DEFAULT_BARCODE_TYPE", "pdf", "Varsayılan barkod tipi", "Evet", now, "Navlungo barkod isteğinde kullanılır"],
       ["NAVLUNGO_CARRIER_ID_MAP_JSON", "{\"Aras Kargo\":\"1\",\"Yurtiçi Kargo\":\"2\"}", "Panel kargo firması -> Navlungo carrier_id map JSON", "Evet", now, "Kargo firması varsa map eşleşmesi zorunludur"],
       ["SISTEM_OPERASYON_SAATI_KAPANIS", CFG.cutoff, "Operasyon kapanış saati", "Evet", now, ""],
       ["TCKN_VARSAYILAN_GERCEK_KISI", CFG.defaultTckn, "Gerçek kişi TCKN boş ise kullanılır", "Evet", now, ""],
@@ -4058,6 +4191,10 @@ var TK6 = (function () {
       [H.NAVLUNGO_TRACKING_URL]: trackingUrl,
       [H.NAVLUNGO_BARCODE_URL]: barcodeUrl,
       [H.NAVLUNGO_STATUS]: "Gönderi Oluşturuldu",
+      [H.PACKAGE_STATUS]: "Gönderi Oluşturuldu",
+      [H.CARGO_WAIT]: "Hayır",
+      [H.CARGO_WAIT_REASON]: "",
+      [H.CARGO_EXIT_DATE]: new Date(),
       [H.NAVLUNGO_LAST_RESPONSE]: navlungoSafeJson_(response),
       [H.NAVLUNGO_CREATED_AT]: new Date(),
       [H.NAVLUNGO_LAST_ERROR]: ""
@@ -4070,7 +4207,10 @@ var TK6 = (function () {
     var cargo = navlungoCargoRow_(ss, kargoPaketId);
     var postNumber = cargo[H.NAVLUNGO_POST_NUMBER] || "";
     if (!postNumber) throw new Error("Navlungo barkod için gönderi ID yok.");
-    var payload = { post_number: postNumber };
+    var payload = {
+      post_number: postNumber,
+      barcode_type: String(setting_(ss, "NAVLUNGO_DEFAULT_BARCODE_TYPE", setting_(ss, "NAVLUNGO_DEFAULT_BARCODE_FORMAT", "pdf")) || "pdf")
+    };
     if (!yes_(setting_(ss, CFG.liveNavlungoSendSetting, "Hayır"))) return navlungoNoPostResult_(cargo[H.CARGO_PACKAGE_ID], payload, "Canlı barkod kapısı kapalı");
     var response;
     try { response = navlungoApiFetch_("post", "barcode/getBarcode", payload); }
@@ -4082,6 +4222,7 @@ var TK6 = (function () {
     patchRowsByKey_(sheet_(ss, CFG.sheets.cargo), H.CARGO_PACKAGE_ID, cargo[H.CARGO_PACKAGE_ID], {
       [H.NAVLUNGO_BARCODE_URL]: barcodeUrl,
       [H.NAVLUNGO_STATUS]: "Barkod Hazır",
+      [H.PACKAGE_STATUS]: "Barkod Hazır",
       [H.NAVLUNGO_LAST_RESPONSE]: navlungoSafeJson_(response),
       [H.NAVLUNGO_LAST_ERROR]: ""
     });
@@ -4162,7 +4303,8 @@ var TK6 = (function () {
       "NAVLUNGO_API_USERNAME", "NAVLUNGO_API_PASSWORD", "NAVLUNGO_ENV",
       "NAVLUNGO_CANLI_GONDERIM", "NAVLUNGO_TEST_MODE", "NAVLUNGO_SENDER_ADDRESS_ID",
       "NAVLUNGO_DEFAULT_CARRIER_ID", "NAVLUNGO_DEFAULT_POST_TYPE",
-      "NAVLUNGO_DEFAULT_DESI", "NAVLUNGO_DEFAULT_PACKAGE_COUNT", "NAVLUNGO_CARRIER_ID_MAP_JSON"
+      "NAVLUNGO_DEFAULT_DESI", "NAVLUNGO_DEFAULT_PACKAGE_COUNT", "NAVLUNGO_DEFAULT_BARCODE_TYPE",
+      "NAVLUNGO_CARRIER_ID_MAP_JSON"
     ];
   }
 
@@ -4527,6 +4669,10 @@ var TK6 = (function () {
     return sanitizeApiText_(JSON.stringify(response || {})).slice(0, 5000);
   }
 
+  function safeJson_(value) {
+    return sanitizeApiText_(JSON.stringify(value || {})).slice(0, 5000);
+  }
+
   function navlungoFirstData_(response) {
     var data = response && response.data !== undefined ? response.data : response;
     if (Array.isArray(data)) return data[0] || {};
@@ -4561,34 +4707,175 @@ var TK6 = (function () {
     return isNaN(n) || n <= 0 ? fallback : n;
   }
 
-  function faturaVeKargoOlustur_(openId) {
+  function ultraPanelOperasyonCalistir_(action, form) {
+    var started = Date.now();
     var ss = SpreadsheetApp.getActiveSpreadsheet();
-    kontrolMerkeziniGuncelle_();
-    var control = panelKontrolOzetiForOpen_(ss, openId || "");
-    var finalBlocks = faturaKargoSonAsamaBlokajlari_(ss, openId || "");
-    var invoice = control.ok && !finalBlocks.length ? { ok: true, livePost: "Yapılmadı" } : { ok: false, livePost: "Yapılmadı", blocks: (control.summary || []).concat(finalBlocks) };
-    var groups = objects_(sheet_(ss, CFG.sheets.invoiceGroups)).filter(function (row) { return !openId || row[H.OPEN_ID] === openId; });
-    if (invoice.ok && yes_(setting_(ss, CFG.liveParasutSendSetting, "Hayır"))) {
-      invoice = [];
-      groups.forEach(function (group) { invoice.push(parasutFaturaTaslakGonder_(group[H.INVOICE_GROUP_ID])); });
-    }
-    var cargoResults = objects_(sheet_(ss, CFG.sheets.cargo))
-      .filter(function (row) { return !openId || row[H.OPEN_ID] === openId; })
-      .map(function (row) {
-        try {
-          if (!row[H.CARGO_PACKAGE_ID]) throw new Error("Kargo_Paket_ID alınamadı. " + CFG.sheets.cargo + " satırında Kargo_Paket_ID dolu olmalı.");
-          return navlungoKargoOlusturOnayli_(row[H.CARGO_PACKAGE_ID]);
-        }
-        catch (err) { return { ok: false, kargoPaketId: row[H.CARGO_PACKAGE_ID], error: safeErrorMessage_(err) }; }
-      });
-    return {
-      ok: (invoice.ok !== false) && cargoResults.every(function (r) { return r.ok !== false; }) && control.ok && !finalBlocks.length,
-      openId: openId || "",
-      invoice: invoice,
-      cargo: cargoResults,
-      blocks: (control.summary || []).concat(finalBlocks),
-      control: control
+    var saved = kaydetUltraSiparisHizli_(form || {});
+    var result = performOrderOperation_(ss, action, saved.openId, form || {}, saved);
+    result.elapsedMs = Date.now() - started;
+    return result;
+  }
+
+  function operationFromOpenId_(action, openId) {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var id = String(openId || "").trim() || (selectedOpenIds_()[0] || "");
+    if (!id) throw new Error("İşlem için Açık_Sipariş_ID bulunamadı. Lütfen sipariş satırını seçin.");
+    hafifErpGuncelle_(id);
+    return performOrderOperation_(ss, action, id, {}, { ok: true, openId: id });
+  }
+
+  function faturaVeKargoOlustur_(openId) {
+    return operationFromOpenId_("faturaKargo", openId);
+  }
+
+  function sadeceFaturaOlustur_(openId) {
+    return operationFromOpenId_("sadeceFatura", openId);
+  }
+
+  function sadeceKargoHazirla_(openId) {
+    return operationFromOpenId_("sadeceKargo", openId);
+  }
+
+  function bekleyenKargoyuCikar_(openId) {
+    return operationFromOpenId_("bekleyenKargo", openId);
+  }
+
+  function kargoBeklet_(openId) {
+    return operationFromOpenId_("kargoBeklet", openId);
+  }
+
+  function performOrderOperation_(ss, action, openId, form, saved) {
+    action = String(action || "faturaKargo").trim();
+    var result = {
+      ok: true,
+      action: action,
+      openId: openId,
+      saved: saved || {},
+      steps: [],
+      invoice: [],
+      cargo: [],
+      blocks: []
     };
+    if (!openId) throw new Error("Açık_Sipariş_ID zorunlu.");
+    if (action === "kargoBeklet") {
+      setKargoBekletForOpen_(ss, openId, true, (form.kargo && form.kargo.kargoBekletmeNedeni) || "Müşteri talebiyle kargo bekletiliyor");
+      return finalizeOperationResult_(ss, openId, result, "Kargo bekletildi");
+    }
+    if (action === "arsivle" || action === "iptal" || action === "geriAl") {
+      var mode = action === "arsivle" ? "archive" : action === "geriAl" ? "restore" : "cancel";
+      var lifecycle = applyOrderLifecycle_(ss, openId, mode);
+      result.steps.push(lifecycle);
+      result.ok = lifecycle.ok !== false;
+      return finalizeOperationResult_(ss, openId, result, lifecycle.status || "İşlem tamamlandı");
+    }
+    if (action === "siparisiKapat") {
+      patchRowsForOpen_(ss, CFG.sheets.queue, HEADERS.queue, openId, { [H.ORDER_STATUS]: "Kapalı", [H.WARN]: "" });
+      patchRowsForOpen_(ss, CFG.sheets.open, HEADERS.open, openId, { [H.ORDER_STATUS]: "Kapalı", [H.WARN]: "", [H.BLOCK_REASON]: "" });
+      return finalizeOperationResult_(ss, openId, result, "Sipariş kapatıldı");
+    }
+    var waitRequested = action === "sadeceFatura" || yes_(form.kargo && form.kargo.kargoBekletilsinMi);
+    if (waitRequested) setKargoBekletForOpen_(ss, openId, true, (form.kargo && form.kargo.kargoBekletmeNedeni) || "Müşteri talebiyle kargo bekletiliyor");
+    if (action === "faturaKargo" || action === "sadeceFatura") {
+      result.invoice = operationInvoiceForOpen_(ss, openId);
+    }
+    if (action === "sadeceFatura") {
+      return finalizeOperationResult_(ss, openId, result, "Fatura adımı tamamlandı; kargo bekletiliyor");
+    }
+    if (action === "sadeceKargo" || action === "bekleyenKargo" || action === "faturaKargo") {
+      if (cargoWaitActive_(ss, openId) && action === "faturaKargo") {
+        result.cargo.push({ ok: true, status: "Kargo bekletiliyor; Navlungo gönderimi yapılmadı" });
+      } else {
+        setKargoBekletForOpen_(ss, openId, false, "");
+        result.cargo = operationCargoForOpen_(ss, openId);
+      }
+    }
+    return finalizeOperationResult_(ss, openId, result, "Operasyon akışı tamamlandı");
+  }
+
+  function operationInvoiceForOpen_(ss, openId) {
+    autoCariBaglaForOpen_(ss, openId, true);
+    parasutTaslaklariniHazirlaForOpen_(ss, openId);
+    var groups = objects_(sheet_(ss, CFG.sheets.invoiceGroups)).filter(function (row) { return row[H.OPEN_ID] === openId; });
+    if (!groups.length) return [{ ok: false, status: "Fatura grubu bulunamadı" }];
+    return groups.map(function (group) {
+      if (group[H.PARASUT_INVOICE_ID] || yes_(group[H.SEND_LOCK])) {
+        return { ok: true, groupId: group[H.INVOICE_GROUP_ID], status: "Fatura zaten kesilmiş", invoiceId: group[H.PARASUT_INVOICE_ID] || "" };
+      }
+      if (!group[H.PARASUT_CONTACT_ID]) {
+        return { ok: false, groupId: group[H.INVOICE_GROUP_ID], status: "Paraşüt cari ID eksik" };
+      }
+      try {
+        var sent = parasutFaturaTaslakGonder_(group[H.INVOICE_GROUP_ID]);
+        return { ok: true, groupId: group[H.INVOICE_GROUP_ID], result: sent };
+      } catch (err) {
+        return { ok: false, groupId: group[H.INVOICE_GROUP_ID], status: safeErrorMessage_(err) };
+      }
+    });
+  }
+
+  function operationCargoForOpen_(ss, openId) {
+    var cargos = objects_(sheet_(ss, CFG.sheets.cargo)).filter(function (row) { return row[H.OPEN_ID] === openId; });
+    if (!cargos.length) return [{ ok: false, status: "Kargo paketi bulunamadı" }];
+    return cargos.map(function (cargo) {
+      if (!cargo[H.CARGO_PACKAGE_ID]) return { ok: false, status: "Kargo_Paket_ID boş" };
+      if (cargo[H.NAVLUNGO_POST_NUMBER]) {
+        if (!cargo[H.NAVLUNGO_BARCODE_URL]) {
+          try { return navlungoBarkodAl_(cargo[H.CARGO_PACKAGE_ID]); }
+          catch (err) { return { ok: false, kargoPaketId: cargo[H.CARGO_PACKAGE_ID], status: safeErrorMessage_(err) }; }
+        }
+        return { ok: true, kargoPaketId: cargo[H.CARGO_PACKAGE_ID], status: "Kargo zaten oluşturulmuş", postNumber: cargo[H.NAVLUNGO_POST_NUMBER], barcodeUrl: cargo[H.NAVLUNGO_BARCODE_URL] || "" };
+      }
+      try {
+        var created = navlungoKargoOlusturOnayli_(cargo[H.CARGO_PACKAGE_ID]);
+        if (created && created.ok && created.postNumber && !created.barcodeUrl) {
+          try { created.barcode = navlungoBarkodAl_(cargo[H.CARGO_PACKAGE_ID]); }
+          catch (err2) { created.barcodeError = safeErrorMessage_(err2); }
+        }
+        if (created && created.postNumber) {
+          patchRowsByKey_(sheet_(ss, CFG.sheets.cargo), H.CARGO_PACKAGE_ID, cargo[H.CARGO_PACKAGE_ID], { [H.CARGO_EXIT_DATE]: new Date(), [H.PACKAGE_STATUS]: "Gönderi Oluşturuldu" });
+        }
+        return created;
+      } catch (err) {
+        return { ok: false, kargoPaketId: cargo[H.CARGO_PACKAGE_ID], status: safeErrorMessage_(err) };
+      }
+    });
+  }
+
+  function setKargoBekletForOpen_(ss, openId, wait, reason) {
+    var patch = {
+      [H.CARGO_WAIT]: wait ? "Evet" : "Hayır",
+      [H.CARGO_WAIT_REASON]: wait ? (reason || "") : "",
+      [H.PACKAGE_STATUS]: wait ? "Bekletiliyor" : "Hazır",
+      [H.WARN]: ""
+    };
+    return patchRowsForOpen_(ss, CFG.sheets.cargo, HEADERS.cargo, openId, patch);
+  }
+
+  function cargoWaitActive_(ss, openId) {
+    return objects_(sheet_(ss, CFG.sheets.cargo)).some(function (row) {
+      return row[H.OPEN_ID] === openId && yes_(row[H.CARGO_WAIT]);
+    });
+  }
+
+  function finalizeOperationResult_(ss, openId, result, status) {
+    parasutTaslaklariniHazirlaForOpen_(ss, openId);
+    ebelgeIstisnaHazirlaForOpen_(ss, openId);
+    rebuildOpenOrderForOpen_(ss, openId);
+    kontrolMerkeziniGuncelleForOpen_(ss, openId);
+    result.control = panelKontrolOzetiForOpen_(ss, openId);
+    result.blocks = result.control.summary || [];
+    result.status = status;
+    result.ok = result.ok !== false && result.control.ok && allSubResultsOk_(result.invoice) && allSubResultsOk_(result.cargo);
+    return result;
+  }
+
+  function allSubResultsOk_(value) {
+    if (!value) return true;
+    if (!Array.isArray(value)) return value.ok !== false;
+    return value.every(function (entry) {
+      if (Array.isArray(entry)) return allSubResultsOk_(entry);
+      return !entry || entry.ok !== false;
+    });
   }
 
   function faturaKargoSonAsamaBlokajlari_(ss, openId) {
@@ -5311,6 +5598,11 @@ var TK6 = (function () {
     seciliKaydiArsivle: seciliKaydiArsivle_,
     musteriHafizasiniDuzenle: musteriHafizasiniDuzenle_,
     musteriHafizasindanSil: musteriHafizasindanSil_,
+    ultraPanelOperasyonCalistir: ultraPanelOperasyonCalistir_,
+    sadeceFaturaOlustur: sadeceFaturaOlustur_,
+    sadeceKargoHazirla: sadeceKargoHazirla_,
+    bekleyenKargoyuCikar: bekleyenKargoyuCikar_,
+    kargoBeklet: kargoBeklet_,
     kaydetVeErpGuncelle: kaydetVeErpGuncelle_,
     kontrolMerkezi: kontrolMerkezi_,
     ultraSiparisKaydet: ultraSiparisKaydet_,
@@ -5415,6 +5707,11 @@ function seciliKaydiGeriAl() { return TK6.seciliKaydiGeriAl(); }
 function seciliKaydiArsivle() { return TK6.seciliKaydiArsivle(); }
 function musteriHafizasiniDuzenle() { return TK6.musteriHafizasiniDuzenle(); }
 function musteriHafizasindanSil() { return TK6.musteriHafizasindanSil(); }
+function ultraPanelOperasyonCalistir(action, form) { return TK6.ultraPanelOperasyonCalistir(action, form); }
+function sadeceFaturaOlustur(openId) { return TK6.sadeceFaturaOlustur(openId); }
+function sadeceKargoHazirla(openId) { return TK6.sadeceKargoHazirla(openId); }
+function bekleyenKargoyuCikar(openId) { return TK6.bekleyenKargoyuCikar(openId); }
+function kargoBeklet(openId) { return TK6.kargoBeklet(openId); }
 function kaydetVeErpGuncelle() { return TK6.kaydetVeErpGuncelle(); }
 function kontrolMerkezi() { return TK6.kontrolMerkezi(); }
 function ultraSiparisKaydet(form) { return TK6.ultraSiparisKaydet(form); }

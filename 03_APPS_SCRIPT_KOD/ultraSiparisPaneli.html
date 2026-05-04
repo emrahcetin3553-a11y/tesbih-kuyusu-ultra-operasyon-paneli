@@ -27,12 +27,13 @@
     h3 { margin:0 0 10px; color:var(--brand); font-size:16px; }
     label { display:block; font-weight:700; font-size:12px; margin:0 0 5px; }
     input, select, textarea { width:100%; border:1px solid #c8d4e3; border-radius:6px; padding:9px; font-size:13px; background:#fff; }
+    input[type="checkbox"] { width:auto; padding:0; vertical-align:middle; }
     textarea { min-height:60px; resize:vertical; }
     .grid { display:grid; grid-template-columns:repeat(12, minmax(0, 1fr)); gap:10px; align-items:end; }
     .c1 { grid-column:span 1; } .c2 { grid-column:span 2; } .c3 { grid-column:span 3; } .c4 { grid-column:span 4; }
     .c5 { grid-column:span 5; } .c6 { grid-column:span 6; } .c7 { grid-column:span 7; } .c8 { grid-column:span 8; } .c12 { grid-column:span 12; }
     .line { border:1px solid #dde8f4; border-radius:8px; padding:10px; margin:8px 0; background:#fff; }
-    .footer { position:fixed; left:0; right:0; bottom:0; background:#f8fafc; border-top:1px solid var(--line); padding:12px 18px; display:flex; justify-content:flex-end; gap:10px; z-index:20; }
+    .footer { position:fixed; left:0; right:0; bottom:0; background:#f8fafc; border-top:1px solid var(--line); padding:12px 18px; display:flex; flex-wrap:wrap; justify-content:flex-end; gap:10px; z-index:20; }
     button { border:0; border-radius:7px; padding:10px 13px; font-weight:700; cursor:pointer; }
     button:disabled { opacity:.65; cursor:wait; }
     .primary { background:var(--brand); color:#fff; }
@@ -46,6 +47,8 @@
     .muted { color:var(--muted); font-size:12px; }
     .actions-inline { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
     .actions-inline button { padding:8px 10px; }
+    details.technical { grid-column:span 12; border:1px dashed #cbd5e1; border-radius:8px; padding:10px; background:#f8fafc; }
+    details.technical summary { cursor:pointer; font-weight:800; color:#334155; }
     .readonly { background:#f4f7fb; }
     .silver { display:none; }
     .line.is-silver .silver { display:block; }
@@ -65,9 +68,16 @@
 </div>
 <div class="footer">
   <button class="secondary" onclick="checkAll()">Kontrol et</button>
-  <button class="secondary" onclick="invoiceCargo()">Fatura ve Kargo oluştur</button>
+  <button class="secondary" onclick="runOperation('sadeceFatura', 'Sadece fatura oluştur')">Sadece fatura oluştur</button>
+  <button class="secondary" onclick="runOperation('sadeceKargo', 'Sadece kargo hazırla')">Sadece kargo hazırla</button>
+  <button class="secondary" onclick="runOperation('faturaKargo', 'Fatura ve kargo oluştur')">Fatura ve kargo oluştur</button>
+  <button class="secondary" onclick="runOperation('kargoBeklet', 'Kargo beklet')">Kargo beklet</button>
+  <button class="secondary" onclick="runOperation('bekleyenKargo', 'Bekleyen kargoyu çıkar')">Bekleyen kargoyu çıkar</button>
+  <button class="secondary" onclick="runOperation('siparisiKapat', 'Siparişi kapat')">Siparişi kapat</button>
+  <button class="secondary" onclick="runOperation('arsivle', 'Arşivle')">Arşivle</button>
+  <button class="danger" onclick="runOperation('iptal', 'İptal et')">İptal et</button>
   <button class="secondary" onclick="google.script.host.close()">Kapat</button>
-  <button class="primary" onclick="saveAll()">Kaydet ve ERP güncelle</button>
+  <button class="primary" onclick="saveAll()">Kaydet</button>
 </div>
 
 <template id="orderTemplate">
@@ -97,16 +107,22 @@
         <div class="c2"><label>Kargo_Firması</label><select data-field="kargoFirmasi" class="cargo-company"></select></div>
         <div class="c8"><label>Adres</label><input data-field="adres"></div>
         <div class="c4"><label>Paket_Notu</label><input data-field="paketNotu"></div>
+        <div class="c3"><label><input type="checkbox" data-field="kargoBekletilsinMi"> Müşteri kargom beklesin dedi</label></div>
+        <div class="c9"><label>Kargo_Bekletme_Nedeni</label><input data-field="kargoBekletmeNedeni"></div>
         <div class="c12">
           <label>Navlungo durumu</label>
           <input type="hidden" data-field="kargoPaketId">
-          <div class="actions-inline">
-            <button type="button" class="secondary" onclick="navlungoAction(this.closest('.order-card'), 'dry')">Payload hazırla</button>
-            <button type="button" class="secondary" onclick="navlungoAction(this.closest('.order-card'), 'create')">Kargo oluştur</button>
-            <button type="button" class="secondary" onclick="navlungoAction(this.closest('.order-card'), 'barcode')">Barkod oluştur</button>
-            <button type="button" class="secondary" onclick="navlungoAction(this.closest('.order-card'), 'check')">Kargo sorgula</button>
-            <button type="button" class="secondary" onclick="navlungoAction(this.closest('.order-card'), 'cancel')">Kargo iptal et</button>
-          </div>
+          <div class="status cargo-status">Kargo kaydedildikten sonra durum burada görünür.</div>
+          <details class="technical">
+            <summary>Gelişmiş / Teknik</summary>
+            <div class="actions-inline">
+              <button type="button" class="secondary" onclick="navlungoAction(this.closest('.order-card'), 'dry')">Payload hazırla</button>
+              <button type="button" class="secondary" onclick="navlungoAction(this.closest('.order-card'), 'create')">Kargo oluştur</button>
+              <button type="button" class="secondary" onclick="navlungoAction(this.closest('.order-card'), 'barcode')">Barkod oluştur</button>
+              <button type="button" class="secondary" onclick="navlungoAction(this.closest('.order-card'), 'check')">Kargo sorgula</button>
+              <button type="button" class="secondary" onclick="navlungoAction(this.closest('.order-card'), 'cancel')">Kargo iptal et</button>
+            </div>
+          </details>
         </div>
       </div>
     </section>
@@ -151,12 +167,21 @@
   function esc(v) { return String(v == null ? "" : v).replace(/[&<>"']/g, s => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[s])); }
   function cardOf(el) { return el.closest(".order-card"); }
   function field(card, name) { return card.querySelector(`[data-field="${name}"]`); }
-  function value(card, name) { const el = field(card, name); return el ? el.value : ""; }
+  function value(card, name) {
+    const el = field(card, name);
+    if (!el) return "";
+    if (el.type === "checkbox") return el.checked ? "Evet" : "Hayır";
+    return el.value;
+  }
   function setValue(card, name, val, force) {
     const el = field(card, name);
     if (!el) return;
     const next = String(val || "");
     const current = String(el.value || "");
+    if (el.type === "checkbox") {
+      el.checked = ["evet", "e", "true", "1", "on"].includes(String(val || "").toLocaleLowerCase("tr-TR"));
+      return;
+    }
     if (!force && el.dataset.touched === "1" && el.dataset.auto !== "1") return;
     if (!force && current && el.dataset.auto !== "1" && !shouldReplacePartial_(current, next)) return;
     el.value = next;
@@ -359,6 +384,16 @@
       setValue(card, "ilce", data.kargo.ilce || "", true);
       setValue(card, "adres", data.kargo.adres || "", true);
       setValue(card, "paketNotu", data.kargo.paketNotu || "", true);
+      setValue(card, "kargoBekletilsinMi", data.kargo.kargoBekletilsinMi || "Hayır", true);
+      setValue(card, "kargoBekletmeNedeni", data.kargo.kargoBekletmeNedeni || "", true);
+      const cargoStatus = [
+        data.kargo.navlungoStatus,
+        data.kargo.navlungoPostNumber ? "Post: " + data.kargo.navlungoPostNumber : "",
+        data.kargo.navlungoTrackingUrl ? "Takip: " + data.kargo.navlungoTrackingUrl : "",
+        data.kargo.navlungoBarcodeUrl ? "Barkod: " + data.kargo.navlungoBarcodeUrl : "",
+        data.kargo.navlungoLastError ? "Hata: " + data.kargo.navlungoLastError : ""
+      ].filter(Boolean).join("\n");
+      card.querySelector(".cargo-status").textContent = cargoStatus || "Kargo durumu bekleniyor.";
       if (data.kargo.kargoFirmasi) field(card, "kargoFirmasi").value = data.kargo.kargoFirmasi;
     }
     const payments = data.odemeler && data.odemeler.length ? data.odemeler : [{}];
@@ -870,7 +905,9 @@
         ilce: cityTR(value(card, "ilce")),
         adres: value(card, "adres"),
         kargoFirmasi: value(card, "kargoFirmasi"),
-        paketNotu: value(card, "paketNotu")
+        paketNotu: value(card, "paketNotu"),
+        kargoBekletilsinMi: value(card, "kargoBekletilsinMi"),
+        kargoBekletmeNedeni: value(card, "kargoBekletmeNedeni")
       }
     };
   }
@@ -984,14 +1021,55 @@
       .withFailureHandler(err => finishErr(err, cards()))
       .topluUltraSiparisKaydet(list);
   }
+
+  function applyServerResult(card, res) {
+    const saved = (res && res.saved) || res || {};
+    card.dataset.openId = res && res.openId || saved.openId || card.dataset.openId || "";
+    const cargoId = saved.kargoPaketId || saved.cargoPackageId || res && (res.kargoPaketId || res.cargoPackageId) || "";
+    if (cargoId) {
+      card.dataset.kargoPaketId = cargoId;
+      setValue(card, "kargoPaketId", cargoId, true);
+    }
+    const cargoLines = [];
+    (res && res.cargo || []).forEach(row => {
+      if (!row) return;
+      cargoLines.push(row.status || row.postNumber || row.kargoPaketId || JSON.stringify(row));
+    });
+    if (cargoLines.length) card.querySelector(".cargo-status").textContent = cargoLines.join("\n");
+    refreshOrderTitles();
+  }
+
+  function runOperation(action, label) {
+    if (saveInProgress) return;
+    const targetCards = cards();
+    let index = 0;
+    const started = Date.now();
+    setSavingState(true);
+    targetCards.forEach(card => setCardStatus(card, `${label} çalışıyor...`, "info"));
+    const next = () => {
+      if (index >= targetCards.length) {
+        setSavingState(false);
+        return;
+      }
+      const card = targetCards[index++];
+      google.script.run
+        .withSuccessHandler(res => {
+          applyServerResult(card, res);
+          const elapsed = ((Date.now() - started) / 1000).toFixed(1);
+          setCardStatus(card, summarize(res) + "\nİşlem süresi: " + elapsed + " sn", res && res.ok === false ? "warn" : "info");
+          next();
+        })
+        .withFailureHandler(err => {
+          setCardStatus(card, "HATA: " + (err.message || err), "error");
+          next();
+        })
+        .ultraPanelOperasyonCalistir(action, collectOrder(card));
+    };
+    next();
+  }
+
   function invoiceCargo() {
-    const card = cards().find(c => c.dataset.openId) || cards()[0];
-    const openId = card.dataset.openId || "";
-    if (!openId) { setCardStatus(card, "Önce Kaydet ve ERP güncelle çalıştırılmalı.", "warn"); return; }
-    setCardStatus(card, "Fatura/kargo son kontrol ediliyor...", "info");
-    google.script.run.withSuccessHandler(res => setCardStatus(card, summarize(res), res.ok === false ? "warn" : "info"))
-      .withFailureHandler(err => setCardStatus(card, "HATA: " + (err.message || err), "error"))
-      .faturaVeKargoOlustur(openId);
+    runOperation("faturaKargo", "Fatura ve kargo oluştur");
   }
   function currentCargoPackageId(card) {
     const explicit = card.dataset.kargoPaketId || value(card, "kargoPaketId") || "";

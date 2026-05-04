@@ -113,6 +113,7 @@ const props = {
   NAVLUNGO_DEFAULT_POST_TYPE: "2",
   NAVLUNGO_DEFAULT_DESI: "1",
   NAVLUNGO_DEFAULT_PACKAGE_COUNT: "1",
+  NAVLUNGO_DEFAULT_BARCODE_TYPE: "pdf",
   NAVLUNGO_CARRIER_ID_MAP_JSON: JSON.stringify({ "Aras Kargo": 1 }),
   NAVLUNGO_SENDER_NAME: "Tesbih Kuyusu",
   NAVLUNGO_SENDER_PHONE: "+905551110000",
@@ -436,6 +437,36 @@ const navBulkBarcode = sandbox.navlungoTopluBarkodAl([cargoPackageId]);
 assert(navBulkBarcode.ok === true, "Navlungo toplu barkod akışı çalışmalı");
 props.NAVLUNGO_CANLI_GONDERIM = "Hayır";
 patchRows(CFG.sheets.settings, "Ayar_Kodu", "NAVLUNGO_CANLI_GONDERIM", { "Ayar_Değeri": "Hayır" });
+
+const operationPayload = {
+  whatsAppTel: "05553334455",
+  siparisSahibi: "bedihaçetin",
+  kargo: {
+    kargoAlicisi: "Bediha Çetin",
+    kargoTel: "+905553334455",
+    il: "İzmir",
+    ilce: "Menderes",
+    adres: "Operasyon test adresi",
+    kargoFirmasi: "Aras Kargo",
+    kargoBekletilsinMi: "Evet",
+    kargoBekletmeNedeni: "Müşteri talebi"
+  },
+  urunler: [{ urunAdi: "Tesbih", odemeYapan: "Bediha Çetin", miktar: 1, birimFiyatKdvDahil: 700 }],
+  odemeler: [{ odemeYapan: "Bediha Çetin", odemeTutari: 700, odemeTarihi: "2026-05-03", odemeYapanTel: "+905553334455", odemeYapanTcknVkn: "11111111111", odemeYapanAdres: "Operasyon test adresi", odemeYapanIl: "İzmir", odemeYapanIlce: "Menderes" }],
+  faturalar: [{ faturaKisisi: "Bediha Çetin", cariTipi: "Gerçek Kişi", faturaTel: "+905553334455", faturaTcknVkn: "11111111111", faturaIl: "İzmir", faturaIlce: "Menderes", faturaAdres: "Operasyon test adresi", parasutCariId: "1062372249" }]
+};
+const justInvoice = sandbox.ultraPanelOperasyonCalistir("sadeceFatura", JSON.parse(JSON.stringify(operationPayload)));
+assert(justInvoice.openId, "Sadece fatura operasyonu Açık_Sipariş_ID döndürmeli");
+assert(rows(CFG.sheets.cargo).some(r => r[H.OPEN_ID] === justInvoice.openId && r[H.CARGO_WAIT] === "Evet"), "Sadece fatura kargoyu bekletmeli");
+const cargoForOperation = rows(CFG.sheets.cargo).find(r => r[H.OPEN_ID] === justInvoice.openId);
+const cargoOutPayload = JSON.parse(JSON.stringify(operationPayload));
+cargoOutPayload.openId = justInvoice.openId;
+cargoOutPayload.kargo.kargoPaketId = cargoForOperation[H.CARGO_PACKAGE_ID];
+cargoOutPayload.kargo.kargoBekletilsinMi = "Hayır";
+cargoOutPayload.faturalar[0].faturaGrubuId = rows(CFG.sheets.invoiceGroups).find(r => r[H.OPEN_ID] === justInvoice.openId)[H.INVOICE_GROUP_ID];
+const waitingCargoOut = sandbox.ultraPanelOperasyonCalistir("bekleyenKargo", cargoOutPayload);
+assert(waitingCargoOut.cargo.length === 1, "Bekleyen kargo tek paketle işlem görmeli");
+assert(rows(CFG.sheets.cargo).some(r => r[H.OPEN_ID] === justInvoice.openId && r[H.CARGO_WAIT] === "Hayır" && r[H.NAVLUNGO_STATUS]), "Bekleyen kargo çıkarma 08 Navlungo durumunu yazmalı");
 
 const api = sandbox.parasutApiBaglantiTestiTam();
 assert(api.ok === false || api, "Paraşüt GET test fonksiyonu çalışmalı");
