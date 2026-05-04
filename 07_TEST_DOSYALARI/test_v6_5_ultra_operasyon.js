@@ -127,6 +127,7 @@ let contactPostCalls = 0;
 let tokenRefreshCalls = 0;
 let navlungoAuthCalls = 0;
 let navlungoPostCalls = 0;
+const navlungoPayloads = [];
 function response(status, body) {
   return { getResponseCode: () => status, getContentText: () => JSON.stringify(body || {}) };
 }
@@ -186,10 +187,12 @@ const sandbox = {
       }
       if (url.includes("domestic-api") && method === "post" && url.includes("post/create")) {
         navlungoPostCalls++;
+        navlungoPayloads.push({ endpoint: "post/create", payload: JSON.parse(options.payload || "{}") });
         return response(201, { post_number: "NL-QA-1", tracking_url: "https://qa.navlungo.test/track/NL-QA-1", barcode_url: "https://qa.navlungo.test/label/NL-QA-1.pdf" });
       }
       if (url.includes("domestic-api") && method === "post" && url.includes("barcode/getBarcode")) {
         navlungoPostCalls++;
+        navlungoPayloads.push({ endpoint: "barcode/getBarcode", payload: JSON.parse(options.payload || "{}") });
         return response(200, { data: { barcode_url: "https://qa.navlungo.test/label/NL-QA-1.pdf" } });
       }
       if (url.includes("domestic-api") && method === "get" && url.includes("post/check/")) {
@@ -423,11 +426,14 @@ const navCancelClosed = sandbox.navlungoGonderiIptalEt(cargoPackageId);
 assert(navCancelClosed.livePost === "Yapılmadı", "NAVLUNGO_CANLI_GONDERIM Hayır iken iptal POST yapılmamalı");
 props.NAVLUNGO_CANLI_GONDERIM = "Evet";
 patchRows(CFG.sheets.settings, "Ayar_Kodu", "NAVLUNGO_CANLI_GONDERIM", { "Ayar_Değeri": "Evet" });
+patchRows(CFG.sheets.settings, "Ayar_Kodu", "NAVLUNGO_DEFAULT_BARCODE_TYPE", { "Ayar_Değeri": "pdf-A6" });
 patchRows(CFG.sheets.cargo, H.CARGO_PACKAGE_ID, cargoPackageId, { [H.NAVLUNGO_POST_NUMBER]: "", [H.NAVLUNGO_BARCODE_URL]: "", [H.NAVLUNGO_TRACKING_URL]: "", [H.NAVLUNGO_CANCELLED_AT]: "", [H.NAVLUNGO_STATUS]: "Payload Hazır" });
 const navCreateOpen = sandbox.navlungoKargoOlusturOnayli(cargoPackageId);
 assert(navCreateOpen.ok === true && rows(CFG.sheets.cargo)[0][H.NAVLUNGO_POST_NUMBER] === "NL-QA-1", "Navlungo gönderi oluşturma sonucu Sheet'e yazılmalı");
 const navBarcodeOpen = sandbox.navlungoBarkodAl(cargoPackageId);
 assert(navBarcodeOpen.ok === true && rows(CFG.sheets.cargo)[0][H.NAVLUNGO_BARCODE_URL], "Navlungo barkod URL Sheet'e yazılmalı");
+const lastBarcodePayload = navlungoPayloads.filter(x => x.endpoint === "barcode/getBarcode").slice(-1)[0];
+assert(lastBarcodePayload && lastBarcodePayload.payload.barcode_type === "pdf", "Navlungo barkod tipi getBarcode için pdf olarak normalize edilmeli");
 const navCancelOpen = sandbox.navlungoGonderiIptalEt(cargoPackageId);
 assert(navCancelOpen.ok === true && rows(CFG.sheets.cargo)[0][H.NAVLUNGO_CANCELLED_AT], "Navlungo iptal sonucu Sheet'e yazılmalı");
 patchRows(CFG.sheets.cargo, H.CARGO_PACKAGE_ID, cargoPackageId, { [H.NAVLUNGO_POST_NUMBER]: "", [H.NAVLUNGO_BARCODE_URL]: "", [H.NAVLUNGO_TRACKING_URL]: "", [H.NAVLUNGO_CANCELLED_AT]: "", [H.NAVLUNGO_STATUS]: "Payload Hazır" });

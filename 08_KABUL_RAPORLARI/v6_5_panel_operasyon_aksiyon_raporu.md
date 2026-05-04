@@ -93,6 +93,24 @@ Node test özeti:
 Apps Script proje ID:
 `1-lU86xNoxXkuiX8pz8P2MkkIdbbLvT0Ub9bOhrcDLgLQ3a2aio6vIg77`
 
+## 2026-05-04 Barkod Tipi Düzeltmesi
+
+Gerçek Apps Script çalıştırmasında Navlungo `barcode/getBarcode` endpoint'i `barcode_type` alanı için `422` doğrulama hatası verdi. Kök neden, gönderi oluşturma formatları ile barkod alma tiplerinin karışmasıydı.
+
+Navlungo dokümanına göre `barcode/getBarcode` için geçerli tipler:
+
+- `pdf`
+- `zpl`
+- `zpl-10`
+
+Düzeltme:
+
+- `navlungoBarcodeType_` eklendi.
+- `NAVLUNGO_DEFAULT_BARCODE_TYPE` içinde `pdf-A5`, `pdf-A6`, `pdf-A6Y`, `pdf-A7`, `html` gibi gönderi formatı değeri varsa barkod endpoint'ine `pdf` gönderilir.
+- `NAVLUNGO_DEFAULT_BARCODE_FORMAT` ayrı ayar olarak eklendi ve yalnız gönderi oluşturma payload'ında `barcode_format` için kullanılır.
+- `sistemKolonlariniHazirla()` çalışınca yanlış barkod tipi `pdf` değerine düzeltilir; varsa format değeri format ayarına taşınır.
+- Test setine `pdf-A6` girildiğinde `barcode/getBarcode` payload'ının `pdf` gönderdiğini doğrulayan kontrol eklendi.
+
 Remote aktif dosyalar:
 
 - `appsscript.json`
@@ -105,8 +123,8 @@ Remote aktif dosyalar:
 
 Core SHA256:
 
-- Local: `E5A53274417EA1AC46DD6376FA679B6F0AC995063CB88BA7C193EB1DE5880E57`
-- Remote: `E5A53274417EA1AC46DD6376FA679B6F0AC995063CB88BA7C193EB1DE5880E57`
+- Local: `8BA7527F3BF0E075A1C7BF3541574FE554A8484080DE7F0765A94EA12704F82A`
+- Remote: `8BA7527F3BF0E075A1C7BF3541574FE554A8484080DE7F0765A94EA12704F82A`
 - Eşleşme: Evet
 
 ## Kalan Kabul Kanıtı

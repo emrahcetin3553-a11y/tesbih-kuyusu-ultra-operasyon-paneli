@@ -3399,7 +3399,8 @@ var TK6 = (function () {
       ["NAVLUNGO_DEFAULT_POST_TYPE", "2", "Varsayılan gönderi tipi", "Evet", now, "2 standart teslimat"],
       ["NAVLUNGO_DEFAULT_DESI", "1", "Varsayılan desi", "Evet", now, ""],
       ["NAVLUNGO_DEFAULT_PACKAGE_COUNT", "1", "Varsayılan paket adedi", "Evet", now, ""],
-      ["NAVLUNGO_DEFAULT_BARCODE_TYPE", "pdf", "Varsayılan barkod tipi", "Evet", now, "Navlungo barkod isteğinde kullanılır"],
+      ["NAVLUNGO_DEFAULT_BARCODE_TYPE", "pdf", "Varsayılan barkod tipi", "Evet", now, "Geçerli barkod tipleri: pdf, zpl, zpl-10"],
+      ["NAVLUNGO_DEFAULT_BARCODE_FORMAT", "", "Gönderi oluşturma barkod formatı", "Hayır", now, "Geçerli formatlar: html, pdf-A5, pdf-A6, pdf-A6Y, pdf-A7"],
       ["NAVLUNGO_CARRIER_ID_MAP_JSON", "{\"Aras Kargo\":\"1\",\"Yurtiçi Kargo\":\"2\"}", "Panel kargo firması -> Navlungo carrier_id map JSON", "Evet", now, "Kargo firması varsa map eşleşmesi zorunludur"],
       ["SISTEM_OPERASYON_SAATI_KAPANIS", CFG.cutoff, "Operasyon kapanış saati", "Evet", now, ""],
       ["TCKN_VARSAYILAN_GERCEK_KISI", CFG.defaultTckn, "Gerçek kişi TCKN boş ise kullanılır", "Evet", now, ""],
@@ -3409,6 +3410,34 @@ var TK6 = (function () {
     ];
     var rows = required.filter(function (r) { return existing[r[0]] === undefined; });
     if (rows.length) sh.getRange(sh.getLastRow() + 1, 1, rows.length, 6).setValues(rows);
+    normalizeNavlungoSettings_(ss);
+  }
+
+  function normalizeNavlungoSettings_(ss) {
+    var sh = sheet_(ss, CFG.sheets.settings);
+    if (!sh || sh.getLastRow() < 2) return;
+    var h = headers_(sh);
+    if (h[H.SETTING_KEY] === undefined || h[H.SETTING_VALUE] === undefined) return;
+    var values = sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getValues();
+    var typeRow = -1;
+    var formatRow = -1;
+    values.forEach(function (row, index) {
+      if (row[h[H.SETTING_KEY]] === "NAVLUNGO_DEFAULT_BARCODE_TYPE") typeRow = index;
+      if (row[h[H.SETTING_KEY]] === "NAVLUNGO_DEFAULT_BARCODE_FORMAT") formatRow = index;
+    });
+    if (typeRow < 0) return;
+    var rawType = String(values[typeRow][h[H.SETTING_VALUE]] || "").trim();
+    var typeKey = rawType.toLowerCase();
+    var formatMap = navlungoBarcodeFormatMap_();
+    var changed = false;
+    if (!(typeKey === "pdf" || typeKey === "zpl" || typeKey === "zpl-10")) {
+      values[typeRow][h[H.SETTING_VALUE]] = "pdf";
+      changed = true;
+      if (formatRow >= 0 && formatMap[typeKey] && !String(values[formatRow][h[H.SETTING_VALUE]] || "").trim()) {
+        values[formatRow][h[H.SETTING_VALUE]] = formatMap[typeKey];
+      }
+    }
+    if (changed) sh.getRange(2, 1, values.length, sh.getLastColumn()).setValues(values);
   }
 
   function productIdMap_(ss, required) {
@@ -4149,6 +4178,8 @@ var TK6 = (function () {
         custom_data_4: navlungoEnv_()
       }]
     };
+    var barcodeFormat = navlungoBarcodeFormat_(ss);
+    if (barcodeFormat) payload.posts[0].barcode_format = barcodeFormat;
     var hash = navlungoPayloadHash_(payload);
     patchRowsByKey_(sheet_(ss, CFG.sheets.cargo), H.CARGO_PACKAGE_ID, cargo[H.CARGO_PACKAGE_ID], {
       [H.NAVLUNGO_REFERENCE_ID]: referenceId,
@@ -4209,7 +4240,7 @@ var TK6 = (function () {
     if (!postNumber) throw new Error("Navlungo barkod için gönderi ID yok.");
     var payload = {
       post_number: postNumber,
-      barcode_type: String(setting_(ss, "NAVLUNGO_DEFAULT_BARCODE_TYPE", setting_(ss, "NAVLUNGO_DEFAULT_BARCODE_FORMAT", "pdf")) || "pdf")
+      barcode_type: navlungoBarcodeType_(ss)
     };
     if (!yes_(setting_(ss, CFG.liveNavlungoSendSetting, "Hayır"))) return navlungoNoPostResult_(cargo[H.CARGO_PACKAGE_ID], payload, "Canlı barkod kapısı kapalı");
     var response;
@@ -4296,6 +4327,30 @@ var TK6 = (function () {
     var cargo = objects_(sheet_(SpreadsheetApp.getActiveSpreadsheet(), CFG.sheets.cargo)).filter(function (r) { return r[H.OPEN_ID] === acikSiparisId; })[0] || {};
     var needsReview = !!(cargo[H.BARCODE] || cargo[H.NAVLUNGO_POST_NUMBER]) && !!cargo[H.ADDRESS];
     return { ok: true, openId: acikSiparisId, barkodVar: needsReview, yenidenBasimKontrolu: needsReview ? "Gerekli" : "Gerekli değil" };
+  }
+
+  function navlungoBarcodeType_(ss) {
+    var raw = String(setting_(ss, "NAVLUNGO_DEFAULT_BARCODE_TYPE", setting_(ss, "NAVLUNGO_DEFAULT_BARCODE_FORMAT", "pdf")) || "").trim();
+    var key = raw.toLowerCase();
+    if (key === "pdf" || key === "zpl" || key === "zpl-10") return key;
+    return "pdf";
+  }
+
+  function navlungoBarcodeFormat_(ss) {
+    var raw = String(setting_(ss, "NAVLUNGO_DEFAULT_BARCODE_FORMAT", "") || "").trim();
+    var key = raw.toLowerCase();
+    var formats = navlungoBarcodeFormatMap_();
+    return formats[key] || "";
+  }
+
+  function navlungoBarcodeFormatMap_() {
+    return {
+      "html": "html",
+      "pdf-a5": "pdf-A5",
+      "pdf-a6": "pdf-A6",
+      "pdf-a6y": "pdf-A6Y",
+      "pdf-a7": "pdf-A7"
+    };
   }
 
   function navlungoRequiredPropertyKeys_() {
