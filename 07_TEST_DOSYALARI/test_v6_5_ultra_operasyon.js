@@ -264,8 +264,11 @@ const payload = {
   whatsAppTel: "05523730403",
   siparisSahibi: "mehmetnuriçetin",
   kargo: { il: "izmir", ilce: "menderes", adres: "Gümüldür Fevzi Çakmak Mah. 6266 Sokak No: 28", kargoFirmasi: "Aras Kargo" },
-  urunler: [{ urunAdi: "tesbih", odemeYapan: "mehmetnuriçetin", miktar: 1, birimFiyatKdvDahil: 350 }],
-  odemeler: [{ odemeYapan: "mehmetnuriçetin", odemeTutari: 350, odemeYapanTel: "05523730403" }],
+  urunler: [
+    { urunAdi: "tesbih", odemeYapan: "mehmetnuriçetin", miktar: 1, birimFiyatKdvDahil: 350 },
+    { urunAdi: "Kargo Hizmet Bedeli", odemeYapan: "mehmetnuriçetin", miktar: 1, birimFiyatKdvDahil: 125 }
+  ],
+  odemeler: [{ odemeYapan: "mehmetnuriçetin", odemeTutari: 475, odemeYapanTel: "05523730403" }],
   faturalar: [{ faturaKisisi: "mehmetnuriçetin", faturaTcknVkn: "11111111111" }]
 };
 const saved = sandbox.ultraSiparisKaydet(JSON.parse(JSON.stringify(payload)));
@@ -280,12 +283,35 @@ assert(rows(CFG.sheets.addressMemory).length === 1, "Adres geçmişi ayrı sayfa
 const cariSelection = sandbox.parasutCariPanelAksiyonu(saved.openId, "Mehmet Nuri Çetin", "select", "C-1");
 assert(cariSelection.contactId === "C-1", "Panel cari seç akışı Paraşüt_Cari_ID bağlamalı");
 assert(rows(CFG.sheets.parasut)[0][H.PARASUT_CONTACT_ID], "Paraşüt taslak satırında contact relationship kaynağı olmalı");
-const dry = sandbox.parasutTaslakPayloadTestEt(rows(CFG.sheets.invoiceGroups)[0][H.INVOICE_GROUP_ID]);
-assert(dry.payload.data.relationships.contact.data.id, "Fatura payload contact relationship içermeli");
-
-patchRows(CFG.sheets.invoiceGroups, H.INVOICE_GROUP_ID, rows(CFG.sheets.invoiceGroups)[0][H.INVOICE_GROUP_ID], { [H.PARASUT_CONTACT_ID]: "" });
+const gid = rows(CFG.sheets.invoiceGroups)[0][H.INVOICE_GROUP_ID];
+patchRows(CFG.sheets.invoiceGroups, H.INVOICE_GROUP_ID, gid, { [H.PARASUT_CONTACT_ID]: "1062372249" });
 sandbox.parasutTaslaklariniHazirla();
-assertThrows(() => sandbox.parasutTaslakPayloadTestEt(rows(CFG.sheets.invoiceGroups)[0][H.INVOICE_GROUP_ID]), "Paraşüt cari ID yok", "Cari ID boşken payload başarılı sayılmamalı");
+const postsBeforePayload = salesPostCalls;
+const dry = sandbox.parasutTaslakPayloadTestEt(gid);
+assert(salesPostCalls === postsBeforePayload, "parasutTaslakPayloadTestEt API POST yapmamalı");
+assert(dry.payload.data.relationships.contact.data.id === "1062372249", "Fatura payload contact relationship doğru cari ID içermeli");
+assert(!dry.payload.included, "Yeni satış faturası create payload included kullanmamalı");
+const invoiceDetails = dry.payload.data.relationships.details.data;
+assert(invoiceDetails.length === 2, "Tesbih ve kargo hizmet satırları payload içinde olmalı");
+assert(invoiceDetails.some(d => d.relationships.product.data.id === "1066258492"), "Tesbih ürün ID payload içinde olmalı");
+assert(invoiceDetails.some(d => d.relationships.product.data.id === "1066258513"), "Kargo Hizmet Bedeli ürün ID payload içinde olmalı");
+assert(invoiceDetails.every(d => !d.id && !d.item_id && !d.invoice_detail_id), "Payload satırları mevcut kayıt referansı içermemeli");
+assert(invoiceDetails.every(d => Number(d.attributes.quantity) > 0 && Number(d.attributes.unit_price) > 0), "Payload quantity ve unit_price boş olmamalı");
+props.PARASUT_CANLI_GONDERIM = "Evet";
+patchRows(CFG.sheets.settings, "Ayar_Kodu", "PARASUT_CANLI_GONDERIM", { "Ayar_Değeri": "Evet" });
+const postsBeforeSend = salesPostCalls;
+const sendResult = sandbox.parasutFaturaTaslakGonder(gid);
+assert(salesPostCalls === postsBeforeSend + 1, "Canlı kapı Evet iken sales invoice POST tek kez çalışmalı");
+assert(sendResult[0].status === "Gönderildi", "Paraşüt yeni satış faturası taslak gönderimi başarılı dönmeli");
+assert(rows(CFG.sheets.parasut)[0][H.PARASUT_INVOICE_ID] === "INV-1", "07_PARASUT_FATURA Paraşüt_Fatura_ID yazmalı");
+const duplicateSend = sandbox.parasutFaturaTaslakGonder(gid);
+assert(salesPostCalls === postsBeforeSend + 1 && duplicateSend[0].status === "Blokaj", "Aynı fatura grubu ikinci kez gönderilmemeli");
+props.PARASUT_CANLI_GONDERIM = "Hayır";
+patchRows(CFG.sheets.settings, "Ayar_Kodu", "PARASUT_CANLI_GONDERIM", { "Ayar_Değeri": "Hayır" });
+
+patchRows(CFG.sheets.invoiceGroups, H.INVOICE_GROUP_ID, gid, { [H.PARASUT_CONTACT_ID]: "" });
+sandbox.parasutTaslaklariniHazirla();
+assertThrows(() => sandbox.parasutTaslakPayloadTestEt(gid), "Paraşüt cari ID yok", "Cari ID boşken payload başarılı sayılmamalı");
 
 const second = sandbox.ultraSiparisKaydet({
   whatsAppTel: "05551112233",
@@ -413,7 +439,7 @@ patchRows(CFG.sheets.settings, "Ayar_Kodu", "NAVLUNGO_CANLI_GONDERIM", { "Ayar_D
 
 const api = sandbox.parasutApiBaglantiTestiTam();
 assert(api.ok === false || api, "Paraşüt GET test fonksiyonu çalışmalı");
-assert(salesPostCalls === 0, "PARASUT_CANLI_GONDERIM Hayır iken sales invoice POST yapılmamalı");
+assert(salesPostCalls === 1, "Sales invoice POST yalnız kontrollü Paraşüt kapısı Evet iken bir kez çalışmalı");
 assert(contactPostCalls === 0, "PARASUT_CARI_CANLI_OLUSTURMA Hayır iken contact POST yapılmamalı");
 assert(navlungoPostCalls === 5, "Sadece NAVLUNGO_CANLI_GONDERIM Evet iken Navlungo POST yapılmalı");
 

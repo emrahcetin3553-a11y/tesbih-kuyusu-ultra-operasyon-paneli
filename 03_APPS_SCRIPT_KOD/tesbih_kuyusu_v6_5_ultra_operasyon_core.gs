@@ -2700,6 +2700,12 @@ var TK6 = (function () {
         result.push({ groupId: gid, status: "Blokaj", message: block });
         return;
       }
+      var alreadySent = pRows.some(function (row) { return row[H.PARASUT_INVOICE_ID] || row[H.SEND_LOCK] === "Evet"; });
+      if (alreadySent) {
+        updateParasutRows_(ss, gid, { [H.PARASUT_STATUS]: "Kilitli", [H.ERROR]: "Fatura grubu daha önce gönderilmiş; tekrar gönderim durdu" });
+        result.push({ groupId: gid, status: "Kilitli", message: "Fatura grubu daha önce gönderilmiş; tekrar gönderim durdu" });
+        return;
+      }
       var chain = parasutZincirToplamlariUygunMu_(ss, gid, pRows);
       if (!chain.ok) {
         updateParasutRows_(ss, gid, { [H.PARASUT_STATUS]: "Blokaj", [H.ERROR]: chain.message });
@@ -2707,7 +2713,14 @@ var TK6 = (function () {
         return;
       }
       var payload = parasutSalesInvoicePayload_(gid, pRows);
+      var payloadCheck = parasutPayloadKontrol_(payload);
+      if (!payloadCheck.ok) {
+        updateParasutRows_(ss, gid, { [H.PARASUT_STATUS]: "Blokaj", [H.PAYLOAD_CHECK]: payloadCheck.status, [H.ERROR]: payloadCheck.status });
+        result.push({ groupId: gid, status: "Blokaj", message: payloadCheck.status });
+        return;
+      }
       if (!live) {
+        updateParasutRows_(ss, gid, { [H.PARASUT_STATUS]: "Taslak Hazır", [H.PAYLOAD_CHECK]: payloadCheck.status, [H.ERROR]: "", [H.NOTE]: "Canlı gönderim kapalı; create payload hazır" });
         result.push({ groupId: gid, status: "Canlı Gönderim Kapalı", payload: payload });
         return;
       }
@@ -2719,7 +2732,7 @@ var TK6 = (function () {
       try {
         var apiResult = parasutApiPost_("/sales_invoices", payload);
         var invoiceId = apiResult && apiResult.data ? apiResult.data.id : "";
-        updateParasutRows_(ss, gid, { [H.PARASUT_INVOICE_ID]: invoiceId, [H.PARASUT_STATUS]: "Gönderildi", [H.SEND_LOCK]: "Evet", [H.ERROR]: "" });
+        updateParasutRows_(ss, gid, { [H.PARASUT_INVOICE_ID]: invoiceId, [H.PARASUT_STATUS]: "Gönderildi", [H.SEND_LOCK]: "Evet", [H.PAYLOAD_CHECK]: payloadCheck.status, [H.ERROR]: "", [H.NOTE]: "Paraşüt yanıt ID: " + invoiceId });
         updateInvoiceGroupSendResult_(ss, gid, invoiceId, "Gönderildi", "Evet", "");
         result.push({ groupId: gid, status: "Gönderildi", result: apiResult });
       } catch (err) {
@@ -2748,6 +2761,7 @@ var TK6 = (function () {
     }
     var payload = parasutSalesInvoicePayload_(ids[0], groups[ids[0]]);
     var check = parasutPayloadKontrol_(payload);
+    updateParasutRows_(ss, ids[0], { [H.PARASUT_STATUS]: check.ok ? "Taslak Hazır" : "Blokaj", [H.PAYLOAD_CHECK]: check.status, [H.ERROR]: check.ok ? "" : check.status, [H.NOTE]: check.ok ? "API POST yapılmadan create payload üretildi" : "" });
     return { ok: check.ok, groupId: ids[0], status: check.status, payload: payload };
   }
 
@@ -3090,13 +3104,9 @@ var TK6 = (function () {
 
   function parasutSalesInvoicePayload_(groupId, rows) {
     var first = rows[0] || {};
-    var included = [];
-    var detailRefs = [];
-    rows.forEach(function (row, index) {
-      var detailId = "detail-" + (index + 1);
-      detailRefs.push({ id: detailId, type: "sales_invoice_details" });
-      included.push({
-        id: detailId,
+    var detailRows = [];
+    rows.forEach(function (row) {
+      detailRows.push({
         type: "sales_invoice_details",
         attributes: {
           quantity: num_(row[H.QTY]),
@@ -3121,10 +3131,9 @@ var TK6 = (function () {
         },
         relationships: {
           contact: { data: { id: String(first[H.PARASUT_CONTACT_ID] || ""), type: "contacts" } },
-          details: { data: detailRefs }
+          details: { data: detailRows }
         }
-      },
-      included: included
+      }
     };
   }
 
@@ -3135,13 +3144,15 @@ var TK6 = (function () {
     if (!data.attributes || data.attributes.item_type !== "invoice") issues.push("attributes.item_type invoice değil");
     if (!data.relationships || !data.relationships.contact || !data.relationships.contact.data || !data.relationships.contact.data.id) issues.push("contact relationship eksik");
     var details = data.relationships && data.relationships.details && data.relationships.details.data;
-    var included = payload.included || [];
     if (!details || !details.length) issues.push("details satırı yok");
-    if (!included.length) issues.push("included satırı yok");
-    (included || []).forEach(function (detail, index) {
+    if (payload.included && payload.included.length) issues.push("included kullanılmamalı; yeni satış faturası satırları relationships.details.data içinde ID olmadan gönderilmeli");
+    (details || []).forEach(function (detail, index) {
+      if (detail.id || detail.lid || detail.item_id || detail.invoice_detail_id) issues.push("detail " + (index + 1) + " mevcut kayıt referansı içeriyor");
       if (detail.type !== "sales_invoice_details") issues.push("detail " + (index + 1) + " type hatalı");
       if (!detail.relationships || !detail.relationships.product || !detail.relationships.product.data || !detail.relationships.product.data.id) issues.push("detail " + (index + 1) + " product relationship eksik");
-      if (num_(detail.attributes && detail.attributes.unit_price) < 0) issues.push("detail " + (index + 1) + " unit_price negatif");
+      if (!detail.attributes || num_(detail.attributes.quantity) <= 0) issues.push("detail " + (index + 1) + " quantity eksik");
+      if (!detail.attributes || num_(detail.attributes.unit_price) <= 0) issues.push("detail " + (index + 1) + " unit_price eksik");
+      if (!detail.attributes || detail.attributes.vat_rate === "" || detail.attributes.vat_rate === null || detail.attributes.vat_rate === undefined) issues.push("detail " + (index + 1) + " vat_rate eksik");
     });
     if (/istisna|e_belge|e-?arsiv|e-?fatura/i.test(JSON.stringify(payload))) issues.push("sales_invoice payload içinde e-belge/istisna alanı var");
     return { ok: !issues.length, status: issues.length ? issues.join(" | ") : "Payload dry-run OK" };
