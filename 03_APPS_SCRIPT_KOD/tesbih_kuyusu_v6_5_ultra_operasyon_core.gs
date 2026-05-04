@@ -174,6 +174,10 @@ var TK6 = (function () {
     NAVLUNGO_CANCELLED_AT: "Navlungo_Cancelled_At",
     NAVLUNGO_TEST: "Navlungo_Test_Mu",
     NAVLUNGO_PAYLOAD_HASH: "Navlungo_Payload_Hash",
+    BARCODE_PRINTED: "Barkod_Yazdirildi_Mi",
+    BARCODE_PRINT_DATE: "Barkod_Yazdirma_Tarihi",
+    BARCODE_PRINT_RESULT: "Barkod_Yazdirma_Sonucu",
+    BARCODE_PRINT_ERROR: "Barkod_Yazdirma_Hata",
     CARGO_WAIT: "Kargo_Bekletilsin_Mi",
     CARGO_WAIT_REASON: "Kargo_Bekletme_Nedeni",
     CARGO_EXIT_DATE: "Kargo_Cikis_Tarihi",
@@ -274,7 +278,8 @@ var TK6 = (function () {
       H.PACKAGE_NOTE, H.NAVLUNGO_POST_NUMBER, H.NAVLUNGO_REFERENCE_ID, H.NAVLUNGO_TRACKING_URL,
       H.NAVLUNGO_BARCODE_URL, H.NAVLUNGO_CARRIER_ID, H.NAVLUNGO_CARRIER_NAME, H.NAVLUNGO_STATUS,
       H.NAVLUNGO_LAST_RESPONSE, H.NAVLUNGO_LAST_ERROR, H.NAVLUNGO_CREATED_AT, H.NAVLUNGO_CANCELLED_AT,
-      H.NAVLUNGO_TEST, H.NAVLUNGO_PAYLOAD_HASH, H.CARGO_WAIT, H.CARGO_WAIT_REASON,
+      H.NAVLUNGO_TEST, H.NAVLUNGO_PAYLOAD_HASH, H.BARCODE_PRINTED, H.BARCODE_PRINT_DATE,
+      H.BARCODE_PRINT_RESULT, H.BARCODE_PRINT_ERROR, H.CARGO_WAIT, H.CARGO_WAIT_REASON,
       H.CARGO_EXIT_DATE, H.WARN
     ],
     memory: [
@@ -643,6 +648,7 @@ var TK6 = (function () {
   }
 
   function getDialogData_() {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
     var props = documentProperties_();
     var editIds = parseJsonArray_(props.getProperty("ULTRA_PANEL_EDIT_OPEN_IDS"));
     if (props.deleteProperty) props.deleteProperty("ULTRA_PANEL_EDIT_OPEN_IDS");
@@ -658,6 +664,10 @@ var TK6 = (function () {
       paymentSources: ["Manuel", "Dekont", "WhatsApp", "Banka açıklaması"],
       silverAmountTypes: ["Birim", "Toplam"],
       editOrders: editOrders,
+      qzPrinterName: qzPrinterName_(ss),
+      qzAutoPrint: qzAutoPrintAfterBarcode_(ss) ? "Evet" : "Hayır",
+      qzPrintCopies: qzPrintCopies_(ss),
+      qzPrintMode: qzPrintMode_(ss),
       panelError: missing.length ? "Seçili satırdan sipariş verisi bulunamadı: " + missing.join(", ") : ""
     };
   }
@@ -738,7 +748,10 @@ var TK6 = (function () {
         navlungoTrackingUrl: cargo[H.NAVLUNGO_TRACKING_URL] || "",
         navlungoBarcodeUrl: cargo[H.NAVLUNGO_BARCODE_URL] || "",
         navlungoStatus: cargo[H.NAVLUNGO_STATUS] || "",
-        navlungoLastError: cargo[H.NAVLUNGO_LAST_ERROR] || ""
+        navlungoLastError: cargo[H.NAVLUNGO_LAST_ERROR] || "",
+        barkodYazdirildiMi: cargo[H.BARCODE_PRINTED] || "",
+        barkodYazdirmaSonucu: cargo[H.BARCODE_PRINT_RESULT] || "",
+        barkodYazdirmaHata: cargo[H.BARCODE_PRINT_ERROR] || ""
       },
       urunler: itemRows.map(function (row) {
         return {
@@ -3402,6 +3415,11 @@ var TK6 = (function () {
       ["NAVLUNGO_DEFAULT_BARCODE_TYPE", "pdf", "Varsayılan barkod tipi", "Evet", now, "Geçerli barkod tipleri: pdf, zpl, zpl-10"],
       ["NAVLUNGO_DEFAULT_BARCODE_FORMAT", "", "Gönderi oluşturma barkod formatı", "Hayır", now, "Geçerli formatlar: html, pdf-A5, pdf-A6, pdf-A6Y, pdf-A7"],
       ["NAVLUNGO_CARRIER_ID_MAP_JSON", "{\"Aras Kargo\":\"1\",\"Yurtiçi Kargo\":\"2\"}", "Panel kargo firması -> Navlungo carrier_id map JSON", "Evet", now, "Kargo firması varsa map eşleşmesi zorunludur"],
+      ["QZ_TRAY_AKTIF", "Evet", "Panel barkod yazdırma bağlantısı", "Hayır", now, ""],
+      ["QZ_PRINTER_NAME", "RP4xx Series 200DPI TSC", "Windows barkod yazıcı adı", "Hayır", now, ""],
+      ["QZ_AUTO_PRINT_AFTER_BARCODE", "Evet", "Barkod URL oluşunca panel otomatik yazdırır", "Hayır", now, ""],
+      ["QZ_PRINT_COPIES", "1", "Barkod yazdırma kopya adedi", "Hayır", now, ""],
+      ["QZ_PRINT_MODE", "pdf", "QZ barkod yazdırma veri tipi", "Hayır", now, ""],
       ["SISTEM_OPERASYON_SAATI_KAPANIS", CFG.cutoff, "Operasyon kapanış saati", "Evet", now, ""],
       ["TCKN_VARSAYILAN_GERCEK_KISI", CFG.defaultTckn, "Gerçek kişi TCKN boş ise kullanılır", "Evet", now, ""],
       ["BANKA_HAREKET_MODULU_AKTIF", "Evet", "14_BANKA_HAREKETLERI ödeme teyit yardımcısıdır", "Evet", now, ""],
@@ -4581,6 +4599,99 @@ var TK6 = (function () {
     return { ok: true, kargoPaketId: kargoPaketId, payload: payload, livePost: "Yapılmadı", status: reason };
   }
 
+  function qzPrinterName_(ss) {
+    return String(setting_(ss, "QZ_PRINTER_NAME", "RP4xx Series 200DPI TSC") || "RP4xx Series 200DPI TSC").trim();
+  }
+
+  function qzActive_(ss) {
+    return yes_(setting_(ss, "QZ_TRAY_AKTIF", "Evet"));
+  }
+
+  function qzAutoPrintAfterBarcode_(ss) {
+    return yes_(setting_(ss, "QZ_AUTO_PRINT_AFTER_BARCODE", "Evet"));
+  }
+
+  function qzPrintCopies_(ss) {
+    return numberOrDefault_(setting_(ss, "QZ_PRINT_COPIES", "1"), 1);
+  }
+
+  function qzPrintMode_(ss) {
+    var mode = String(setting_(ss, "QZ_PRINT_MODE", "pdf") || "pdf").trim().toLowerCase();
+    return mode || "pdf";
+  }
+
+  function qzCargoRowForOpen_(ss, openId) {
+    var rows = objects_(sheet_(ss, CFG.sheets.cargo)).filter(function (row) {
+      return String(row[H.OPEN_ID] || "").trim() === String(openId || "").trim();
+    });
+    if (!rows.length) return {};
+    var withBarcode = rows.filter(function (row) { return String(row[H.NAVLUNGO_BARCODE_URL] || "").trim(); });
+    return withBarcode[withBarcode.length - 1] || rows[rows.length - 1] || {};
+  }
+
+  function qzCargoRowForKey_(ss, key) {
+    var text = String(key || "").trim();
+    if (!text) throw new Error("Barkod yazdırma için Kargo_Paket_ID veya Açık_Sipariş_ID bulunamadı.");
+    var rows = objects_(sheet_(ss, CFG.sheets.cargo));
+    var exact = rows.filter(function (row) { return String(row[H.CARGO_PACKAGE_ID] || "").trim() === text; })[0];
+    if (exact) return exact;
+    var byOpen = rows.filter(function (row) { return String(row[H.OPEN_ID] || "").trim() === text; });
+    if (byOpen.length) {
+      var withBarcode = byOpen.filter(function (row) { return String(row[H.NAVLUNGO_BARCODE_URL] || "").trim(); });
+      return withBarcode[withBarcode.length - 1] || byOpen[byOpen.length - 1];
+    }
+    throw new Error("Barkod yazdırma satırı bulunamadı: " + text);
+  }
+
+  function qzPrintInfoFromCargo_(ss, cargo, action) {
+    cargo = cargo || {};
+    var barcodeUrl = String(cargo[H.NAVLUNGO_BARCODE_URL] || cargo[H.BARCODE] || "").trim();
+    var printed = yes_(cargo[H.BARCODE_PRINTED]);
+    return {
+      ok: true,
+      action: action || "",
+      acikSiparisId: cargo[H.OPEN_ID] || "",
+      kargoPaketId: cargo[H.CARGO_PACKAGE_ID] || "",
+      Navlungo_Post_Number: cargo[H.NAVLUNGO_POST_NUMBER] || "",
+      Navlungo_Tracking_URL: cargo[H.NAVLUNGO_TRACKING_URL] || "",
+      Navlungo_Barcode_URL: barcodeUrl,
+      Navlungo_Status: cargo[H.NAVLUNGO_STATUS] || "",
+      qzPrinterName: qzPrinterName_(ss),
+      qzPrintCopies: qzPrintCopies_(ss),
+      qzPrintMode: qzPrintMode_(ss),
+      qzActive: qzActive_(ss) ? "Evet" : "Hayır",
+      barcodeAlreadyPrinted: printed,
+      autoPrintRequested: qzActive_(ss) && qzAutoPrintAfterBarcode_(ss) && !!barcodeUrl && !printed
+    };
+  }
+
+  function attachQzOperationInfo_(ss, openId, result) {
+    var cargo = qzCargoRowForOpen_(ss, openId);
+    var info = qzPrintInfoFromCargo_(ss, cargo, result && result.action);
+    Object.keys(info).forEach(function (key) { result[key] = info[key]; });
+    return result;
+  }
+
+  function qzBarkodBilgisi_(key) {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var info = qzPrintInfoFromCargo_(ss, qzCargoRowForKey_(ss, key), "barkodYazdir");
+    info.autoPrintRequested = false;
+    return info;
+  }
+
+  function qzBarkodYazdirmaSonucuKaydet_(kargoPaketId, ok, sonuc, hata) {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var cargo = qzCargoRowForKey_(ss, kargoPaketId);
+    var success = !!ok;
+    patchRowsByKey_(sheet_(ss, CFG.sheets.cargo), H.CARGO_PACKAGE_ID, cargo[H.CARGO_PACKAGE_ID], {
+      [H.BARCODE_PRINTED]: success ? "Evet" : "Hayır",
+      [H.BARCODE_PRINT_DATE]: new Date(),
+      [H.BARCODE_PRINT_RESULT]: success ? (sonuc || "Barkod yazdırıldı") : (sonuc || "Barkod URL oluştu; yazdırma tamamlanmadı"),
+      [H.BARCODE_PRINT_ERROR]: success ? "" : (hata || sonuc || "QZ Tray bağlantısı kurulamadı")
+    });
+    return qzBarkodBilgisi_(cargo[H.CARGO_PACKAGE_ID]);
+  }
+
   function navlungoErrorYaz_(ss, kargoPaketId, message, action) {
     patchRowsByKey_(sheet_(ss, CFG.sheets.cargo), H.CARGO_PACKAGE_ID, kargoPaketId, {
       [H.NAVLUNGO_STATUS]: "Hata",
@@ -4921,6 +5032,7 @@ var TK6 = (function () {
     result.blocks = result.control.summary || [];
     result.status = status;
     result.ok = result.ok !== false && result.control.ok && allSubResultsOk_(result.invoice) && allSubResultsOk_(result.cargo);
+    attachQzOperationInfo_(ss, openId, result);
     return result;
   }
 
@@ -5707,6 +5819,8 @@ var TK6 = (function () {
     navlungoTopluKargoOlustur: navlungoTopluKargoOlustur_,
     navlungoTopluBarkodAl: navlungoTopluBarkodAl_,
     navlungoAdresDegisikligiKontrolEt: navlungoAdresDegisikligiKontrolEt_,
+    qzBarkodBilgisi: qzBarkodBilgisi_,
+    qzBarkodYazdirmaSonucuKaydet: qzBarkodYazdirmaSonucuKaydet_,
     faturaVeKargoOlustur: faturaVeKargoOlustur_,
     ilgiliSiparisSatirlariniBul: ilgiliSiparisSatirlariniBul_,
     batchWriteRows: batchWriteRows_,
@@ -5816,6 +5930,8 @@ function navlungoGonderiIptalEt(kargoPaketId) { return TK6.navlungoGonderiIptalE
 function navlungoTopluKargoOlustur(seciliPaketler) { return TK6.navlungoTopluKargoOlustur(seciliPaketler); }
 function navlungoTopluBarkodAl(seciliPaketler) { return TK6.navlungoTopluBarkodAl(seciliPaketler); }
 function navlungoAdresDegisikligiKontrolEt(acikSiparisId) { return TK6.navlungoAdresDegisikligiKontrolEt(acikSiparisId); }
+function qzBarkodBilgisi(kargoPaketId) { return TK6.qzBarkodBilgisi(kargoPaketId); }
+function qzBarkodYazdirmaSonucuKaydet(kargoPaketId, ok, sonuc, hata) { return TK6.qzBarkodYazdirmaSonucuKaydet(kargoPaketId, ok, sonuc, hata); }
 function faturaVeKargoOlustur(openId) { return TK6.faturaVeKargoOlustur(openId); }
 function ilgiliSiparisSatirlariniBul(acikSiparisId) { return TK6.ilgiliSiparisSatirlariniBul(acikSiparisId); }
 function batchWriteRows(writePlan) { return TK6.batchWriteRows(writePlan); }

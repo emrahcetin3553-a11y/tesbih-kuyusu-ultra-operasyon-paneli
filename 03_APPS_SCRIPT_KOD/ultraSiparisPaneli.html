@@ -3,6 +3,7 @@
 <head>
   <base target="_top">
   <meta charset="utf-8">
+  <script src="https://cdn.jsdelivr.net/npm/qz-tray@2.2.4/qz-tray.js"></script>
   <style>
     :root {
       --line:#d7e2ee;
@@ -73,6 +74,7 @@
   <button class="secondary" onclick="runOperation('faturaKargo', 'Fatura ve kargo oluştur')">Fatura ve kargo oluştur</button>
   <button class="secondary" onclick="runOperation('kargoBeklet', 'Kargo beklet')">Kargo beklet</button>
   <button class="secondary" onclick="runOperation('bekleyenKargo', 'Bekleyen kargoyu çıkar')">Bekleyen kargoyu çıkar</button>
+  <button class="secondary" onclick="printBarcodeForActive()">Barkodu yazdır</button>
   <button class="secondary" onclick="runOperation('siparisiKapat', 'Siparişi kapat')">Siparişi kapat</button>
   <button class="secondary" onclick="runOperation('arsivle', 'Arşivle')">Arşivle</button>
   <button class="danger" onclick="runOperation('iptal', 'İptal et')">İptal et</button>
@@ -160,7 +162,7 @@
 </template>
 
 <script>
-  let meta = { products: [], paymentSources: [], cargoCompanies: [], today: "", editOrders: [] };
+  let meta = { products: [], paymentSources: [], cargoCompanies: [], today: "", editOrders: [], qzPrinterName: "RP4xx Series 200DPI TSC", qzAutoPrint: "Evet", qzPrintCopies: 1, qzPrintMode: "pdf" };
   let orderSeq = 0;
   let saveInProgress = false;
 
@@ -1036,7 +1038,106 @@
       cargoLines.push(row.status || row.postNumber || row.kargoPaketId || JSON.stringify(row));
     });
     if (cargoLines.length) card.querySelector(".cargo-status").textContent = cargoLines.join("\n");
+    const topCargoLines = [
+      res && res.Navlungo_Status,
+      res && res.Navlungo_Post_Number ? "Post: " + res.Navlungo_Post_Number : "",
+      res && res.Navlungo_Tracking_URL ? "Takip: " + res.Navlungo_Tracking_URL : "",
+      res && res.Navlungo_Barcode_URL ? "Barkod: " + res.Navlungo_Barcode_URL : ""
+    ].filter(Boolean);
+    if (topCargoLines.length) card.querySelector(".cargo-status").textContent = topCargoLines.join("\n");
     refreshOrderTitles();
+  }
+
+  function responsePathValue(obj, path) {
+    return path.reduce((node, key) => node && node[key] !== undefined ? node[key] : "", obj);
+  }
+
+  function barcodeUrlFromResponse(res) {
+    const candidates = [
+      responsePathValue(res, ["Navlungo_Barcode_URL"]),
+      responsePathValue(res, ["navlungoBarcodeUrl"]),
+      responsePathValue(res, ["barcodeUrl"]),
+      responsePathValue(res, ["barcode_url"]),
+      responsePathValue(res, ["kargo", "Navlungo_Barcode_URL"]),
+      responsePathValue(res, ["result", "Navlungo_Barcode_URL"]),
+      responsePathValue(res, ["data", "Navlungo_Barcode_URL"])
+    ];
+    if (res && Array.isArray(res.cargo)) {
+      res.cargo.forEach(row => {
+        candidates.push(row && row.Navlungo_Barcode_URL);
+        candidates.push(row && row.navlungoBarcodeUrl);
+        candidates.push(row && row.barcodeUrl);
+        candidates.push(row && row.barcode_url);
+        candidates.push(row && row.barcode && row.barcode.barcodeUrl);
+        candidates.push(row && row.barcode && row.barcode.Navlungo_Barcode_URL);
+      });
+    }
+    return String(candidates.find(v => v) || "").trim();
+  }
+
+  function qzLibraryReady() {
+    return typeof qz !== "undefined" && qz.websocket && qz.printers && qz.configs && qz.print;
+  }
+
+  function qzConnect() {
+    if (!qzLibraryReady()) return Promise.reject(new Error("QZ Tray kütüphanesi yüklenmedi."));
+    if (qz.websocket.isActive()) return Promise.resolve();
+    return qz.websocket.connect();
+  }
+
+  function qzFindPrinter(name) {
+    const printerName = String(name || meta.qzPrinterName || "RP4xx Series 200DPI TSC").trim();
+    if (!printerName) return Promise.reject(new Error("QZ yazıcı adı boş."));
+    return qz.printers.find(printerName);
+  }
+
+  function qzPrintBarcodeUrl(barcodeUrl, options) {
+    const url = String(barcodeUrl || "").trim();
+    if (!url) return Promise.reject(new Error("Barkod URL boş."));
+    const opts = options || {};
+    const printerName = String(opts.printerName || meta.qzPrinterName || "RP4xx Series 200DPI TSC").trim();
+    const copies = Number(opts.copies || meta.qzPrintCopies || 1) || 1;
+    const mode = String(opts.mode || meta.qzPrintMode || "pdf").toLowerCase();
+    return qzConnect().then(() => qzFindPrinter(printerName)).then(printer => {
+      const config = qz.configs.create(printer, { copies: copies });
+      const data = [{ type: "pixel", format: mode, flavor: "file", data: url }];
+      return qz.print(config, data).then(() => ({
+        ok: true,
+        printerName: printerName,
+        status: "Barkod yazdırıldı"
+      }));
+    });
+  }
+
+  function saveQzPrintResult(kargoPaketId, ok, result, error) {
+    if (!kargoPaketId) return;
+    google.script.run
+      .withFailureHandler(err => console.warn("QZ sonucu 08'e yazılamadı", err))
+      .qzBarkodYazdirmaSonucuKaydet(kargoPaketId, !!ok, result || "", error || "");
+  }
+
+  function qzPrintIfAvailable(res, card, manual) {
+    console.log("Ultra operation response", res);
+    const barcodeUrl = barcodeUrlFromResponse(res);
+    const kargoPaketId = String((res && (res.kargoPaketId || res.cargoPackageId)) || "").trim();
+    if (!barcodeUrl) return Promise.resolve({ skipped: true, status: "Barkod URL yok" });
+    if (!manual && !res.autoPrintRequested) return Promise.resolve({ skipped: true, status: "Otomatik yazdırma kapalı" });
+    if (!manual && res.barcodeAlreadyPrinted) return Promise.resolve({ skipped: true, status: "Barkod daha önce yazdırılmış" });
+    const options = {
+      printerName: res.qzPrinterName || meta.qzPrinterName || "RP4xx Series 200DPI TSC",
+      copies: res.qzPrintCopies || meta.qzPrintCopies || 1,
+      mode: res.qzPrintMode || meta.qzPrintMode || "pdf"
+    };
+    return qzPrintBarcodeUrl(barcodeUrl, options).then(printRes => {
+      saveQzPrintResult(kargoPaketId, true, printRes.status + " / " + printRes.printerName, "");
+      if (card) setCardStatus(card, (card.querySelector(".control-status").textContent || "") + "\nBarkod yazdırıldı: " + printRes.printerName, "info");
+      return printRes;
+    }).catch(err => {
+      const message = "Barkod URL oluşturuldu ancak QZ Tray bağlantısı kurulamadı. Manuel yazdırabilirsiniz.";
+      saveQzPrintResult(kargoPaketId, false, message, err && err.message ? err.message : String(err));
+      if (card) setCardStatus(card, (card.querySelector(".control-status").textContent || "") + "\n" + message, "warn");
+      return { ok: false, status: message, error: err && err.message ? err.message : String(err) };
+    });
   }
 
   function runOperation(action, label) {
@@ -1055,8 +1156,10 @@
       google.script.run
         .withSuccessHandler(res => {
           applyServerResult(card, res);
+          console.log("Ultra operation response", res);
           const elapsed = ((Date.now() - started) / 1000).toFixed(1);
           setCardStatus(card, summarize(res) + "\nİşlem süresi: " + elapsed + " sn", res && res.ok === false ? "warn" : "info");
+          qzPrintIfAvailable(res, card, false);
           next();
         })
         .withFailureHandler(err => {
@@ -1075,6 +1178,20 @@
     const explicit = card.dataset.kargoPaketId || value(card, "kargoPaketId") || "";
     return String(explicit || "").trim();
   }
+  function printBarcodeForActive() {
+    const card = cards().find(c => currentCargoPackageId(c)) || cards().find(c => c.dataset.openId) || cards()[0];
+    if (!card) return;
+    const key = currentCargoPackageId(card) || card.dataset.openId || "";
+    if (!key) {
+      setCardStatus(card, "Barkod yazdırmak için önce siparişi kaydedin ve kargo paketini oluşturun.", "warn");
+      return;
+    }
+    setCardStatus(card, "Barkod yazdırma bilgisi alınıyor...", "info");
+    google.script.run
+      .withSuccessHandler(res => qzPrintIfAvailable(res, card, true))
+      .withFailureHandler(err => setCardStatus(card, "HATA: " + (err.message || err), "error"))
+      .qzBarkodBilgisi(key);
+  }
   function navlungoAction(card, action) {
     const kargoPaketId = currentCargoPackageId(card);
     if (!kargoPaketId) {
@@ -1083,7 +1200,11 @@
     }
     setCardStatus(card, "Navlungo işlemi çalışıyor...", "info");
     const runner = google.script.run
-      .withSuccessHandler(res => setCardStatus(card, summarize(res), res.ok === false ? "warn" : "info"))
+      .withSuccessHandler(res => {
+        console.log("Ultra operation response", res);
+        applyServerResult(card, res);
+        setCardStatus(card, summarize(res), res.ok === false ? "warn" : "info");
+      })
       .withFailureHandler(err => setCardStatus(card, "HATA: " + (err.message || err), "error"));
     if (action === "dry") runner.navlungoKargoTaslakTestEt(kargoPaketId);
     else if (action === "create") runner.navlungoKargoOlusturOnayli(kargoPaketId);

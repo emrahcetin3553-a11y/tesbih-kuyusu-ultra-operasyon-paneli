@@ -115,6 +115,11 @@ const props = {
   NAVLUNGO_DEFAULT_PACKAGE_COUNT: "1",
   NAVLUNGO_DEFAULT_BARCODE_TYPE: "pdf",
   NAVLUNGO_CARRIER_ID_MAP_JSON: JSON.stringify({ "Aras Kargo": 1 }),
+  QZ_TRAY_AKTIF: "Evet",
+  QZ_PRINTER_NAME: "RP4xx Series 200DPI TSC",
+  QZ_AUTO_PRINT_AFTER_BARCODE: "Evet",
+  QZ_PRINT_COPIES: "1",
+  QZ_PRINT_MODE: "pdf",
   NAVLUNGO_SENDER_NAME: "Tesbih Kuyusu",
   NAVLUNGO_SENDER_PHONE: "+905551110000",
   NAVLUNGO_SENDER_ADDRESS: "Kontrollü gönderici adresi",
@@ -377,6 +382,9 @@ assert(dialogData.editOrders.length === 1 && dialogData.editOrders[0].openId ===
 assert(html.includes("Adres geçmişi"), "Panel adres geçmişi bloğunu içermeli");
 assert(html.includes("Müşteri hafızası"), "Panel müşteri hafızası bloğunu içermeli");
 assert(html.includes("Yeni sipariş ekle"), "Çoklu sipariş aynı panelde yeni blokla çalışmalı");
+assert(html.includes("qz-tray") && html.includes("function qzConnect()") && html.includes("function qzPrintIfAvailable"), "Panel QZ Tray yazdırma fonksiyonlarını içermeli");
+assert(html.includes("Barkodu yazdır"), "Panel manuel barkod yazdırma butonunu içermeli");
+assert(html.includes("console.log(\"Ultra operation response\""), "Panel operasyon response bilgisini console'a yazmalı");
 assert(!/Toplu sipariş paneli/.test(html), "Ayrı toplu panel metni aktif panelde olmamalı");
 assert(!/sipariÅ|MÃ|Ãœ|Ã–|ParaÅ/.test(html), "Panelde bozuk Türkçe karakter kalmamalı");
 
@@ -426,6 +434,18 @@ const navCancelClosed = sandbox.navlungoGonderiIptalEt(cargoPackageId);
 assert(navCancelClosed.livePost === "Yapılmadı", "NAVLUNGO_CANLI_GONDERIM Hayır iken iptal POST yapılmamalı");
 props.NAVLUNGO_CANLI_GONDERIM = "Evet";
 patchRows(CFG.sheets.settings, "Ayar_Kodu", "NAVLUNGO_CANLI_GONDERIM", { "Ayar_Değeri": "Evet" });
+const qzOperationPayload = {
+  whatsAppTel: "05554445566",
+  siparisSahibi: "emrahçağrı",
+  kargo: { kargoAlicisi: "Emrah Çağrı", kargoTel: "+905554445566", il: "İzmir", ilce: "Menderes", adres: "QZ operasyon adresi", kargoFirmasi: "Aras Kargo" },
+  urunler: [{ urunAdi: "Tesbih", odemeYapan: "Emrah Çağrı", miktar: 1, birimFiyatKdvDahil: 700 }],
+  odemeler: [{ odemeYapan: "Emrah Çağrı", odemeTutari: 700, odemeYapanTel: "+905554445566", odemeYapanTcknVkn: "11111111111", odemeYapanAdres: "QZ operasyon adresi", odemeYapanIl: "İzmir", odemeYapanIlce: "Menderes" }],
+  faturalar: [{ faturaKisisi: "Emrah Çağrı", cariTipi: "Gerçek Kişi", faturaTel: "+905554445566", faturaTcknVkn: "11111111111", faturaIl: "İzmir", faturaIlce: "Menderes", faturaAdres: "QZ operasyon adresi", parasutCariId: "1062372249" }]
+};
+const qzOperation = sandbox.ultraPanelOperasyonCalistir("sadeceKargo", qzOperationPayload);
+assert(qzOperation.Navlungo_Barcode_URL, "Operasyon response Navlungo_Barcode_URL döndürmeli");
+assert(qzOperation.qzPrinterName === "RP4xx Series 200DPI TSC", "Operasyon response QZ printer adını döndürmeli");
+assert(qzOperation.autoPrintRequested === true, "Operasyon response barkod sonrası otomatik yazdırma isteği döndürmeli");
 patchRows(CFG.sheets.settings, "Ayar_Kodu", "NAVLUNGO_DEFAULT_BARCODE_TYPE", { "Ayar_Değeri": "pdf-A6" });
 patchRows(CFG.sheets.cargo, H.CARGO_PACKAGE_ID, cargoPackageId, { [H.NAVLUNGO_POST_NUMBER]: "", [H.NAVLUNGO_BARCODE_URL]: "", [H.NAVLUNGO_TRACKING_URL]: "", [H.NAVLUNGO_CANCELLED_AT]: "", [H.NAVLUNGO_STATUS]: "Payload Hazır" });
 const navCreateOpen = sandbox.navlungoKargoOlusturOnayli(cargoPackageId);
@@ -441,6 +461,15 @@ const navBulk = sandbox.navlungoTopluKargoOlustur([cargoPackageId]);
 assert(navBulk.ok === true, "Navlungo toplu kargo oluşturma akışı çalışmalı");
 const navBulkBarcode = sandbox.navlungoTopluBarkodAl([cargoPackageId]);
 assert(navBulkBarcode.ok === true, "Navlungo toplu barkod akışı çalışmalı");
+const qzInfoBeforePrint = sandbox.qzBarkodBilgisi(cargoPackageId);
+assert(qzInfoBeforePrint.Navlungo_Barcode_URL, "QZ barkod bilgisi 08 Navlungo_Barcode_URL değerini döndürmeli");
+assert(qzInfoBeforePrint.qzPrinterName === "RP4xx Series 200DPI TSC", "QZ printer adı ayardan dönmeli");
+assert(qzInfoBeforePrint.autoPrintRequested === false, "Manuel barkod bilgisi otomatik yazdırma isteği döndürmemeli");
+const qzFail = sandbox.qzBarkodYazdirmaSonucuKaydet(cargoPackageId, false, "Barkod URL oluştu; yazdırma tamamlanmadı", "QZ kapalı");
+assert(qzFail.ok === true && rows(CFG.sheets.cargo)[0][H.BARCODE_PRINTED] === "Hayır", "QZ kapalı sonucu 08'e başarısız yazılmalı");
+const qzOk = sandbox.qzBarkodYazdirmaSonucuKaydet(cargoPackageId, true, "Barkod yazdırıldı / RP4xx Series 200DPI TSC", "");
+assert(qzOk.ok === true && rows(CFG.sheets.cargo)[0][H.BARCODE_PRINTED] === "Evet", "QZ başarılı yazdırma sonucu 08'e yazılmalı");
+assert(sandbox.qzBarkodBilgisi(cargoPackageId).autoPrintRequested === false, "Basılmış barkod otomatik tekrar basılmamalı");
 props.NAVLUNGO_CANLI_GONDERIM = "Hayır";
 patchRows(CFG.sheets.settings, "Ayar_Kodu", "NAVLUNGO_CANLI_GONDERIM", { "Ayar_Değeri": "Hayır" });
 
@@ -478,7 +507,7 @@ const api = sandbox.parasutApiBaglantiTestiTam();
 assert(api.ok === false || api, "Paraşüt GET test fonksiyonu çalışmalı");
 assert(salesPostCalls === 1, "Sales invoice POST yalnız kontrollü Paraşüt kapısı Evet iken bir kez çalışmalı");
 assert(contactPostCalls === 0, "PARASUT_CARI_CANLI_OLUSTURMA Hayır iken contact POST yapılmamalı");
-assert(navlungoPostCalls === 5, "Sadece NAVLUNGO_CANLI_GONDERIM Evet iken Navlungo POST yapılmalı");
+assert(navlungoPostCalls === 6, "Sadece NAVLUNGO_CANLI_GONDERIM Evet iken Navlungo POST yapılmalı");
 
 console.log(JSON.stringify({
   ok: true,
