@@ -691,10 +691,10 @@ Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/202
 | Etkilenen fonksiyonlar | Operasyon core fonksiyonu degismedi. Yalniz CI/test/package hattina dosya eklendi. |
 | Apps Script durumu | Apps Script'e push yapilmadi; core ve HTML degismedi. |
 | Sheet durumu | Canli Sheet degistirilmedi. Referans XLSX read-only testte okundu. |
-| GitHub durumu | Bu degisiklikler GitHub'a commit/push edilecek ve post-push GitHub Actions sonucu okunacak. |
+| GitHub durumu | Commit `75492a5260e612561037986df71aad199f2ffe81` push edildi. GitHub Actions run `25382068537` olustu; `build (18.x)`, `build (20.x)`, `build (22.x)` readback aninda `queued`. Kirmizi degil, fakat runner baslamadigi icin yesil tamamlandi denmedi. |
 | Test ve kanit | `npm ci` basarili; `npm audit` 0 vulnerability; `npm test` basarili. Testler core syntax, duplicate public function, aktif uretim dosyalarinda yasak ifade, V6.5 Node test seti ve son Sheet referans sozlesmesini kapsiyor. |
 | Canli POST | Yapilmadi. Canli Apps Script, Sheet, Parasut, Navlungo ve e-belge POST calistirilmadi. |
-| Kalan risk | Bu not ilk lokal test kanitiyla yazildi; GitHub Actions post-push run sonucu ayrica readback edilecek. |
+| Kalan risk | GitHub Actions run `25382068537` readback aninda hala `queued`; GitHub runner baslamadan tamamlanmis CI sonucu alinamaz. |
 
 ### Bu Islemde Incelenen Dosyalar
 

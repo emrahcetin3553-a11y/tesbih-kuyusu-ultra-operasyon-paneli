@@ -151,7 +151,23 @@ Aciklama: `salesPostCalls` ve `navlungoPostCalls` degerleri Node harness icindek
 
 ## 6. GitHub Actions Durumu
 
-Bu rapor ilk commit oncesi lokal kanitla hazirlandi. Commit/push sonrasi GitHub Actions run sonucu ayrica okunacak ve rapor/gunluk not guncellenecek.
+Commit/push sonrasi GitHub Actions readback alindi.
+
+- Commit: `75492a5260e612561037986df71aad199f2ffe81`
+- Workflow run: `25382068537`
+- Workflow: `Node.js CI`
+- Run number: `16`
+- Readback zamani: `2026-05-05 17:30:47 +03:00`
+
+Job durumlari:
+
+| Job | Status | Conclusion |
+| --- | --- | --- |
+| `build (18.x)` | `queued` | Bos |
+| `build (20.x)` | `queued` | Bos |
+| `build (22.x)` | `queued` | Bos |
+
+Sonuc: Yeni CI run'i kirmizi degil, fakat GitHub runner henuz isi baslatmadigi icin `geciyor` denmedi. Job loglari henuz olusmadi. Onceki kirmizi build'in kok nedeni olan `package-lock.json` eksikligi bu commit ile giderildi ve ayni workflow'un lokal karsiligi `npm ci` + `npm test` olarak basarili calisti.
 
 ## 7. Degistirilen Dosyalar
 
@@ -171,7 +187,7 @@ Bu rapor ilk commit oncesi lokal kanitla hazirlandi. Commit/push sonrasi GitHub 
 
 ## 9. Kalan Risk
 
-- GitHub Actions post-push sonucu bu ilk rapor aninda henuz okunmadi.
-- CI matrix `18.x`, `20.x`, `22.x` uzerinde GitHub runner sonucuyla ayrica dogrulanacak.
+- GitHub Actions run `25382068537` readback aninda hala `queued`; runner baslamadigi icin GitHub tarafinda tamamlanmis yesil kanit henuz yok.
+- CI matrix `18.x`, `20.x`, `22.x` uzerinde GitHub runner sonucu tamamlaninca ayrica dogrulanmali.
 
 Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/2026-05-05_github_actions_node_ci_duzeltme_raporu.md`
