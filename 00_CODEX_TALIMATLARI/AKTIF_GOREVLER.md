@@ -174,3 +174,19 @@ Codex bu görevi yaptıktan sonra buraya kısa sonuç özeti eklemeli ve ayrınt
   - Node V6.5 test seti: Gecti
 - Detayli rapor: `08_KABUL_RAPORLARI/2026-05-05_status_state_senkronizasyon_uygulama_raporu.md`
 - Kalan risk: Canli Google Sheets UI readback testi bu turda yapilmadi; bir sonraki adimda kontrollu Acik_Siparis_ID ile `senkronizeDurumForOpen("AS-...")` calistirilip 03/06/07/08/11/12 okunmali.
+
+## 13. CODEX TEYIT SONUCU - 2026-05-05
+
+- Kullanici talebi uzerine AKTIF_GOREVLER.md icindeki uygulama gorevi yeniden okundu.
+- Kod tarafinda gorevin daha once `b9b2ee1` commit'i ile uygulandigi dogrulandi.
+- Apps Script canli pull core SHA256 ile GitHub core SHA256 eslesmesi tekrar dogrulandi.
+- Bu turda kod degisikligi yapilmadi.
+- Bu turda Sheet degisikligi yapilmadi.
+- Bu turda Apps Script'e yeniden yukleme yapilmadi; mevcut canli core zaten GitHub ile eslesiyor.
+- Tekrar calistirilan testler:
+  - Node V6.5 test seti: Gecti
+  - Core syntax kontrolu: `SYNTAX_OK`
+  - Duplicate function kontrolu: `DUPLICATE_FUNCTION_OK count=458`
+  - Uretim core + aktif panel yasak ifade taramasi: `YASAK_IFADE_OK`
+- Canli API POST: Yapilmadi.
+- Teyit raporu: `08_KABUL_RAPORLARI/2026-05-05_aktif_gorevler_uygulama_teyit_raporu.md`

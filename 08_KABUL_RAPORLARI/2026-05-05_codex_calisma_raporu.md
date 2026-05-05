@@ -314,3 +314,20 @@ Codex sohbet çıktısı / çalışma özeti şu dosyaya işlendi: `08_KABUL_RAP
 | Kalan risk | Canli Google Sheets UI readback testi bu turda yapilmadi; resmi e-belge ve tahsilat modulleri kapsam disinda kaldi. |
 
 Codex sohbet çıktısı / çalışma özeti şu dosyaya işlendi: `08_KABUL_RAPORLARI/2026-05-05_status_state_senkronizasyon_uygulama_raporu.md`
+## Duzeltme Notu 2026-05-05-05 - Aktif Gorev Uygulama Teyidi
+
+| Alan | Aciklama |
+| --- | --- |
+| Duzeltme ID | 2026-05-05-05 |
+| Neden duzenlendi | Kullanici AKTIF_GOREVLER.md dosyasindaki uygulama gorevinin gerceklestirilmesini ve raporlanmasini tekrar istedi. |
+| Ne duzeltildi | Aktif gorevin kod tarafinda daha once uygulandigi tekrar dogrulandi; AKTIF_GOREVLER.md icine teyit sonucu eklendi ve ayri teyit raporu olusturuldu. |
+| Etkilenen dosyalar | `00_CODEX_TALIMATLARI/AKTIF_GOREVLER.md`, `08_KABUL_RAPORLARI/2026-05-05_aktif_gorevler_uygulama_teyit_raporu.md`, `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md` |
+| Etkilenen fonksiyonlar | Kod degisikligi yok. Daha once eklenen `senkronizeDurumForOpen_(openId)` ve wrapper `senkronizeDurumForOpen(acikSiparisId)` dogrulandi. |
+| Apps Script durumu | Yeniden yukleme yapilmadi; GitHub core SHA256 ile canli Apps Script pull core SHA256 tekrar eslesti. |
+| Sheet durumu | Degisiklik yapilmadi. |
+| GitHub durumu | Bu teyit raporu ve gorev dosyasi GitHub'a islenecek. |
+| Test ve kanit | Node V6.5 test seti gecti; `SYNTAX_OK`; `DUPLICATE_FUNCTION_OK count=458`; `YASAK_IFADE_OK`; core SHA256 eslesmesi `062FA6202CE9856E852F4C80FE2F6957CFC6A6192D7806C2EF2CBBC447374ABE`. |
+| Canli POST | Yapilmadi. |
+| Kalan risk | Canli Google Sheets UI readback testi bu turda yapilmadi. |
+
+Codex sohbet çıktısı / çalışma özeti şu dosyaya işlendi: `08_KABUL_RAPORLARI/2026-05-05_aktif_gorevler_uygulama_teyit_raporu.md`
