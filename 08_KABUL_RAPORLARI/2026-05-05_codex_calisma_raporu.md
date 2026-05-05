@@ -96,4 +96,36 @@ Kullanici bundan sonraki calisma kuralini belirledi:
 - Gercek Apps Script'e yuklenmeyen dosya yuklendi diye raporlanmayacak.
 - Gercek Sheet uzerinde dogrulanmayan is dogrulandi diye raporlanmayacak.
 
+Ek kullanici talimati:
+
+- Bundan sonra yapilan her islem, kullanicinin belirledigi GitHub esitleme ve raporlama kurallarina gore eksiksiz GitHub'a yuklenecek.
+- Her duzeltme icin rapor icinde ayri not tutulacak.
+- Duzeltme notunda su basliklar bulunacak:
+  - Neden duzenlendi
+  - Ne duzeltildi
+  - Hangi dosya veya fonksiyon etkilendi
+  - Apps Script'e yuklendi mi
+  - Sheet tarafinda degisiklik yapildi mi
+  - GitHub'a islendi mi
+  - Calistirilan test veya kontrol
+  - Kanit veya kalan risk
+- Raporlarda sahte basari yazilmayacak; gercekten yapilmayan isler acikca "yapilmadi" olarak belirtilecek.
+
 Codex sohbet çıktısı / çalışma özeti şu dosyaya işlendi: `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md`
+
+## Duzeltme Notlari Formati
+
+Bundan sonraki raporlarda her teknik duzeltme icin su format kullanilacak:
+
+| Alan | Aciklama |
+| --- | --- |
+| Duzeltme ID | Tarih-sira veya commit bazli takip numarasi |
+| Neden duzenlendi | Hatanin veya ihtiyacin kisa sebebi |
+| Ne duzeltildi | Yapilan gercek degisiklik |
+| Etkilenen dosyalar | Degisen dosya listesi |
+| Etkilenen fonksiyonlar | Varsa fonksiyon listesi |
+| Apps Script durumu | Yuklendi / yuklenmedi |
+| Sheet durumu | Degisti / degismedi |
+| GitHub durumu | Commit ve push bilgisi |
+| Test ve kanit | Calistirilan kontrol ve sonuc |
+| Kalan risk | Dogrulanmayan veya kullanici testi bekleyen konu |
