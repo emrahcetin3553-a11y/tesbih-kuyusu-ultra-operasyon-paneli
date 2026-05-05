@@ -348,3 +348,20 @@ Codex sohbet çıktısı / çalışma özeti şu dosyaya işlendi: `08_KABUL_RAP
 | Kalan risk | `senkronizeDurumForOpen(\"AS-20260504-001\")` gercek Apps Script runtime'da calistirilamadi; canli readback testi tamamlandi denemez. |
 
 Codex sohbet çıktısı / çalışma özeti şu dosyaya işlendi: `08_KABUL_RAPORLARI/2026-05-05_status_state_canli_readback_test_raporu.md`
+## Duzeltme Notu 2026-05-05-07 - Apps Script Execution API / Clasp Run Izin Analizi
+
+| Alan | Aciklama |
+| --- | --- |
+| Duzeltme ID | 2026-05-05-07 |
+| Neden duzenlendi | PR #6 icindeki yeni teknik gorev, `clasp run` izin blokajinin kalici olarak incelenmesini ve mumkunse izin/deployment/ayar duzeltmesinin yapilmasini istedi. |
+| Ne duzeltildi | Kod degistirilmedi. Manifest, clasp kullanicisi, API/GCP project durumu ve deployment listesi kontrol edildi. `V6.5 execution api permission refresh` deployment'i olusturuldu. |
+| Etkilenen dosyalar | `08_KABUL_RAPORLARI/2026-05-05_apps_script_execution_api_izin_raporu.md`, `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md` |
+| Etkilenen fonksiyonlar | Kod degisikligi yok. Test edilen fonksiyonlar: `normalizeTelefon`, `onOpen`, `senkronizeDurumForOpen`. |
+| Apps Script durumu | Kod push yapilmadi. Yeni deployment olusturuldu: `AKfycbwhFR4XH7NVFfVnzEV4iT6mlHuh9k_J_hZqPJUVET6NR2XLzXKutwVb5XieJgk2gDT7yA @5`. |
+| Sheet durumu | Canli Sheet verisi degistirilmedi. |
+| GitHub durumu | Izin raporu ve gunluk rapor GitHub'a islenecek. |
+| Test ve kanit | `executionApi.access = MYSELF` dogrulandi; `clasp show-authorized-user` kullanici oturumunu dogruladi; `clasp apis` sonucu `GCP project ID is not set`; deployment sonrasi `clasp run` halen izin hatasi verdi. |
+| Canli POST | Yapilmadi. |
+| Kalan risk | Cloud Project ID, Apps Script API enable durumu ve Desktop OAuth client ile `clasp login --use-project-scopes` adimi tamamlanmadan `clasp run` blokaji kalkmiyor. |
+
+Codex sohbet çıktısı / çalışma özeti şu dosyaya işlendi: `08_KABUL_RAPORLARI/2026-05-05_apps_script_execution_api_izin_raporu.md`
