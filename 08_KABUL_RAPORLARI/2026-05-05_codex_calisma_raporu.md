@@ -640,3 +640,42 @@ Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/202
 - `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md`
 
 Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/2026-05-05_v65_kalici_stabilizasyon_ve_temizlik_raporu.md`
+
+## Duzeltme Notu 2026-05-05-14 - Son Ana Sheet Referans Sozlesmesi Kod Uyumu
+
+| Alan | Aciklama |
+| --- | --- |
+| Duzeltme ID | 2026-05-05-14 |
+| Neden duzenlendi | PR #6 son yorumu, kullanicinin yukledigi `TESBIH_KUYUSU_MASTER_SHEET (20).xlsx` dosyasinin kodun uymasi gereken son referans sozlesme olarak read-only analiz edilmesini ve uyumsuzluk varsa Sheet'e dokunmadan kod/test/dokuman tarafinda duzeltilmesini istedi. |
+| Ne duzeltildi | Referans Sheet read-only analiz edildi. Tek uyumsuzluk olarak `07_PARASUT_FATURA` kolon sirasinin kod `HEADERS.parasut` sirasi ile farkli oldugu bulundu. Sheet'e dokunulmadan `HEADERS.parasut` sirasi referans Sheet'e uyarlandi. Yeni referans sozlesme testi eklendi. Son ana Sheet dosyasi ayni SHA ile `02_SHEET_SISTEM` klasorune eklendi. |
+| Etkilenen dosyalar | `02_SHEET_SISTEM/TESBIH_KUYUSU_MASTER_SHEET (20).xlsx`, `03_APPS_SCRIPT_KOD/tesbih_kuyusu_v6_5_ultra_operasyon_core.gs`, `07_TEST_DOSYALARI/test_v6_5_son_sheet_referans_sozlesmesi.py`, `08_KABUL_RAPORLARI/2026-05-05_son_sheet_referans_sozlesme_kod_uyum_raporu.md`, `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md` |
+| Etkilenen fonksiyonlar | Fonksiyon mantigi degismedi. Yalniz `HEADERS.parasut` sabit kolon sirasi referans Sheet'e uyarlandi. |
+| Apps Script durumu | 7 aktif dosya `clasp push --force` ile canli Apps Script projesine yuklendi. `clasp pull --force` sonrasi lokal/remote core SHA256 `3FAF15A4EB51ECC82FBD262F4D6EAAFDBAEC472E50CF099634DA587043FB4642` olarak eslesti. |
+| Sheet durumu | Yuklenen son Sheet dosyasi read-only incelendi; kaynak dosya SHA256 `AFFAE09720FBAB569FF448E5FC1CC117CB5F0D01D9762D5CBA3DDCE831EC4D71`. Sheet hucreleri degistirilmedi. |
+| GitHub durumu | Bu degisiklikler GitHub'a commit/push edilecek ve PR #6'ya sonuc yorumu yazilacak. |
+| Test ve kanit | `SYNTAX_OK`; duplicate public function yok; aktif core/HTML yasak ifade taramasi temiz; V6.5 Node test seti `ok: true`; son Sheet referans sozlesme testi `ok: true`; `10_808` fark testi `bad_fark_count: 0`; `13_VERI_SOZLUGU` kapsam testi `missing_count: 0`; 05 odeme durumu `Bekliyor: 8`; 14 banka hareketi satiri `0`. |
+| Canli POST | Yapilmadi. Canli Parasut/Navlungo/e-belge POST fonksiyonlari calistirilmadi. |
+| Kalan risk | Gercek UI panel tiklama testi bu turda yapilmadi. Eski response hucreleri toplu temizlenmedi. `12_KONTROL_MERKEZI` referans dosyada acik ID bagli blokaj icermedigi icin bos kontrol merkezi olarak raporlandi. |
+
+### Bu Islemde Incelenen Dosyalar
+
+- `C:/Users/emrah/Downloads/TESBIH_KUYUSU_MASTER_SHEET (20).xlsx`
+- `02_SHEET_SISTEM/TESBIH_KUYUSU_MASTER_SHEET (20).xlsx`
+- `03_APPS_SCRIPT_KOD/tesbih_kuyusu_v6_5_ultra_operasyon_core.gs`
+- `03_APPS_SCRIPT_KOD/ultraSiparisPaneli.html`
+- `03_APPS_SCRIPT_KOD/cariSecDialog.html`
+- `03_APPS_SCRIPT_KOD/urunEkleDialog.html`
+- `03_APPS_SCRIPT_KOD/odemeEkleDialog.html`
+- `03_APPS_SCRIPT_KOD/kargoBilgisiDialog.html`
+- `07_TEST_DOSYALARI/test_v6_5_ultra_operasyon.js`
+- `07_TEST_DOSYALARI/test_v6_5_son_sheet_referans_sozlesmesi.py`
+
+### Bu Islemde Degistirilen Dosyalar
+
+- `02_SHEET_SISTEM/TESBIH_KUYUSU_MASTER_SHEET (20).xlsx`
+- `03_APPS_SCRIPT_KOD/tesbih_kuyusu_v6_5_ultra_operasyon_core.gs`
+- `07_TEST_DOSYALARI/test_v6_5_son_sheet_referans_sozlesmesi.py`
+- `08_KABUL_RAPORLARI/2026-05-05_son_sheet_referans_sozlesme_kod_uyum_raporu.md`
+- `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md`
+
+Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/2026-05-05_son_sheet_referans_sozlesme_kod_uyum_raporu.md`
