@@ -1220,6 +1220,7 @@ var TK6 = (function () {
 
   function patchObjectRow_(sh, rowNum, headers, obj, keepExisting) {
     var h = headers_(sh);
+    obj = normalizeObjectForSheetWrite_(sh.getName(), obj || {});
     var current = sh.getRange(rowNum, 1, 1, Math.max(1, sh.getLastColumn())).getValues()[0] || [];
     (headers || []).forEach(function (header) {
       if (h[header] === undefined) return;
@@ -1302,6 +1303,10 @@ var TK6 = (function () {
     var deferRefresh = !!(options && options.deferRefresh);
     ensureCoreSheetsReadyForSave_(ss);
     form = normalizeUltraForm_(form || {}, ss);
+    if (!form.openId) {
+      var recoveredOpenId = recoverOpenIdFromPanelForm_(ss, form);
+      if (recoveredOpenId) form.openId = recoveredOpenId;
+    }
     var saveIssues = validateUltraFormForSave_(form);
     if (saveIssues.length) throw new Error(saveIssues.join(" | "));
     var queue = sheet_(ss, CFG.sheets.queue);
@@ -1451,6 +1456,29 @@ var TK6 = (function () {
       });
     }
     return { ok: results.every(function (r) { return r.ok; }), count: results.length, elapsedMs: Date.now() - started, results: results };
+  }
+
+  function recoverOpenIdFromPanelForm_(ss, form) {
+    var probes = [];
+    var cargoId = navlungoIdText_(form && (form.cargoPackageId || form.kargoPaketId || (form.kargo && (form.kargo.kargoPaketId || form.kargo.cargoPackageId))));
+    if (cargoId) probes.push([CFG.sheets.cargo, H.CARGO_PACKAGE_ID, cargoId]);
+    (form && form.urunler || []).forEach(function (row) {
+      var id = String(row && (row.urunKalemId || row.itemId) || "").trim();
+      if (id) probes.push([CFG.sheets.items, H.ITEM_ID, id]);
+    });
+    (form && form.odemeler || []).forEach(function (row) {
+      var id = String(row && (row.odemeId || row.paymentId) || "").trim();
+      if (id) probes.push([CFG.sheets.payments, H.PAYMENT_ID, id]);
+    });
+    (form && form.faturalar || []).forEach(function (row) {
+      var id = String(row && (row.faturaGrubuId || row.invoiceGroupId) || "").trim();
+      if (id) probes.push([CFG.sheets.invoiceGroups, H.INVOICE_GROUP_ID, id]);
+    });
+    for (var i = 0; i < probes.length; i++) {
+      var found = findObjectByKeyText_(sheet_(ss, probes[i][0]), probes[i][1], probes[i][2]);
+      if (found && found[H.OPEN_ID]) return String(found[H.OPEN_ID] || "").trim();
+    }
+    return "";
   }
 
   function v65GercekSheetKabulKontrolu_() {
@@ -3491,8 +3519,10 @@ var TK6 = (function () {
     ensureSheet_(SpreadsheetApp.getActiveSpreadsheet(), sh.getName(), headers);
     clearBody_(sh);
     if (!objects || !objects.length) return;
+    var sheetName = sh.getName();
     var h = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
     var rows = objects.map(function (obj) {
+      obj = normalizeObjectForSheetWrite_(sheetName, obj || {});
       return h.map(function (name) { return obj[name] !== undefined ? obj[name] : ""; });
     });
     sh.getRange(2, 1, rows.length, h.length).setValues(rows);
@@ -3804,6 +3834,7 @@ var TK6 = (function () {
 
   function patchRowsByKey_(sh, keyName, keyValue, patch) {
     if (!sh || sh.getLastRow() < 2) return;
+    patch = normalizeObjectForSheetWrite_(sh.getName(), patch || {});
     var h = headers_(sh);
     var values = sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getValues();
     values.forEach(function (row) {
@@ -4094,6 +4125,20 @@ var TK6 = (function () {
     headers.forEach(function (name) { out[name] = base && base[name] !== undefined ? base[name] : ""; });
     Object.keys(patch || {}).forEach(function (name) { out[name] = patch[name]; });
     return out;
+  }
+
+  function normalizeObjectForSheetWrite_(sheetName, obj) {
+    if (sheetName === CFG.sheets.invoiceGroups && obj && obj[H.INVOICE_STATUS] !== undefined) {
+      obj[H.INVOICE_STATUS] = normalizeInvoiceGroupStatusForValidation_(obj[H.INVOICE_STATUS], obj);
+    }
+    return obj;
+  }
+
+  function normalizeInvoiceGroupStatusForValidation_(status, row) {
+    var text = String(status || "").trim().replace(/[.]+$/g, "").trim();
+    var key = normalizeAscii_(text);
+    if ((row && row[H.PARASUT_INVOICE_ID]) || key.indexOf("gonderildi") !== -1) return "Gönderildi";
+    return "Hazır";
   }
 
   function newInvoiceAccumulator_(id, openId, payer) {
@@ -5743,6 +5788,7 @@ var TK6 = (function () {
 
   function appendObject_(sh, headers, obj) {
     ensureSheet_(SpreadsheetApp.getActiveSpreadsheet(), sh.getName(), headers);
+    obj = normalizeObjectForSheetWrite_(sh.getName(), obj || {});
     var h = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
     var row = h.map(function (name) { return obj[name] !== undefined ? obj[name] : ""; });
     sh.getRange(sh.getLastRow() + 1, 1, 1, h.length).setValues([row]);
@@ -5750,6 +5796,7 @@ var TK6 = (function () {
 
   function upsertObjectByKey_(sh, headers, keyName, keyValue, obj) {
     ensureSheet_(SpreadsheetApp.getActiveSpreadsheet(), sh.getName(), headers);
+    obj = normalizeObjectForSheetWrite_(sh.getName(), obj || {});
     var rowNum = findRowByKey_(sh, keyName, keyValue);
     if (!rowNum) {
       appendObject_(sh, headers, obj);

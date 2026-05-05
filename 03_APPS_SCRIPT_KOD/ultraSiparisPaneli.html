@@ -365,7 +365,11 @@
     const tpl = document.getElementById("orderTemplate").content.cloneNode(true);
     const card = tpl.querySelector(".order-card");
     card.dataset.orderNo = String(++orderSeq);
-    if (data.openId) card.dataset.openId = data.openId;
+    if (data.openId) {
+      card.dataset.openId = data.openId;
+      card.dataset.editOpenId = data.openId;
+      card.dataset.lockOpenId = "1";
+    }
     const kargoPaketId = data.kargoPaketId || data.cargoPackageId || (data.kargo && (data.kargo.kargoPaketId || data.kargo.cargoPackageId)) || "";
     if (kargoPaketId) card.dataset.kargoPaketId = kargoPaketId;
     card.querySelector(".cargo-company").innerHTML = optionList(meta.cargoCompanies || []);
@@ -492,7 +496,9 @@
         }
       }
       renderAddressHistory(card, res.addresses || []);
-      if (res.openOrder && res.openOrder.id) card.dataset.openId = res.openOrder.id;
+      if (res.openOrder && res.openOrder.id && card.dataset.lockOpenId !== "1") {
+        card.dataset.openId = res.openOrder.id;
+      }
       syncPaymentDefaults(card);
       rebuildInvoiceBlocks(card);
       refreshOrderTitles();
@@ -845,8 +851,9 @@
   function collectOrder(card) {
     syncPaymentDefaults(card);
     const kargoPaketId = currentCargoPackageId(card);
+    const stableOpenId = card.dataset.editOpenId || card.dataset.openId || "";
     return {
-      openId: card.dataset.openId || "",
+      openId: stableOpenId,
       cargoPackageId: kargoPaketId,
       kargoPaketId: kargoPaketId,
       whatsAppTel: phoneTR(value(card, "whatsAppTel")),
@@ -993,7 +1000,7 @@
       const elapsed = ((Date.now() - started) / 1000).toFixed(1);
       if (targetCards.length === 1) {
         const card = targetCards[0];
-        card.dataset.openId = res.openId || card.dataset.openId || "";
+        card.dataset.openId = card.dataset.editOpenId || res.openId || card.dataset.openId || "";
         if (res.kargoPaketId || res.cargoPackageId) card.dataset.kargoPaketId = res.kargoPaketId || res.cargoPackageId;
         setValue(card, "kargoPaketId", card.dataset.kargoPaketId || "", true);
         refreshOrderTitles();
@@ -1002,7 +1009,7 @@
       }
       targetCards.forEach((card, i) => {
         const r = (res.results || [])[i] || {};
-        card.dataset.openId = r.openId || card.dataset.openId || "";
+        card.dataset.openId = card.dataset.editOpenId || r.openId || card.dataset.openId || "";
         if (r.kargoPaketId || r.cargoPackageId) card.dataset.kargoPaketId = r.kargoPaketId || r.cargoPackageId;
         setValue(card, "kargoPaketId", card.dataset.kargoPaketId || "", true);
         setCardStatus(card, summarize(r), r.ok === false ? "warn" : "info");
@@ -1026,7 +1033,7 @@
 
   function applyServerResult(card, res) {
     const saved = (res && res.saved) || res || {};
-    card.dataset.openId = res && res.openId || saved.openId || card.dataset.openId || "";
+    card.dataset.openId = card.dataset.editOpenId || res && res.openId || saved.openId || card.dataset.openId || "";
     const cargoId = saved.kargoPaketId || saved.cargoPackageId || res && (res.kargoPaketId || res.cargoPackageId) || "";
     if (cargoId) {
       card.dataset.kargoPaketId = cargoId;

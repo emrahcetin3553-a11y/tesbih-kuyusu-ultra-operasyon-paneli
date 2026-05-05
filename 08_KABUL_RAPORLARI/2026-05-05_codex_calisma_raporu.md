@@ -805,6 +805,41 @@ Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/202
 
 Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/2026-05-05_github_actions_ci_final_kabul_raporu.md`
 
+## Duzeltme Notu 2026-05-05-20 - Panel Kaydet ID Koruma ve Status Normalize
+
+| Alan | Aciklama |
+| --- | --- |
+| Duzeltme ID | 2026-05-05-20 |
+| Neden duzenlendi | PR #6 son yorumunda iki saha hatasi bildirildi: `06_FATURA_GRUPLARI!Q` validasyonu yalniz `Hazır`/`Gönderildi` kabul ederken kod validasyon disi durumlar yazabiliyordu; mevcut siparis panelde hata sonrasi tekrar kaydedilince `openId` kaybi yeni siparis acma riskine yol aciyordu. |
+| Ne duzeltildi | 06 fatura grubu yazma katmanina merkezi `Fatura_Durumu` normalizasyonu eklendi. Ultra panel edit kartinda `editOpenId` kilidi eklendi; musteri hafizasi asenkron cevabi edit `openId` degerini ezemez. Backend tarafinda panel payload icindeki mevcut satir ID'lerinden `openId` geri kazanma emniyeti eklendi. |
+| Etkilenen dosyalar | `03_APPS_SCRIPT_KOD/tesbih_kuyusu_v6_5_ultra_operasyon_core.gs`, `03_APPS_SCRIPT_KOD/ultraSiparisPaneli.html`, `07_TEST_DOSYALARI/test_v6_5_ultra_operasyon.js`, `08_KABUL_RAPORLARI/2026-05-05_panel_kaydet_id_koruma_ve_status_normalize_raporu.md`, `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md` |
+| Etkilenen fonksiyonlar | `kaydetUltraSiparisHizli_`, yeni `recoverOpenIdFromPanelForm_`, `writeObjects_`, `appendObject_`, `upsertObjectByKey_`, `patchObjectRow_`, `patchRowsByKey_`, yeni `normalizeObjectForSheetWrite_`, yeni `normalizeInvoiceGroupStatusForValidation_`, HTML `addOrder`, `applyCustomerDefaults`, `collectOrder`, `saveAll`, `applyServerResult` |
+| Apps Script durumu | `clasp push --force` ile 7 dosya yuklendi; `clasp pull --force` ile geri cekildi. Core, panel HTML ve manifest SHA eslesti. |
+| Sheet durumu | Canli Sheet verisi silinmedi veya degistirilmedi. Data validation kaldirilmadi. |
+| Test ve kanit | `npm ci` basarili; `npm audit --audit-level=high` 0 vulnerability; `npm test` basarili. Apps Script readback SHA: core `1E7E7C65C06BD1C290997FCE2A9E377F8BC8F81D857A5AF60D4D6831EEEFC9AB`, panel `2A89FB386FE9FC319B2C34CF1816FE1C00B361307AA56DF87110B99977EE38FF`, manifest `EE111E1EA5BE30071E84DCDAE1570F3C1078B3814D463DA97367F71799EA267D`. |
+| Canli POST | Yapilmadi. Paraşüt, Navlungo ve e-belge POST calistirilmadi. |
+| Kalan risk | Gercek Google Sheets UI uzerinden kullanicinin mevcut siparis hata-duzelt-kaydet senaryosunu tekrar denemesi gerekir. Bu rapor canli UI kabul tamamlandi demez. |
+
+### Bu Islemde Incelenen Dosyalar
+
+- `03_APPS_SCRIPT_KOD/tesbih_kuyusu_v6_5_ultra_operasyon_core.gs`
+- `03_APPS_SCRIPT_KOD/ultraSiparisPaneli.html`
+- `07_TEST_DOSYALARI/test_v6_5_ultra_operasyon.js`
+- `07_TEST_DOSYALARI/test_v6_5_ci_checks.js`
+- `07_TEST_DOSYALARI/test_v6_5_son_sheet_referans_sozlesmesi.js`
+- `appsscript.json`
+- PR #6 yorum `4382365883`
+
+### Bu Islemde Degistirilen Dosyalar
+
+- `03_APPS_SCRIPT_KOD/tesbih_kuyusu_v6_5_ultra_operasyon_core.gs`
+- `03_APPS_SCRIPT_KOD/ultraSiparisPaneli.html`
+- `07_TEST_DOSYALARI/test_v6_5_ultra_operasyon.js`
+- `08_KABUL_RAPORLARI/2026-05-05_panel_kaydet_id_koruma_ve_status_normalize_raporu.md`
+- `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md`
+
+Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/2026-05-05_panel_kaydet_id_koruma_ve_status_normalize_raporu.md`
+
 ## Duzeltme Notu 2026-05-05-18 - GitHub Actions Merge Conflict Cozumu
 
 | Alan | Aciklama |

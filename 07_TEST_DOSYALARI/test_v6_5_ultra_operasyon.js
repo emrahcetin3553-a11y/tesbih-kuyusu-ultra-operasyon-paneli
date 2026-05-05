@@ -313,6 +313,12 @@ const cariSelection = sandbox.parasutCariPanelAksiyonu(saved.openId, "Mehmet Nur
 assert(cariSelection.contactId === "C-1", "Panel cari seç akışı Paraşüt_Cari_ID bağlamalı");
 assert(rows(CFG.sheets.parasut)[0][H.PARASUT_CONTACT_ID], "Paraşüt taslak satırında contact relationship kaynağı olmalı");
 const gid = rows(CFG.sheets.invoiceGroups)[0][H.INVOICE_GROUP_ID];
+const invoiceStatusProbe = rows(CFG.sheets.invoiceGroups)[0];
+sandbox.batchWriteRows([{ sheet: ss.getSheetByName(CFG.sheets.invoiceGroups), headers: HEADERS.invoiceGroups, rows: [Object.assign({}, invoiceStatusProbe, { [H.INVOICE_STATUS]: "Hazir." })] }]);
+assert(rows(CFG.sheets.invoiceGroups)[0][H.INVOICE_STATUS] === "Hazır", "06_FATURA_GRUPLARI Fatura_Durumu ascii Hazir degerini Hazır olarak normalize etmeli");
+sandbox.batchWriteRows([{ sheet: ss.getSheetByName(CFG.sheets.invoiceGroups), headers: HEADERS.invoiceGroups, rows: [Object.assign({}, rows(CFG.sheets.invoiceGroups)[0], { [H.INVOICE_STATUS]: " Gönderildi. " })] }]);
+assert(rows(CFG.sheets.invoiceGroups)[0][H.INVOICE_STATUS] === "Gönderildi", "06_FATURA_GRUPLARI Fatura_Durumu nokta ve bosluk iceren Gönderildi degerini normalize etmeli");
+sandbox.batchWriteRows([{ sheet: ss.getSheetByName(CFG.sheets.invoiceGroups), headers: HEADERS.invoiceGroups, rows: [Object.assign({}, rows(CFG.sheets.invoiceGroups)[0], { [H.INVOICE_STATUS]: "Hazır" })] }]);
 patchRows(CFG.sheets.invoiceGroups, H.INVOICE_GROUP_ID, gid, { [H.PARASUT_CONTACT_ID]: "1062372249" });
 sandbox.parasutTaslaklariniHazirla();
 const invoiceSheetForMenu = ss.getSheetByName(CFG.sheets.invoiceGroups);
@@ -377,6 +383,7 @@ const secondGroups = rows(CFG.sheets.invoiceGroups).filter(r => r[H.OPEN_ID] ===
 assert(secondGroups.length === 2, "İki ödeme yapan iki fatura grubu oluşturmalı");
 assert(secondGroups.some(g => g[H.INVOICE_PERSON] === "Nimet Çetin"), "nimeçetin Nimet Çetin olmalı");
 assert(secondGroups.some(g => g[H.INVOICE_PERSON] === "Yaşar Çetin"), "yaşarçetin Yaşar Çetin olmalı");
+assert(second.openId && second.openId !== saved.openId, "Yeni siparis modunda mevcut Açık_Sipariş_ID kullanilmamali");
 const lockGid = secondGroups[0][H.INVOICE_GROUP_ID];
 patchRows(CFG.sheets.invoiceGroups, H.INVOICE_GROUP_ID, lockGid, { [H.PARASUT_INVOICE_ID]: "INV-LOCK-2", [H.SEND_LOCK]: "Evet", [H.INVOICE_STATUS]: "Gönderildi", [H.WARN]: "" });
 patchRows(CFG.sheets.parasut, H.INVOICE_GROUP_ID, lockGid, { [H.PARASUT_INVOICE_ID]: "", [H.SEND_LOCK]: "Hayır", [H.PARASUT_STATUS]: "Taslak Hazır", [H.CAN_SEND_DRAFT]: "Evet", [H.PAYLOAD_CHECK]: "Payload hazır", [H.DRAFT_BLOCK]: "", [H.ERROR]: "" });
@@ -389,7 +396,8 @@ patchRows(CFG.sheets.invoiceGroups, H.INVOICE_GROUP_ID, errorGid, { [H.INVOICE_S
 sandbox.senkronizeDurumForOpen(second.openId);
 const errorGroup = rows(CFG.sheets.invoiceGroups).find(r => r[H.INVOICE_GROUP_ID] === errorGid);
 const secondOpenSummary = rows(CFG.sheets.open).find(r => r[H.OPEN_ID] === second.openId);
-assert(errorGroup[H.INVOICE_STATUS] === "Hata", "07 hata 06 fatura grubuna yansımalı");
+assert(errorGroup[H.INVOICE_STATUS] === "Hazır", "07 hata 06 validation alanini bozmayip Fatura_Durumu degerini Hazır tutmali");
+assert(/test hata/.test(String(errorGroup[H.WARN] || "")), "07 hata 06 Kontrol_Uyarısı alanına yansımali");
 assert(secondOpenSummary[H.CONTROL_LEVEL] === "Blokaj", "Paraşüt hata 03 blokaj seviyesine yansımalı");
 
 const queue = ss.getSheetByName(CFG.sheets.queue);
@@ -404,6 +412,9 @@ const editOpenId = editPayload.openId;
 const editCargoPackageId = editPayload.kargo.kargoPaketId || editPayload.cargoPackageId;
 const editItemId = editPayload.urunler[0].urunKalemId;
 const editPaymentId = editPayload.odemeler[0].odemeId;
+const failedEditPayload = JSON.parse(JSON.stringify(editPayload));
+failedEditPayload.whatsAppTel = "";
+assertThrows(() => sandbox.ultraSiparisKaydet(failedEditPayload), "WhatsApp_Tel", "Edit kaydi hata aldiginda yeni siparis acmadan durmali");
 const beforeEditCounts = {
   queue: rows(CFG.sheets.queue).length,
   items: rows(CFG.sheets.items).filter(r => r[H.OPEN_ID] === editOpenId).length,
@@ -411,6 +422,12 @@ const beforeEditCounts = {
   invoiceGroups: rows(CFG.sheets.invoiceGroups).filter(r => r[H.OPEN_ID] === editOpenId).length,
   cargo: rows(CFG.sheets.cargo).filter(r => r[H.OPEN_ID] === editOpenId).length
 };
+failedEditPayload.whatsAppTel = editPayload.whatsAppTel;
+failedEditPayload.kargo.adres = "Hata sonrasi duzeltilen teslimat adresi";
+const fixedAfterError = sandbox.ultraSiparisKaydet(failedEditPayload);
+assert(fixedAfterError.openId === editOpenId, "Hata sonrasi duzeltilen edit kaydi ayni Açık_Sipariş_ID ile kaydedilmeli");
+assert(rows(CFG.sheets.queue).length === beforeEditCounts.queue, "Hata sonrasi edit kaydi yeni kuyruk satiri acmamali");
+assert(rows(CFG.sheets.cargo).filter(r => r[H.CARGO_PACKAGE_ID] === editCargoPackageId)[0][H.ADDRESS] === "Hata sonrasi duzeltilen teslimat adresi", "Hata sonrasi edit kaydi mevcut kargo paketini guncellemeli");
 editPayload.kargo.ilce = "gaziemir";
 editPayload.kargo.adres = "Guncel teslimat adresi 2";
 editPayload.urunler[0].birimFiyatKdvDahil = 360;
