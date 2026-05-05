@@ -154,6 +154,13 @@ Not: Bu çıktı Node test harness sonucudur. Gerçek Google Sheets UI süresi b
 | Son Sheet referans sözleşmesi | Geçti |
 | Profil helper testleri | Geçti |
 
+GitHub Actions:
+
+- Workflow: `Node.js CI`
+- Run ID: `25403931110`
+- Job: `V6.5 Apps Script test harness`
+- Sonuç: `success`
+
 `npm test` özeti:
 
 - `functionCount`: 110
@@ -214,5 +221,7 @@ Kod tarafındaki canlı kapı mantığı değiştirilmedi.
 ## 10. Sonuç
 
 Kaydet akışı artık güvenli profil/timer çıktısı döndürüyor, request-cache kullanıyor, `replaceRowsForOpen_` için openId kapsamlı delta yazım pilotu başlatıldı ve panel kaydet yolundaki tekrar senkron azaltıldı.
+
+Uygulama commit'i: `c7416ac388f9dd283dcec058e81e180d664bda06`
 
 Canlı UI performans kabulü için sıradaki adım: gerçek panelden aynı siparişi düzenleyip `Kaydet ve ERP güncelle` süre/profil çıktısını 12/03/04/05/06/08 readback ile doğrulamak.

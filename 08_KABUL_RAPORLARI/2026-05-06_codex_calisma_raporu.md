@@ -46,7 +46,10 @@ Kod tarafında `01_AYARLAR` içine `KAYDET_DELTA_UPDATE_AKTIF` ayarı eklenebili
 
 ## 6. GitHub'a işlenen dosyalar
 
-Commit/push bu raporla birlikte yapılacaktır.
+- Uygulama commit'i: `c7416ac388f9dd283dcec058e81e180d664bda06`
+- Branch: `v6-5-production-candidate`
+- GitHub Actions `Node.js CI` run ID: `25403931110`
+- GitHub Actions sonucu: `success`
 
 ## 7. Çalıştırılan testler
 
