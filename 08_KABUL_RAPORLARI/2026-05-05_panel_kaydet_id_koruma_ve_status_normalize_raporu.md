@@ -129,6 +129,26 @@ SHA256 readback:
 | `ultraSiparisPaneli.html` | `2A89FB386FE9FC319B2C34CF1816FE1C00B361307AA56DF87110B99977EE38FF` | `2A89FB386FE9FC319B2C34CF1816FE1C00B361307AA56DF87110B99977EE38FF` | Evet |
 | `appsscript.json` | `EE111E1EA5BE30071E84DCDAE1570F3C1078B3814D463DA97367F71799EA267D` | `EE111E1EA5BE30071E84DCDAE1570F3C1078B3814D463DA97367F71799EA267D` | Evet |
 
+## GitHub Actions Readback
+
+Kod commit'i:
+
+```text
+c6e02995ffe4808770feecfee7c0796e2f762f7e
+```
+
+GitHub Actions sonucu:
+
+- Run: `25398789059`
+- Workflow: `Node.js CI`
+- Run number: `21`
+- Status: `completed`
+- Conclusion: `success`
+- Job: `V6.5 Apps Script test harness`
+- Job ID: `74492588274`
+- Job conclusion: `success`
+- Step readback: Checkout, Use Node.js 20.x, Install dependencies, Audit dependencies, Run V6.5 acceptance checks hepsi `success`.
+
 ## Sheet ve Canli Islem Durumu
 
 - Canli Sheet verisi silinmedi.

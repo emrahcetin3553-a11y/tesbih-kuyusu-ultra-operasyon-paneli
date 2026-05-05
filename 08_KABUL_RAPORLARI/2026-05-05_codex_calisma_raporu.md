@@ -816,7 +816,7 @@ Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/202
 | Etkilenen fonksiyonlar | `kaydetUltraSiparisHizli_`, yeni `recoverOpenIdFromPanelForm_`, `writeObjects_`, `appendObject_`, `upsertObjectByKey_`, `patchObjectRow_`, `patchRowsByKey_`, yeni `normalizeObjectForSheetWrite_`, yeni `normalizeInvoiceGroupStatusForValidation_`, HTML `addOrder`, `applyCustomerDefaults`, `collectOrder`, `saveAll`, `applyServerResult` |
 | Apps Script durumu | `clasp push --force` ile 7 dosya yuklendi; `clasp pull --force` ile geri cekildi. Core, panel HTML ve manifest SHA eslesti. |
 | Sheet durumu | Canli Sheet verisi silinmedi veya degistirilmedi. Data validation kaldirilmadi. |
-| Test ve kanit | `npm ci` basarili; `npm audit --audit-level=high` 0 vulnerability; `npm test` basarili. Apps Script readback SHA: core `1E7E7C65C06BD1C290997FCE2A9E377F8BC8F81D857A5AF60D4D6831EEEFC9AB`, panel `2A89FB386FE9FC319B2C34CF1816FE1C00B361307AA56DF87110B99977EE38FF`, manifest `EE111E1EA5BE30071E84DCDAE1570F3C1078B3814D463DA97367F71799EA267D`. |
+| Test ve kanit | `npm ci` basarili; `npm audit --audit-level=high` 0 vulnerability; `npm test` basarili. Apps Script readback SHA: core `1E7E7C65C06BD1C290997FCE2A9E377F8BC8F81D857A5AF60D4D6831EEEFC9AB`, panel `2A89FB386FE9FC319B2C34CF1816FE1C00B361307AA56DF87110B99977EE38FF`, manifest `EE111E1EA5BE30071E84DCDAE1570F3C1078B3814D463DA97367F71799EA267D`. GitHub Actions run `25398789059` completed/success; job `74492588274` success. |
 | Canli POST | Yapilmadi. Paraşüt, Navlungo ve e-belge POST calistirilmadi. |
 | Kalan risk | Gercek Google Sheets UI uzerinden kullanicinin mevcut siparis hata-duzelt-kaydet senaryosunu tekrar denemesi gerekir. Bu rapor canli UI kabul tamamlandi demez. |
 
