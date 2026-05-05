@@ -124,8 +124,8 @@ Codex sohbet çıktısı / çalışma özeti şu dosyaya işlendi: `08_KABUL_RAP
 | Etkilenen fonksiyonlar | Yok. Kod fonksiyonu degistirilmedi. |
 | Apps Script durumu | Apps Script'e dosya yuklenmedi. |
 | Sheet durumu | Sheet dosyasi degistirilmedi. |
-| GitHub durumu | Dosya ve bu rapor GitHub'a commit/push yapilacak. |
-| Test ve kanit | Dosya icerigi kullanici tarafindan verilen yapiyla yazildi; `git diff --check` calistirilacak. |
+| GitHub durumu | Commit mesaji `add active tasks tracking file` ile commit edildi. Ilk push uzak branch guncellendigi icin reddedildi; `git fetch` ve `git rebase origin/v6-5-production-candidate` sonrasi push tamamlandi. |
+| Test ve kanit | Dosya icerigi kullanici tarafindan verilen yapiyla yazildi; `git diff --check` calistirildi. |
 | Kalan risk | Bu dosya gorev yonetim iskeletidir; aktif gorev alanlari henuz doldurulmadi. |
 
 ### Bu Islemde Degistirilen Dosyalar
