@@ -384,6 +384,24 @@ Codex sohbet çıktısı / çalışma özeti şu dosyaya işlendi: `08_KABUL_RAP
 
 Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/2026-05-05_apps_script_execution_api_izin_raporu.md`
 
+## Duzeltme Notu 2026-05-05-10 - Desktop OAuth ile Clasp Run Blokajinin Acilmasi
+
+| Alan | Aciklama |
+| --- | --- |
+| Duzeltme ID | 2026-05-05-10 |
+| Neden duzenlendi | Kullanici Desktop OAuth JSON dosyasinin hazir oldugunu ve `clasp login --use-project-scopes --include-clasp-scopes --creds client_secret.json` ile yeniden yetkilendirme sonrasinda `clasp run` testlerinin calistirilmesini istedi. |
+| Ne duzeltildi | `.gitignore` icine `client_secret.json` korumasi eklendi. `appsscript.json` icine gerekli `oauthScopes` eklendi. Canli Apps Script projesine manifest push edildi. Desktop OAuth JSON ile yeniden login yapildi. `clasp run onOpen` ve `clasp run senkronizeDurumForOpen` testleri calistirildi. |
+| Etkilenen dosyalar | `.gitignore`, `appsscript.json`, `08_KABUL_RAPORLARI/2026-05-05_apps_script_execution_api_izin_raporu.md`, `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md` |
+| Etkilenen fonksiyonlar | Kod fonksiyonu degismedi. Test edilen fonksiyonlar: `onOpen`, `senkronizeDurumForOpen`. |
+| Apps Script durumu | `clasp push --force` ile 7 dosya canli Apps Script projesine yuklendi; `clasp pull --force` sonrasi manifest ve core SHA eslesti. |
+| Sheet durumu | `senkronizeDurumForOpen(\"AS-20260504-001\")` canli Sheet uzerinde senkronizasyon calistirdi; sonra 03/05/06/07/08/11/12 readback alindi. |
+| GitHub durumu | Bu degisiklikler GitHub'a commit/push edilecek. |
+| Test ve kanit | `clasp show-authorized-user` user-provided OAuth client ile `emrahcetin3553@gmail.com`; `clasp run onOpen` izin hatasini asti ve UI context hatasi verdi; `clasp run senkronizeDurumForOpen --params '[\"AS-20260504-001\"]'` sonucu `ok: true`; appsscript SHA eslesmesi `AE709CAAFCABE589F0DD70E121603466A582EAE04E8B9E23CFA91516796C31C`; core SHA eslesmesi `062FA6202CE9856E852F4C80FE2F6957CFC6A6192D7806C2EF2CBBC447374ABE`. |
+| Canli POST | Parasut/Navlungo/e-belge POST calistirilmadi. Calistirilan hedef fonksiyon durum senkronizasyonudur. |
+| Kalan risk | `.clasp.json projectId` halen yok; bu nedenle `clasp apis` komutu `GCP project ID is not set` hatasi vermeye devam ediyor. Ancak istenen `clasp run` fonksiyon testi artik calisiyor. |
+
+Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/2026-05-05_apps_script_execution_api_izin_raporu.md`
+
 ## Duzeltme Notu 2026-05-05-09 - Ana Google Hesabi Execution API Tekrar Kontrolu
 
 | Alan | Aciklama |

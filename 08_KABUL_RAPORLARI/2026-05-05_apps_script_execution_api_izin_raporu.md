@@ -658,3 +658,296 @@ Bu turdaki net karar:
 **Sorun artik yanlis Google hesabi degil; eksik kalan kisim standart Google Cloud Project `projectId` ve uygun OAuth client yetkilendirmesi.**
 
 Bu tamamlanmadan `clasp run normalizeTelefon` ve `clasp run senkronizeDurumForOpen` calisir kabul edilemez.
+
+## 16. Desktop OAuth JSON ile Yetkilendirme ve Canli Run Testi - 2026-05-05
+
+Kullanici Desktop OAuth JSON dosyasinin hazir oldugunu bildirdi ve lokal `client_secret.json` kullanilarak `clasp login --use-project-scopes --include-clasp-scopes --creds client_secret.json` ile yeniden yetkilendirme ve `clasp run` testlerinin calistirilmesini istedi.
+
+### 16.1 Secret Guvenligi
+
+Kontrol:
+
+- `C:\Users\emrah\Desktop\client_secret.json` bulundu.
+- `C:\Users\emrah\Downloads\client_secret.json` bulundu.
+
+Guvenlik islemi:
+
+- Dosya icerigi okunmadi.
+- Dosya icerigi rapora yazilmadi.
+- Dosya GitHub'a eklenmedi.
+- `.gitignore` icine `client_secret.json` ve `client_secret*.json` kurallari eklendi.
+
+### 16.2 Ilk OAuth Login
+
+Komut:
+
+```powershell
+clasp login --use-project-scopes --include-clasp-scopes --creds 'C:\Users\emrah\Desktop\client_secret.json'
+```
+
+Sonuc:
+
+```text
+You are logged in as emrahcetin3553@gmail.com.
+```
+
+Ardindan:
+
+```powershell
+clasp show-authorized-user
+```
+
+Sonuc:
+
+```text
+You are logged in as emrahcetin3553@gmail.com.
+OAuth client ID: 1043757337561-c8qv89posp3k4ntt99moq1gcn992p2qv.apps.googleusercontent.com (user-provided).
+```
+
+Degerlendirme:
+
+- Clasp artik user-provided Desktop OAuth client ile yetkilendi.
+- Google-provided OAuth client kullanimi bitti.
+
+### 16.3 Ilk Run Sonucu ve Eksik Scope
+
+Komut:
+
+```powershell
+clasp run onOpen
+```
+
+Sonuc:
+
+```text
+Exception: Cannot call SpreadsheetApp.getUi() from this context.
+```
+
+Degerlendirme:
+
+- Bu sonuc izin hatasi degildir.
+- `onOpen` fonksiyonu Execution API uzerinden calisabiliyor; ancak UI context olmadigi icin `SpreadsheetApp.getUi()` dogal olarak calismiyor.
+
+Komut:
+
+```powershell
+clasp run senkronizeDurumForOpen --params '[\"AS-20260504-001\"]'
+```
+
+Ilk sonuc:
+
+```text
+You do not have permission to call SpreadsheetApp.getActiveSpreadsheet.
+Required permissions: (https://www.googleapis.com/auth/spreadsheets.currentonly || https://www.googleapis.com/auth/spreadsheets).
+```
+
+Degerlendirme:
+
+- Execution API izin blokaji asil olarak cozuldu.
+- Yeni hata manifestte Sheets scope eksikligi oldugunu gosterdi.
+- Google Apps Script resmi dokumaninda `SpreadsheetApp.getActiveSpreadsheet()` icin `https://www.googleapis.com/auth/spreadsheets.currentonly` veya `https://www.googleapis.com/auth/spreadsheets` scope gerekir.
+- Manifest resmi dokumaninda `oauthScopes[]` alaninin script yetki scope'larini tanimladigi belirtilir.
+
+Kaynaklar:
+
+- `SpreadsheetApp` scope dokumani: `https://developers.google.com/apps-script/reference/spreadsheet/spreadsheet-app`
+- Manifest `oauthScopes` dokumani: `https://developers.google.com/apps-script/manifest`
+
+### 16.4 Manifest Scope Duzeltmesi
+
+Dar kapsamli manifest duzeltmesi yapildi.
+
+Degisen dosyalar:
+
+- `appsscript.json`
+- `C:\Users\emrah\Desktop\clasp_v65_main_upload\appsscript.json`
+
+Eklenen scope'lar:
+
+```json
+"oauthScopes": [
+  "https://www.googleapis.com/auth/spreadsheets",
+  "https://www.googleapis.com/auth/script.external_request"
+]
+```
+
+Gerekce:
+
+- `spreadsheets`: `SpreadsheetApp.getActiveSpreadsheet()` ve Sheet read/write fonksiyonlari icin gerekli.
+- `script.external_request`: V6.5 core icinde `UrlFetchApp` kullanan Parasut/Navlungo API fonksiyonlari bulundugu icin manifest explicit scope listesi tanimlanirken korunmasi gereken runtime izni.
+
+### 16.5 Apps Script Push ve Yeniden OAuth
+
+Komut:
+
+```powershell
+clasp push --force
+```
+
+Sonuc:
+
+```text
+Pushed 7 files.
+```
+
+Ardindan ayni Desktop OAuth JSON ile yeniden login yapildi.
+
+Yetkilendirme scope listesinde artik su scope'lar da gorundu:
+
+- `https://www.googleapis.com/auth/spreadsheets`
+- `https://www.googleapis.com/auth/script.external_request`
+
+Pull-back:
+
+```powershell
+clasp pull --force
+```
+
+Sonuc:
+
+```text
+Pulled 7 files.
+```
+
+Manifest SHA:
+
+- Remote pull `appsscript.json`: `AE709CAAFCABE589F0DD70E121603466A582EAE04E8B9E23CFA91516796C31C`
+- GitHub repo `appsscript.json`: `AE709CAAFCABE589F0DD70E121603466A582EAE04E8B9E23CFA91516796C31C`
+- Eslesme: Evet
+
+Core SHA:
+
+- Remote pull core: `062FA6202CE9856E852F4C80FE2F6957CFC6A6192D7806C2EF2CBBC447374ABE`
+- GitHub repo core: `062FA6202CE9856E852F4C80FE2F6957CFC6A6192D7806C2EF2CBBC447374ABE`
+- Eslesme: Evet
+
+### 16.6 Istenen Clasp Run Testleri
+
+#### 16.6.1 `onOpen`
+
+Komut:
+
+```powershell
+clasp run onOpen
+```
+
+Sonuc:
+
+```text
+Exception: Cannot call SpreadsheetApp.getUi() from this context.
+```
+
+Degerlendirme:
+
+- Execution API artik fonksiyona ulasiyor.
+- Bu hata beklenen UI context siniridir.
+- Eski hata olan `Please make sure you have permission to run the script function` artik yok.
+
+#### 16.6.2 `senkronizeDurumForOpen`
+
+Komut:
+
+```powershell
+clasp run senkronizeDurumForOpen --params '[\"AS-20260504-001\"]'
+```
+
+Not:
+
+- PowerShell/`clasp.ps1` quote davranisi nedeniyle calisan komutta JSON icindeki cift tirnaklar ters slash ile korunarak gonderildi.
+
+Sonuc:
+
+```json
+{
+  "controlRowsRead": 0,
+  "cargoStatus": "Barkod Alındı",
+  "messageCount": 0,
+  "openId": "AS-20260504-001",
+  "ebelgeStatus": "Gönderime Hazır",
+  "invoiceStatus": "Gönderildi",
+  "ok": true,
+  "changed": {
+    "invoiceGroups": true,
+    "parasut": false,
+    "open": true
+  }
+}
+```
+
+Degerlendirme:
+
+- `senkronizeDurumForOpen("AS-20260504-001")` canli Apps Script Execution API uzerinden basariyla calisti.
+- Fonksiyon sonucu `ok: true`.
+- `parasut: false`, yani bu senkronizasyon adimi Parasut fatura gonderimi yapmadi.
+
+### 16.7 Canli Sheet Readback Ozeti
+
+`AS-20260504-001` icin canli Sheet readback sonucu:
+
+| Sayfa | Okunan Durum |
+| --- | --- |
+| `03_ACIK_SIPARISLER` | `Kargo_Durumu = Barkod Alındı`, `Fatura_Durumu = Gönderildi`, `E_Belge_Durumu = Gönderime Hazır`, `Kontrol_Seviyesi = Hazır`, `ERP_Kapanış_Uygun_Mu = Evet` |
+| `05_ODEMELER` | `Teyit_Durumu = Bekliyor`, `Operatör_Teyidi = Hayır` |
+| `06_FATURA_GRUPLARI` | `Fatura_Durumu = Gönderildi`, `Paraşüt_Cari_ID = 1062372249`, `Paraşüt_Fatura_ID = 1084948327`, `Gönderim_Kilidi = Evet` |
+| `07_PARASUT_FATURA` | `Paraşüt_Durumu = Gönderildi`, `Gönderim_Kilidi = Evet`, `Taslak_Gönderime_Uygun_Mu = Hayır` |
+| `08_KARGO_PAKETLERI` | `Paket_Durumu = Barkod Hazır`, `Navlungo_Status = Barkod Hazır`, tracking ve barcode URL var, `Navlungo_Test_Mu = Evet`, `Kargo_Bekletilsin_Mi = Hayır` |
+| `11_EBELGE_ISTISNA` | `Gönderim_Durumu = Gönderime Hazır`, `Resmi_Gönderim_Onayı = Evet`, `Kontrol_Seviyesi = OK` |
+| `12_KONTROL_MERKEZI` | `CTRL-OK`, `Durum = Kapalı`, `Blokaj_Mı = Hayır` |
+
+### 16.8 `clasp apis` Durumu
+
+Komut:
+
+```powershell
+clasp apis
+```
+
+Sonuc:
+
+```text
+GCP project ID is not set, unable to continue.
+```
+
+Degerlendirme:
+
+- Bu komut icin `.clasp.json projectId` halen eksik.
+- Ancak Execution API function run artik calisiyor.
+- Kalan eksik, `clasp apis` ile Cloud API durumunu CLI'dan yonetmek/okumak icin projectId eklenmesidir.
+
+### 16.9 Canli POST Durumu
+
+Bu turda calistirilan komutlar:
+
+- `clasp login`
+- `clasp push --force`
+- `clasp run onOpen`
+- `clasp run senkronizeDurumForOpen`
+- `clasp pull --force`
+
+Calistirilmayanlar:
+
+- Parasut fatura gonderim fonksiyonu calistirilmadi.
+- Navlungo kargo olusturma/barkod fonksiyonu calistirilmadi.
+- e-Belge canli gonderim fonksiyonu calistirilmadi.
+
+Sonuc:
+
+- Parasut POST: Yapilmadi.
+- Navlungo POST: Yapilmadi.
+- e-Belge POST: Yapilmadi.
+
+### 16.10 Net Sonuc
+
+Execution API / `clasp run` blokaji operasyonel olarak cozuldu.
+
+Kanıt:
+
+- `clasp show-authorized-user`: `user-provided` OAuth client ile `emrahcetin3553@gmail.com`
+- `clasp run onOpen`: izin hatasi vermedi; UI context hatasina kadar calisti.
+- `clasp run senkronizeDurumForOpen --params '[\"AS-20260504-001\"]'`: `ok: true`
+- Canli Sheet readback `AS-20260504-001` icin senkronizasyon sonucunu dogruladi.
+
+Kalan not:
+
+- `.clasp.json projectId` halen eklenmedi; bu yuzden `clasp apis` komutu hala calismiyor.
+- Ancak istenen `clasp run` fonksiyon testi basariyla tamamlandi.
