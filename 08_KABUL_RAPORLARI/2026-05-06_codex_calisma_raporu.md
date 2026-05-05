@@ -173,3 +173,10 @@ Kalan risk:
 - Gerçek Google Sheets UI üzerinde yeni Kaydet süre testi bu turda yapılmadı. `37.7 sn` saha sonucu yeni canlı panel denemesiyle yeniden ölçülmeden 1-5 saniye hedefi geçti denmeyecek.
 
 Codex sohbet çıktısı / çalışma özeti şu dosyaya işlendi: `08_KABUL_RAPORLARI/2026-05-06_kaydet_performans_ucuncu_seviye_cari_otomasyon_raporu.md`
+
+GitHub kanıtı:
+
+- Uygulama commit'i: `3ab32f697ba151af3b9971517e99960b3020a414`
+- GitHub Actions run ID: `25407492086`
+- GitHub Actions job: `V6.5 Apps Script test harness`
+- GitHub Actions sonucu: `success`
