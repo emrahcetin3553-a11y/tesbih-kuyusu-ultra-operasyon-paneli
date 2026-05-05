@@ -138,3 +138,38 @@ Son yerel tekrar:
 - `npm ci`: geçti, 0 vulnerability
 - `npm audit --audit-level=high`: geçti, 0 vulnerability
 - `npm test`: geçti
+
+## 15. PR #6 Üçüncü Seviye Kaydet Performans ve Cari Otomasyon Görevi
+
+PR #6 son kullanıcı geri bildiriminde canlı panel Kaydet süresinin `37.7 sn` olduğu bildirildi. Bu saha sonucu başarısız kabul edildi; bu turda canlı UI geçişi iddia edilmeden plain Kaydet yolu yeniden daraltıldı.
+
+Değişiklikler:
+
+- Plain `Kaydet ve ERP güncelle` yolundan `hafifErpGuncelle_`, final `senkronizeDurumForOpen_`, tam kontrol merkezi yenileme ve müşteri hafızası ağır güncelleme çıkarıldı.
+- `patchOpenSummaryForSave_` ile 03 tarafında ilgili `Açık_Sipariş_ID` için hedefli özet yazımı eklendi.
+- `upsertInvoiceGroupsFromPanelSave_` ile ödeme yapan kişi bazlı fatura grubu hafif upsert akışı eklendi.
+- `linkProductRowsToPaymentsForSave_` ile ürün satırları aynı sipariş içindeki ödeme yapan kişinin `Ödeme_ID` değerine bağlandı.
+- `autoCariBaglaForOpen_` sadece ilgili sipariş için çalışan, güvenli tek güçlü adayda otomatik bağlayan, aksi durumda panel onayı isteyen yapıya alındı.
+- `PARASUT_CARI_KAYDETTE_OTO_OLUSTURMA = Hayır` varsayılan ayarı eklendi.
+- Test harness içinde güvenli cari bağlama ve cari bulunamama blokajı testleri eklendi.
+
+Çalıştırılan testler:
+
+- `npm ci`: geçti, 0 vulnerability.
+- `npm audit --audit-level=high`: geçti, 0 vulnerability.
+- Aktif core/HTML yasak ifade taraması: geçti.
+- `git diff --check`: geçti; yalnız CRLF çalışma kopyası uyarısı var.
+- `npm test`: geçti.
+
+Apps Script:
+
+- `clasp push --force`: yapıldı.
+- `clasp pull --force`: yapıldı.
+- Core SHA eşleşti: `F84D8508D5C4D79804FEE3CB102D78E88FAF543CCA8BAC86165251B87F5FF893`.
+- Panel HTML SHA eşleşti: `2679CF594937BA852CE4648EBA420B6480E34B0585A64A341AEE1752A51E1A68`.
+
+Kalan risk:
+
+- Gerçek Google Sheets UI üzerinde yeni Kaydet süre testi bu turda yapılmadı. `37.7 sn` saha sonucu yeni canlı panel denemesiyle yeniden ölçülmeden 1-5 saniye hedefi geçti denmeyecek.
+
+Codex sohbet çıktısı / çalışma özeti şu dosyaya işlendi: `08_KABUL_RAPORLARI/2026-05-06_kaydet_performans_ucuncu_seviye_cari_otomasyon_raporu.md`

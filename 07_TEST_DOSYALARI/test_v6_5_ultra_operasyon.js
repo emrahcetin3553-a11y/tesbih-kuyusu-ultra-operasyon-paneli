@@ -104,7 +104,16 @@ const props = {
     "Tesbih Kutusu": "1066258512",
     "Kargo Hizmet Bedeli": "1066258513"
   }),
-  PARASUT_CONTACT_ID_MAP_JSON: JSON.stringify({ "Mehmet Nuri Çetin": "C-1" }),
+  PARASUT_CONTACT_ID_MAP_JSON: JSON.stringify({
+    "Mehmet Nuri Çetin": {
+      id: "C-1",
+      phone: "+905523730403",
+      taxNo: "11111111111",
+      address: "Gümüldür Fevzi Çakmak Mah. 6266 Sokak No: 28",
+      city: "İzmir",
+      district: "Menderes"
+    }
+  }),
   PARASUT_CANLI_GONDERIM: "Hayır",
   PARASUT_CARI_CANLI_OLUSTURMA: "Hayır",
   EBELGE_CANLI_GONDERIM: "Hayır",
@@ -270,6 +279,9 @@ function patchRows(sheetName, key, value, patch) {
   sh.data.slice(1).forEach(row => {
     if (row[k] === value) Object.entries(patch).forEach(([name, val]) => { row[headers.indexOf(name)] = val; });
   });
+  if (sheetName === CFG.sheets.settings) {
+    sandbox.batchWriteRows([{ sheet: sh, headers: HEADERS.settings, rows: rows(sheetName) }]);
+  }
 }
 function rowNumByKey(sheetName, key, value) {
   const sh = ss.getSheetByName(sheetName);
@@ -337,9 +349,9 @@ const payload = {
 const saved = sandbox.ultraSiparisKaydet(JSON.parse(JSON.stringify(payload)));
 assert(saved.openId, "Ultra panel kaydı Açık_Sipariş_ID üretmeli");
 assert(saved.performanceProfile && saved.performanceProfile.totalMs >= 0, "Kaydet profil özeti dönmeli");
-assert((saved.performanceProfile.topSteps || []).some(s => s.name.indexOf("hafifErpGuncelle_") !== -1), "Kaydet profili ERP adımını ölçmeli");
+assert(!(saved.performanceProfile.topSteps || []).some(s => s.name.indexOf("hafifErpGuncelle_") !== -1), "Plain Kaydet hafifErpGuncelle yoluna girmemeli");
 assert(!JSON.stringify(saved.performanceProfile).includes("Mehmet") && !JSON.stringify(saved.performanceProfile).includes("+905"), "Kaydet profili müşteri verisi içermemeli");
-assert(saved.performanceProfile.counters.lightSavePath >= 1, "Plain Kaydet minimum ERP yolunu kullanmalı");
+assert(saved.performanceProfile.counters.plainSaveFastPath >= 1, "Plain Kaydet hızlı kayıt yolunu kullanmalı");
 assert(saved.performanceProfile.counters.schemaFastPass >= 1, "Kaydet şema hazırlığı hafif geçiş yapmalı");
 assert(rows(CFG.sheets.queue)[0][H.OWNER] === "Mehmet Nuri Çetin", "Birleşik isim doğru normalize edilmeli");
 assert(rows(CFG.sheets.cargo)[0][H.CARGO_RECEIVER] === "Mehmet Nuri Çetin", "Kargo alıcısı tam ad-soyad akmalı");
@@ -347,9 +359,11 @@ assert(rows(CFG.sheets.payments)[0][H.PAYER] === "Mehmet Nuri Çetin", "Ödeme y
 assert(rows(CFG.sheets.invoiceGroups)[0][H.INVOICE_PERSON] === "Mehmet Nuri Çetin", "Fatura kişisi ödeme yapan olmalı");
 assert(rows(CFG.sheets.invoiceGroups)[0][H.TAX_NO] === "11111111111", "Gerçek kişi TCKN varsayılanı atanmalı");
 assert(rows(CFG.sheets.invoiceGroups)[0][H.EBELGE_TYPE] === "e-Arşiv", "11111111111 e-Arşiv tipi üretmeli");
-assert(rows(CFG.sheets.addressMemory).length === 1, "Adres geçmişi ayrı sayfaya yazılmalı");
+assert(rows(CFG.sheets.invoiceGroups)[0][H.PARASUT_CONTACT_ID] === "C-1", "Kaydet güvenli cari adayını otomatik bağlamalı");
+assert(rows(CFG.sheets.invoiceGroups)[0][H.CARI_ACTION] === "Otomatik bağlandı", "Kaydet otomatik cari bağlama sonucunu yazmalı");
 const cariSelection = sandbox.parasutCariPanelAksiyonu(saved.openId, "Mehmet Nuri Çetin", "select", "C-1");
 assert(cariSelection.contactId === "C-1", "Panel cari seç akışı Paraşüt_Cari_ID bağlamalı");
+sandbox.parasutTaslaklariniHazirla();
 assert(rows(CFG.sheets.parasut)[0][H.PARASUT_CONTACT_ID], "Paraşüt taslak satırında contact relationship kaynağı olmalı");
 const gid = rows(CFG.sheets.invoiceGroups)[0][H.INVOICE_GROUP_ID];
 const invoiceStatusProbe = rows(CFG.sheets.invoiceGroups)[0];
@@ -404,6 +418,18 @@ patchRows(CFG.sheets.settings, "Ayar_Kodu", "PARASUT_CANLI_GONDERIM", { "Ayar_De
 patchRows(CFG.sheets.invoiceGroups, H.INVOICE_GROUP_ID, gid, { [H.PARASUT_CONTACT_ID]: "" });
 sandbox.parasutTaslaklariniHazirla();
 assertThrows(() => sandbox.parasutTaslakPayloadTestEt(gid), "Paraşüt cari ID yok", "Cari ID boşken payload başarılı sayılmamalı");
+
+const noCari = sandbox.ultraSiparisKaydet({
+  whatsAppTel: "05550001122",
+  siparisSahibi: "hasanalbayrak",
+  kargo: { il: "izmir", ilce: "bornova", adres: "Cari blok adresi", kargoFirmasi: "Aras Kargo" },
+  urunler: [{ urunAdi: "Tesbih", odemeYapan: "hasanalbayrak", miktar: 1, birimFiyatKdvDahil: 500 }],
+  odemeler: [{ odemeYapan: "hasanalbayrak", odemeTutari: 500 }]
+});
+const noCariGroup = rows(CFG.sheets.invoiceGroups).find(r => r[H.OPEN_ID] === noCari.openId);
+assert(!noCariGroup[H.PARASUT_CONTACT_ID], "Cari yoksa boş ID ile geçmemeli");
+assert(String(noCariGroup[H.CARI_ACTION] || "").includes("onay"), "Cari yoksa panel onayı gerektiği yazılmalı");
+assert(noCari.control && noCari.control.ok === false, "Cari yoksa hızlı panel kontrolü blokaj dönmeli");
 
 const second = sandbox.ultraSiparisKaydet({
   whatsAppTel: "05551112233",
@@ -489,7 +515,7 @@ editPayload.faturalar[0].faturaIlce = "gaziemir";
 editPayload.faturalar[0].faturaAdres = "Guncel teslimat adresi 2";
 const edited = sandbox.ultraSiparisKaydet(editPayload);
 assert(edited.openId === editOpenId, "Edit save must not create a new open order");
-assert(edited.performanceProfile && edited.performanceProfile.counters && edited.performanceProfile.counters.deltaReplaceCall >= 1, "Edit kaydı delta satır yazımı sayacı üretmeli");
+assert(edited.performanceProfile && edited.performanceProfile.counters && (edited.performanceProfile.counters.deltaReplaceCall >= 1 || edited.performanceProfile.counters.singleRowUpsert >= 1), "Edit kaydı hedefli satır yazımı sayacı üretmeli");
 assert((edited.kargoPaketId || edited.cargoPackageId) === editCargoPackageId, "Edit save must keep the existing cargo package id");
 assert(rows(CFG.sheets.queue).length === beforeEditCounts.queue, "Edit save must not append a queue row");
 assert(rows(CFG.sheets.items).filter(r => r[H.OPEN_ID] === editOpenId).length === beforeEditCounts.items, "Edit save must not duplicate item rows");
