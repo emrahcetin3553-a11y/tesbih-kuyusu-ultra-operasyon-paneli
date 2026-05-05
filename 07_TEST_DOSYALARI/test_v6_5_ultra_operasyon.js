@@ -339,6 +339,8 @@ assert(saved.openId, "Ultra panel kaydı Açık_Sipariş_ID üretmeli");
 assert(saved.performanceProfile && saved.performanceProfile.totalMs >= 0, "Kaydet profil özeti dönmeli");
 assert((saved.performanceProfile.topSteps || []).some(s => s.name.indexOf("hafifErpGuncelle_") !== -1), "Kaydet profili ERP adımını ölçmeli");
 assert(!JSON.stringify(saved.performanceProfile).includes("Mehmet") && !JSON.stringify(saved.performanceProfile).includes("+905"), "Kaydet profili müşteri verisi içermemeli");
+assert(saved.performanceProfile.counters.lightSavePath >= 1, "Plain Kaydet minimum ERP yolunu kullanmalı");
+assert(saved.performanceProfile.counters.schemaFastPass >= 1, "Kaydet şema hazırlığı hafif geçiş yapmalı");
 assert(rows(CFG.sheets.queue)[0][H.OWNER] === "Mehmet Nuri Çetin", "Birleşik isim doğru normalize edilmeli");
 assert(rows(CFG.sheets.cargo)[0][H.CARGO_RECEIVER] === "Mehmet Nuri Çetin", "Kargo alıcısı tam ad-soyad akmalı");
 assert(rows(CFG.sheets.payments)[0][H.PAYER] === "Mehmet Nuri Çetin", "Ödeme yapan tam ad-soyad akmalı");
@@ -421,6 +423,7 @@ assert(secondGroups.length === 2, "İki ödeme yapan iki fatura grubu oluşturma
 assert(secondGroups.some(g => g[H.INVOICE_PERSON] === "Nimet Çetin"), "nimeçetin Nimet Çetin olmalı");
 assert(secondGroups.some(g => g[H.INVOICE_PERSON] === "Yaşar Çetin"), "yaşarçetin Yaşar Çetin olmalı");
 assert(second.openId && second.openId !== saved.openId, "Yeni siparis modunda mevcut Açık_Sipariş_ID kullanilmamali");
+sandbox.parasutTaslaklariniHazirla();
 const lockGid = secondGroups[0][H.INVOICE_GROUP_ID];
 patchRows(CFG.sheets.invoiceGroups, H.INVOICE_GROUP_ID, lockGid, { [H.PARASUT_INVOICE_ID]: "INV-LOCK-2", [H.SEND_LOCK]: "Evet", [H.INVOICE_STATUS]: "Gönderildi", [H.WARN]: "" });
 patchRows(CFG.sheets.parasut, H.INVOICE_GROUP_ID, lockGid, { [H.PARASUT_INVOICE_ID]: "", [H.SEND_LOCK]: "Hayır", [H.PARASUT_STATUS]: "Taslak Hazır", [H.CAN_SEND_DRAFT]: "Evet", [H.PAYLOAD_CHECK]: "Payload hazır", [H.DRAFT_BLOCK]: "", [H.ERROR]: "" });

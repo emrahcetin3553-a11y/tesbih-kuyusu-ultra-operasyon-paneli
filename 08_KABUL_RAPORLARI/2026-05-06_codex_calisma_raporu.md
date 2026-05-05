@@ -88,3 +88,38 @@ Gerçek Ultra Sipariş Paneli üzerinden seçili mevcut sipariş açılıp `Kayd
 ## 12. Codex sohbet çıktısı / çalışma özeti
 
 Codex sohbet çıktısı / çalışma özeti şu dosyaya işlendi: `08_KABUL_RAPORLARI/2026-05-06_kaydet_performans_profil_ve_delta_update_raporu.md`
+
+## 13. PR #6 İkinci Seviye Kaydet Performans Görevi
+
+PR #6 son yorumunda canlı saha testinin `51.8 sn` sürdüğü bildirildi. Bu nedenle ikinci seviye kaydet performans düzeltmesi yapıldı.
+
+Değişiklikler:
+
+- `ensureCoreSheetsReadyForSave_` her kaydetmede tüm header sözleşmesini okumayacak şekilde hafifletildi.
+- Plain `Kaydet` yolu `lightSave` minimum ERP akışına alındı.
+- Plain `Kaydet` içinde Paraşüt taslak ve e-belge hazırlığı çalışmayacak şekilde ayrıldı.
+- Tek final sync korunup ara tekrarlar azaltıldı.
+- Panel dialog genişliği/yüksekliği artırıldı ve form yoğunluğu azaltıldı.
+
+Testler:
+
+- `npm ci`: geçti.
+- `npm audit --audit-level=high`: geçti, 0 vulnerability.
+- `npm test`: geçti.
+
+Apps Script:
+
+- `clasp push --force`: yapıldı.
+- `clasp pull --force`: yapıldı.
+- Core SHA eşleşti: `24B84E133A62BEB89B0B2F56336F03ED24BB3B3C02C4F072313B69D414528CE9`.
+- Panel HTML SHA eşleşti: `2679CF594937BA852CE4648EBA420B6480E34B0585A64A341AEE1752A51E1A68`.
+
+Rapor:
+
+- `08_KABUL_RAPORLARI/2026-05-06_kaydet_performans_ikinci_seviye_ve_panel_ui_raporu.md`
+
+Kalan risk:
+
+- Canlı UI tekrar süre testi bu turda yapılmadı; kullanıcı panelden tekrar Kaydet profilini çalıştırmalıdır.
+
+Codex sohbet çıktısı / çalışma özeti şu dosyaya işlendi: `08_KABUL_RAPORLARI/2026-05-06_kaydet_performans_ikinci_seviye_ve_panel_ui_raporu.md`

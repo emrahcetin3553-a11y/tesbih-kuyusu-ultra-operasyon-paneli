@@ -1711,13 +1711,9 @@ var TK6 = (function () {
     if (deferRefresh) {
       return finishSaveResult_({ ok: true, openId: openId, cargoPackageId: cargoPackageId, kargoPaketId: cargoPackageId, queueId: qid, elapsedMs: Date.now() - started, status: "Kaydedildi; toplu ERP güncelleme bekliyor", deferred: true, form: form }, ownsProfile);
     }
-    hafifErpGuncelle_(openId, { skipFinalSync: true });
+    hafifErpGuncelle_(openId, { skipFinalSync: true, lightSave: true });
     performanceMeasure_("applyInvoicePanelHints_", function () { applyInvoicePanelHints_(ss, openId, form || {}); });
-    performanceMeasure_("autoCariBaglaForOpen_", function () { autoCariBaglaForOpen_(ss, openId, false); });
     performanceMeasure_("updateMusteriHafizaForOpen_", function () { updateMusteriHafizaForOpen_(ss, openId); });
-    performanceMeasure_("parasutTaslaklariniHazirlaForOpen_", function () { parasutTaslaklariniHazirlaForOpen_(ss, openId); });
-    performanceMeasure_("ebelgeIstisnaHazirlaForOpen_", function () { ebelgeIstisnaHazirlaForOpen_(ss, openId); });
-    performanceMeasure_("rebuildOpenOrderForOpen_:post", function () { rebuildOpenOrderForOpen_(ss, openId); });
     performanceMeasure_("senkronizeDurumForOpen_:final", function () { senkronizeDurumForOpen_(openId); });
     performanceMeasure_("kontrolMerkeziniGuncelleForOpen_:final", function () { kontrolMerkeziniGuncelleForOpen_(ss, openId); });
     var control = performanceMeasure_("panelKontrolOzetiForOpen_", function () { return panelKontrolOzetiForOpen_(ss, openId); });
@@ -2326,16 +2322,20 @@ var TK6 = (function () {
     return performanceMeasure_("hafifErpGuncelle_", function () {
       if (!openId) return false;
       var skipFinalSync = !!(options && options.skipFinalSync);
+      var lightSave = !!(options && options.lightSave);
       var ss = SpreadsheetApp.getActiveSpreadsheet();
       performanceMeasure_("odemeleriKontrolEtForOpen_", function () { odemeleriKontrolEtForOpen_(ss, openId); });
       performanceMeasure_("urunKalemleriniKontrolEtForOpen_", function () { urunKalemleriniKontrolEtForOpen_(ss, openId); });
       performanceMeasure_("faturaGruplariniOlusturForOpen_", function () { faturaGruplariniOlusturForOpen_(ss, openId); });
-      performanceMeasure_("rebuildOpenOrderForOpen_:pre", function () { rebuildOpenOrderForOpen_(ss, openId); });
       performanceMeasure_("kargoPaketleriniOlusturForOpen_", function () { kargoPaketleriniOlusturForOpen_(ss, openId); });
+      performanceMeasure_("rebuildOpenOrderForOpen_:final", function () { rebuildOpenOrderForOpen_(ss, openId); });
+      if (lightSave) {
+        performanceCounter_("lightSavePath");
+        return true;
+      }
       performanceMeasure_("finans808OnizlemeOlusturForOpen_", function () { finans808OnizlemeOlusturForOpen_(ss, openId); });
       performanceMeasure_("parasutTaslaklariniHazirlaForOpen_", function () { parasutTaslaklariniHazirlaForOpen_(ss, openId); });
       performanceMeasure_("ebelgeIstisnaHazirlaForOpen_", function () { ebelgeIstisnaHazirlaForOpen_(ss, openId); });
-      performanceMeasure_("rebuildOpenOrderForOpen_:final", function () { rebuildOpenOrderForOpen_(ss, openId); });
       if (!skipFinalSync) {
         performanceMeasure_("senkronizeDurumForOpen_:final", function () { senkronizeDurumForOpen_(openId); });
         performanceMeasure_("kontrolMerkeziniGuncelleForOpen_:final", function () { kontrolMerkeziniGuncelleForOpen_(ss, openId); });
@@ -4650,23 +4650,26 @@ var TK6 = (function () {
   }
 
   function ensureCoreSheetsReadyForSave_(ss) {
+    if (REQUEST_CACHE && REQUEST_CACHE.schemaReady) {
+      performanceCounter_("schemaCacheHit");
+      return;
+    }
     var missing = [];
-    Object.keys(HEADERS).forEach(function (key) {
-      if (key === "guide") return;
+    ["settings", "queue", "open", "items", "payments", "invoiceGroups", "parasut", "cargo", "memory", "finance808", "ebelge", "control", "addressMemory"].forEach(function (key) {
       var sheetName = CFG.sheets[key];
       var sh = sheetName ? sheet_(ss, sheetName) : null;
       if (!sh || sh.getLastRow() < 1) {
         missing.push(sheetName || key);
-        return;
       }
-      var h = headers_(sh);
-      HEADERS[key].forEach(function (name) {
-        if (h[name] === undefined) missing.push(sheetName + "." + name);
-      });
     });
     if (missing.length) {
+      performanceCounter_("schemaRepairCall");
+      performanceNote_("Kaydet şema hazırlığı eksik sayfa: " + missing.length);
       sistemKolonlariniHazirla_();
+    } else {
+      performanceCounter_("schemaFastPass");
     }
+    if (REQUEST_CACHE) REQUEST_CACHE.schemaReady = true;
   }
 
   function markCargoLateAdd_(ss, openId) {
