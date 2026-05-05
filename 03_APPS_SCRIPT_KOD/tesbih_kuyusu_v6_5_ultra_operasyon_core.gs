@@ -1310,8 +1310,10 @@ var TK6 = (function () {
     autoCariBaglaForOpen_(ss, openId, false);
     updateMusteriHafizaForOpen_(ss, openId);
     parasutTaslaklariniHazirlaForOpen_(ss, openId);
+    senkronizeDurumForOpen_(openId);
     ebelgeIstisnaHazirlaForOpen_(ss, openId);
     rebuildOpenOrderForOpen_(ss, openId);
+    senkronizeDurumForOpen_(openId);
     kontrolMerkeziniGuncelleForOpen_(ss, openId);
     var control = panelKontrolOzetiForOpen_(ss, openId);
     return {
@@ -1892,8 +1894,10 @@ var TK6 = (function () {
     kargoPaketleriniOlusturForOpen_(ss, openId);
     finans808OnizlemeOlusturForOpen_(ss, openId);
     parasutTaslaklariniHazirlaForOpen_(ss, openId);
+    senkronizeDurumForOpen_(openId);
     ebelgeIstisnaHazirlaForOpen_(ss, openId);
     rebuildOpenOrderForOpen_(ss, openId);
+    senkronizeDurumForOpen_(openId);
     kontrolMerkeziniGuncelleForOpen_(ss, openId);
     return true;
   }
@@ -2814,9 +2818,19 @@ var TK6 = (function () {
     var batchLimit = Number(setting_(ss, CFG.batchLimitSetting, 3)) || 3;
     var rowsByGroup = groupBy_(objects_(sheet_(ss, CFG.sheets.parasut)), H.INVOICE_GROUP_ID);
     var result = [];
+    var syncedOpenIds = {};
+    var finalSyncOpenIds = {};
     Object.keys(rowsByGroup).filter(function (gid) { return !optionalGroupId || gid === optionalGroupId; }).slice(0, batchLimit).forEach(function (gid) {
       var pRows = rowsByGroup[gid];
       var openId = pRows[0] && pRows[0][H.OPEN_ID] || "";
+      if (openId && !syncedOpenIds[openId]) {
+        senkronizeDurumForOpen_(openId);
+        parasutTaslaklariniHazirlaForOpen_(ss, openId);
+        syncedOpenIds[openId] = true;
+        rowsByGroup = groupBy_(objects_(sheet_(ss, CFG.sheets.parasut)), H.INVOICE_GROUP_ID);
+        pRows = rowsByGroup[gid] || pRows;
+      }
+      if (openId) finalSyncOpenIds[openId] = true;
       var block = pRows.map(function (r) { return r[H.DRAFT_BLOCK]; }).filter(Boolean).join(" | ");
       if (block) {
         result.push({ groupId: gid, status: "Blokaj", message: block });
@@ -2881,6 +2895,7 @@ var TK6 = (function () {
         result.push({ groupId: gid, status: "Hata", message: msg });
       }
     });
+    Object.keys(finalSyncOpenIds).forEach(function (openId) { senkronizeDurumForOpen_(openId); });
     return result;
   }
 
@@ -2889,6 +2904,18 @@ var TK6 = (function () {
     parasutTaslaklariniHazirla_();
     var groups = groupBy_(objects_(sheet_(ss, CFG.sheets.parasut)), H.INVOICE_GROUP_ID);
     var ids = Object.keys(groups).filter(function (gid) { return !optionalGroupId || gid === optionalGroupId; });
+    var synced = {};
+    ids.forEach(function (gid) {
+      var openId = groups[gid] && groups[gid][0] && groups[gid][0][H.OPEN_ID];
+      if (!openId || synced[openId]) return;
+      senkronizeDurumForOpen_(openId);
+      parasutTaslaklariniHazirlaForOpen_(ss, openId);
+      synced[openId] = true;
+    });
+    if (ids.length) {
+      groups = groupBy_(objects_(sheet_(ss, CFG.sheets.parasut)), H.INVOICE_GROUP_ID);
+      ids = Object.keys(groups).filter(function (gid) { return !optionalGroupId || gid === optionalGroupId; });
+    }
     if (!ids.length) {
       kontrolMerkezineTeknikBlokajYaz_(ss, "07_PARASUT_FATURA", optionalGroupId || "GENEL", "Payload üretilecek Paraşüt taslak satırı yok", "Önce ürün, ödeme, fatura grubu ve cari bilgilerini tamamlayın.");
       throw new Error("Payload üretilecek Paraşüt taslak satırı yok. 07_PARASUT_FATURA için ürün/ödeme/fatura/cari bağlantısını kontrol edin.");
@@ -3669,6 +3696,206 @@ var TK6 = (function () {
       }
     });
     sh.getRange(2, 1, values.length, sh.getLastColumn()).setValues(values);
+  }
+
+  function assignSync_(row, key, value) {
+    var next = value == null ? "" : value;
+    if (String(row[key] == null ? "" : row[key]) === String(next)) return false;
+    row[key] = next;
+    return true;
+  }
+
+  function uniqSyncMessages_(rows, fields, skipFn) {
+    var seen = {};
+    var out = [];
+    (rows || []).forEach(function (row) {
+      if (skipFn && skipFn(row)) return;
+      (fields || []).forEach(function (field) {
+        var msg = String(row[field] || "").trim();
+        if (!msg || seen[msg]) return;
+        seen[msg] = true;
+        out.push(msg);
+      });
+    });
+    return out;
+  }
+
+  function statusHas_(value, needle) {
+    return normalizeAscii_(value).indexOf(normalizeAscii_(needle)) !== -1;
+  }
+
+  function invoiceSyncStatus_(groups, parasutRows) {
+    if (!groups.length && !parasutRows.length) return "Hazırlık";
+    var rows = (groups || []).concat(parasutRows || []);
+    var sentCount = groups.filter(function (row) { return !!row[H.PARASUT_INVOICE_ID]; }).length;
+    if (groups.length && sentCount === groups.length) return "Gönderildi";
+    if (sentCount > 0) return "Kısmi Gönderildi";
+    if (rows.some(function (row) { return statusHas_(row[H.INVOICE_STATUS] || row[H.PARASUT_STATUS], "Hata") || !!row[H.ERROR]; })) return "Hata";
+    if (rows.some(function (row) { return statusHas_(row[H.INVOICE_STATUS] || row[H.PARASUT_STATUS], "Blokaj") || !!row[H.WARN] || !!row[H.DRAFT_BLOCK]; })) return "Blokaj";
+    if (rows.some(function (row) { return yes_(row[H.SEND_LOCK]); })) return "Kilitli";
+    if (groups.length && groups.every(function (row) { return row[H.INVOICE_STATUS] === "Hazır"; })) return "Hazır";
+    return "Hazırlık";
+  }
+
+  function cargoSyncStatus_(cargoRows) {
+    if (!cargoRows.length) return "Bekliyor";
+    if (cargoRows.some(function (row) { return !!row[H.WARN]; })) return "Blokaj";
+    if (cargoRows.some(function (row) { return yes_(row[H.CARGO_WAIT]) || statusHas_(row[H.PACKAGE_STATUS], "Beklet") || statusHas_(row[H.NAVLUNGO_STATUS], "Beklet"); })) return "Bekletiliyor";
+    if (cargoRows.every(function (row) { return row[H.NAVLUNGO_POST_NUMBER] && row[H.NAVLUNGO_BARCODE_URL]; })) return "Barkod Alındı";
+    if (cargoRows.some(function (row) { return row[H.NAVLUNGO_POST_NUMBER]; })) return "Gönderi Oluşturuldu";
+    if (cargoRows.some(function (row) { return statusHas_(row[H.NAVLUNGO_STATUS], "Payload"); })) return "Payload Hazır";
+    if (cargoRows.every(function (row) { return row[H.PACKAGE_STATUS] === "Hazır"; })) return "Hazır";
+    return cargoRows[0][H.PACKAGE_STATUS] || "Bekliyor";
+  }
+
+  function ebelgeSyncStatus_(rows) {
+    if (!rows.length) return "Hazırlık";
+    if (rows.some(function (row) { return row[H.OFFICIAL_BLOCK] || statusHas_(row[H.CONTROL_LEVEL], "Blokaj"); })) return "Blokaj";
+    if (rows.every(function (row) { return statusHas_(row[H.SEND_STATUS], "Gönderildi"); })) return "Gönderildi";
+    if (rows.every(function (row) { return statusHas_(row[H.SEND_STATUS], "Hazır"); })) return "Gönderime Hazır";
+    return "Hazırlık";
+  }
+
+  function syncOpenMessages_(payments, groups, parasutRows, cargoRows, ebelgeRows) {
+    var messages = [];
+    messages = messages.concat(uniqSyncMessages_(payments, [H.WARN]));
+    messages = messages.concat(uniqSyncMessages_(groups, [H.WARN]));
+    messages = messages.concat(uniqSyncMessages_(parasutRows, [H.ERROR, H.DRAFT_BLOCK], function (row) {
+      return !!row[H.PARASUT_INVOICE_ID] || yes_(row[H.SEND_LOCK]);
+    }));
+    messages = messages.concat(uniqSyncMessages_(cargoRows, [H.WARN]));
+    messages = messages.concat(uniqSyncMessages_(ebelgeRows, [H.OFFICIAL_BLOCK]));
+    return uniqSyncMessages_(messages.map(function (msg) { return { msg: msg }; }), ["msg"]);
+  }
+
+  function senkronizeDurumForOpen_(openId) {
+    openId = String(openId || "").trim();
+    if (!openId) throw new Error("Açık_Sipariş_ID zorunlu.");
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var groupSheet = sheet_(ss, CFG.sheets.invoiceGroups);
+    var parasutSheet = sheet_(ss, CFG.sheets.parasut);
+    var openSheet = sheet_(ss, CFG.sheets.open);
+    var groupRows = objects_(groupSheet);
+    var parasutRows = objects_(parasutSheet);
+    var payments = objects_(sheet_(ss, CFG.sheets.payments)).filter(function (row) { return row[H.OPEN_ID] === openId; });
+    var cargoRows = objects_(sheet_(ss, CFG.sheets.cargo)).filter(function (row) { return row[H.OPEN_ID] === openId; });
+    var ebelgeRows = objects_(sheet_(ss, CFG.sheets.ebelge)).filter(function (row) { return row[H.OPEN_ID] === openId; });
+    var controlRows = objects_(sheet_(ss, CFG.sheets.control)).filter(function (row) {
+      var sourceId = String(row[H.SOURCE_ID] || "");
+      return sourceId === openId || sourceId.indexOf(openId) !== -1;
+    });
+    var scopedGroups = groupRows.filter(function (row) { return row[H.OPEN_ID] === openId; });
+    var scopedParasut = parasutRows.filter(function (row) { return row[H.OPEN_ID] === openId; });
+    var groupIds = {};
+    scopedGroups.forEach(function (row) { if (row[H.INVOICE_GROUP_ID]) groupIds[row[H.INVOICE_GROUP_ID]] = true; });
+    scopedParasut.forEach(function (row) { if (row[H.INVOICE_GROUP_ID]) groupIds[row[H.INVOICE_GROUP_ID]] = true; });
+    var changedGroups = false;
+    var changedParasut = false;
+
+    Object.keys(groupIds).forEach(function (gid) {
+      var groups = groupRows.filter(function (row) { return row[H.INVOICE_GROUP_ID] === gid; });
+      var pRows = parasutRows.filter(function (row) { return row[H.INVOICE_GROUP_ID] === gid; });
+      var invoiceId = "";
+      groups.concat(pRows).some(function (row) {
+        invoiceId = String(row[H.PARASUT_INVOICE_ID] || "").trim();
+        return !!invoiceId;
+      });
+      var hasLock = !!invoiceId || groups.concat(pRows).some(function (row) { return yes_(row[H.SEND_LOCK]); });
+      var detailsReady = pRows.length && pRows.every(function (row) {
+        return !!row[H.PARASUT_PRODUCT_ID] && num_(row[H.QTY]) > 0 && num_(row[H.UNIT_NET]) > 0;
+      });
+      var groupReady = groups.length && detailsReady && groups.every(function (row) {
+        return !!row[H.PARASUT_CONTACT_ID] && Math.abs(num_(row[H.DIFF])) < 0.01 && num_(row[H.ITEM_SUM]) > 0 && num_(row[H.GROUP_PAYMENT_SUM]) > 0;
+      });
+      var pError = "";
+      pRows.some(function (row) {
+        var candidate = row[H.ERROR] || (statusHas_(row[H.PARASUT_STATUS], "Hata") ? row[H.PARASUT_STATUS] : "");
+        if (candidate && !(groupReady && statusHas_(candidate, "Fatura grubu hazır değil"))) {
+          pError = candidate;
+          return true;
+        }
+        return false;
+      });
+      groups.forEach(function (row) {
+        if (invoiceId) {
+          changedGroups = assignSync_(row, H.PARASUT_INVOICE_ID, invoiceId) || changedGroups;
+          changedGroups = assignSync_(row, H.SEND_LOCK, "Evet") || changedGroups;
+          changedGroups = assignSync_(row, H.INVOICE_STATUS, "Gönderildi") || changedGroups;
+          changedGroups = assignSync_(row, H.WARN, "") || changedGroups;
+        } else if (pError) {
+          changedGroups = assignSync_(row, H.INVOICE_STATUS, "Hata") || changedGroups;
+          changedGroups = assignSync_(row, H.WARN, pError) || changedGroups;
+        } else if (hasLock) {
+          changedGroups = assignSync_(row, H.SEND_LOCK, "Evet") || changedGroups;
+          changedGroups = assignSync_(row, H.INVOICE_STATUS, "Kilitli") || changedGroups;
+        } else if (groupReady) {
+          changedGroups = assignSync_(row, H.INVOICE_STATUS, "Hazır") || changedGroups;
+          changedGroups = assignSync_(row, H.WARN, "") || changedGroups;
+        }
+      });
+      pRows.forEach(function (row) {
+        if (invoiceId) {
+          changedParasut = assignSync_(row, H.PARASUT_INVOICE_ID, invoiceId) || changedParasut;
+          changedParasut = assignSync_(row, H.SEND_LOCK, "Evet") || changedParasut;
+          changedParasut = assignSync_(row, H.PARASUT_STATUS, "Gönderildi") || changedParasut;
+          changedParasut = assignSync_(row, H.CAN_SEND_DRAFT, "Hayır") || changedParasut;
+          changedParasut = assignSync_(row, H.DRAFT_BLOCK, "") || changedParasut;
+          changedParasut = assignSync_(row, H.ERROR, "") || changedParasut;
+        } else if (hasLock) {
+          changedParasut = assignSync_(row, H.SEND_LOCK, "Evet") || changedParasut;
+          changedParasut = assignSync_(row, H.PARASUT_STATUS, "Kilitli") || changedParasut;
+          changedParasut = assignSync_(row, H.CAN_SEND_DRAFT, "Hayır") || changedParasut;
+          changedParasut = assignSync_(row, H.PAYLOAD_CHECK, "Gönderim kilidi var; tekrar gönderim kapalı") || changedParasut;
+          changedParasut = assignSync_(row, H.DRAFT_BLOCK, "") || changedParasut;
+        } else if (pError) {
+          changedParasut = assignSync_(row, H.PARASUT_STATUS, "Hata") || changedParasut;
+          changedParasut = assignSync_(row, H.ERROR, pError) || changedParasut;
+        } else if (groupReady) {
+          changedParasut = assignSync_(row, H.PARASUT_STATUS, "Taslak Hazır") || changedParasut;
+          changedParasut = assignSync_(row, H.CAN_SEND_DRAFT, "Evet") || changedParasut;
+          changedParasut = assignSync_(row, H.DRAFT_BLOCK, "") || changedParasut;
+          changedParasut = assignSync_(row, H.ERROR, "") || changedParasut;
+        }
+      });
+    });
+
+    if (changedGroups) writeObjects_(groupSheet, HEADERS.invoiceGroups, groupRows);
+    if (changedParasut) writeObjects_(parasutSheet, HEADERS.parasut, parasutRows);
+
+    scopedGroups = objects_(groupSheet).filter(function (row) { return row[H.OPEN_ID] === openId; });
+    scopedParasut = objects_(parasutSheet).filter(function (row) { return row[H.OPEN_ID] === openId; });
+    var invoiceStatus = invoiceSyncStatus_(scopedGroups, scopedParasut);
+    var cargoStatus = cargoSyncStatus_(cargoRows);
+    var ebelgeStatus = ebelgeSyncStatus_(ebelgeRows);
+    var messages = syncOpenMessages_(payments, scopedGroups, scopedParasut, cargoRows, ebelgeRows);
+    var hasBlock = messages.length || invoiceStatus === "Hata" || invoiceStatus === "Blokaj" || cargoStatus === "Blokaj" || ebelgeStatus === "Blokaj";
+    var openRows = objects_(openSheet);
+    var changedOpen = false;
+    openRows.forEach(function (row) {
+      if (row[H.OPEN_ID] !== openId) return;
+      changedOpen = assignSync_(row, H.INVOICE_STATUS, invoiceStatus) || changedOpen;
+      changedOpen = assignSync_(row, H.CARGO_STATUS, cargoStatus) || changedOpen;
+      changedOpen = assignSync_(row, H.EBELGE_STATUS, ebelgeStatus) || changedOpen;
+      changedOpen = assignSync_(row, H.CONTROL_LEVEL, hasBlock ? "Blokaj" : "Hazır") || changedOpen;
+      changedOpen = assignSync_(row, H.WARN, messages.join(" | ")) || changedOpen;
+      changedOpen = assignSync_(row, H.BLOCK_REASON, messages.join(" | ")) || changedOpen;
+      changedOpen = assignSync_(row, H.CLOSE_OK, hasBlock ? "Hayır" : (row[H.CLOSE_OK] || "Evet")) || changedOpen;
+    });
+    if (changedOpen) writeObjects_(openSheet, HEADERS.open, openRows);
+    return {
+      ok: true,
+      openId: openId,
+      invoiceStatus: invoiceStatus,
+      cargoStatus: cargoStatus,
+      ebelgeStatus: ebelgeStatus,
+      messageCount: messages.length,
+      controlRowsRead: controlRows.length,
+      changed: {
+        invoiceGroups: changedGroups,
+        parasut: changedParasut,
+        open: changedOpen
+      }
+    };
   }
 
   function kontrolMerkezindeKritikBlokajVar_(ss, moduleName) {
@@ -4961,6 +5188,7 @@ var TK6 = (function () {
   function operationInvoiceForOpen_(ss, openId) {
     autoCariBaglaForOpen_(ss, openId, true);
     parasutTaslaklariniHazirlaForOpen_(ss, openId);
+    senkronizeDurumForOpen_(openId);
     var groups = objects_(sheet_(ss, CFG.sheets.invoiceGroups)).filter(function (row) { return row[H.OPEN_ID] === openId; });
     if (!groups.length) return [{ ok: false, status: "Fatura grubu bulunamadı" }];
     return groups.map(function (group) {
@@ -5025,8 +5253,10 @@ var TK6 = (function () {
 
   function finalizeOperationResult_(ss, openId, result, status) {
     parasutTaslaklariniHazirlaForOpen_(ss, openId);
+    senkronizeDurumForOpen_(openId);
     ebelgeIstisnaHazirlaForOpen_(ss, openId);
     rebuildOpenOrderForOpen_(ss, openId);
+    senkronizeDurumForOpen_(openId);
     kontrolMerkeziniGuncelleForOpen_(ss, openId);
     result.control = panelKontrolOzetiForOpen_(ss, openId);
     result.blocks = result.control.summary || [];
@@ -5823,6 +6053,7 @@ var TK6 = (function () {
     qzBarkodYazdirmaSonucuKaydet: qzBarkodYazdirmaSonucuKaydet_,
     faturaVeKargoOlustur: faturaVeKargoOlustur_,
     ilgiliSiparisSatirlariniBul: ilgiliSiparisSatirlariniBul_,
+    senkronizeDurumForOpen: senkronizeDurumForOpen_,
     batchWriteRows: batchWriteRows_,
     cacheAyarlariniOku: cacheAyarlariniOku_,
     cacheParasutProductMap: cacheParasutProductMap_,
@@ -5934,6 +6165,7 @@ function qzBarkodBilgisi(kargoPaketId) { return TK6.qzBarkodBilgisi(kargoPaketId
 function qzBarkodYazdirmaSonucuKaydet(kargoPaketId, ok, sonuc, hata) { return TK6.qzBarkodYazdirmaSonucuKaydet(kargoPaketId, ok, sonuc, hata); }
 function faturaVeKargoOlustur(openId) { return TK6.faturaVeKargoOlustur(openId); }
 function ilgiliSiparisSatirlariniBul(acikSiparisId) { return TK6.ilgiliSiparisSatirlariniBul(acikSiparisId); }
+function senkronizeDurumForOpen(acikSiparisId) { return TK6.senkronizeDurumForOpen(acikSiparisId); }
 function batchWriteRows(writePlan) { return TK6.batchWriteRows(writePlan); }
 function cacheAyarlariniOku() { return TK6.cacheAyarlariniOku(); }
 function cacheParasutProductMap() { return TK6.cacheParasutProductMap(); }

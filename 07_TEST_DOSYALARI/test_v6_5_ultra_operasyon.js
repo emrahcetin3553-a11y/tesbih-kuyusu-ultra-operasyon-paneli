@@ -315,6 +315,18 @@ assert(sendResult[0].status === "Gönderildi", "Paraşüt yeni satış faturası
 assert(rows(CFG.sheets.parasut)[0][H.PARASUT_INVOICE_ID] === "INV-1", "07_PARASUT_FATURA Paraşüt_Fatura_ID yazmalı");
 const duplicateSend = sandbox.parasutFaturaTaslakGonder(gid);
 assert(salesPostCalls === postsBeforeSend + 1 && duplicateSend[0].status === "Blokaj", "Aynı fatura grubu ikinci kez gönderilmemeli");
+const postsBeforeSyncDrift = salesPostCalls;
+patchRows(CFG.sheets.invoiceGroups, H.INVOICE_GROUP_ID, gid, { [H.PARASUT_INVOICE_ID]: "", [H.SEND_LOCK]: "Hayır", [H.INVOICE_STATUS]: "Hazır", [H.WARN]: "" });
+const syncFromParasut = sandbox.senkronizeDurumForOpen(saved.openId);
+const syncedGroup = rows(CFG.sheets.invoiceGroups).find(r => r[H.INVOICE_GROUP_ID] === gid);
+assert(syncFromParasut.ok === true, "senkronizeDurumForOpen sonuc dönmeli");
+assert(syncedGroup[H.PARASUT_INVOICE_ID] === "INV-1", "07 invoice ID 06 faturaya yansımalı");
+assert(syncedGroup[H.SEND_LOCK] === "Evet", "07 gönderim kilidi 06 faturaya yansımalı");
+assert(syncedGroup[H.INVOICE_STATUS] === "Gönderildi", "07 gönderim sonucu 06 statusune yansımalı");
+const syncedOpen = rows(CFG.sheets.open).find(r => r[H.OPEN_ID] === saved.openId);
+assert(syncedOpen[H.INVOICE_STATUS] === "Gönderildi", "Fatura sonucu 03 üst özete yansımalı");
+const noResendAfterSync = sandbox.parasutFaturaTaslakGonder(gid);
+assert(salesPostCalls === postsBeforeSyncDrift && noResendAfterSync[0].status === "Blokaj", "Senkronizasyon sonrası ikinci fatura POST yapılmamalı");
 props.PARASUT_CANLI_GONDERIM = "Hayır";
 patchRows(CFG.sheets.settings, "Ayar_Kodu", "PARASUT_CANLI_GONDERIM", { "Ayar_Değeri": "Hayır" });
 
@@ -339,6 +351,20 @@ const secondGroups = rows(CFG.sheets.invoiceGroups).filter(r => r[H.OPEN_ID] ===
 assert(secondGroups.length === 2, "İki ödeme yapan iki fatura grubu oluşturmalı");
 assert(secondGroups.some(g => g[H.INVOICE_PERSON] === "Nimet Çetin"), "nimeçetin Nimet Çetin olmalı");
 assert(secondGroups.some(g => g[H.INVOICE_PERSON] === "Yaşar Çetin"), "yaşarçetin Yaşar Çetin olmalı");
+const lockGid = secondGroups[0][H.INVOICE_GROUP_ID];
+patchRows(CFG.sheets.invoiceGroups, H.INVOICE_GROUP_ID, lockGid, { [H.PARASUT_INVOICE_ID]: "INV-LOCK-2", [H.SEND_LOCK]: "Evet", [H.INVOICE_STATUS]: "Gönderildi", [H.WARN]: "" });
+patchRows(CFG.sheets.parasut, H.INVOICE_GROUP_ID, lockGid, { [H.PARASUT_INVOICE_ID]: "", [H.SEND_LOCK]: "Hayır", [H.PARASUT_STATUS]: "Taslak Hazır", [H.CAN_SEND_DRAFT]: "Evet", [H.PAYLOAD_CHECK]: "Payload hazır", [H.DRAFT_BLOCK]: "", [H.ERROR]: "" });
+sandbox.senkronizeDurumForOpen(second.openId);
+const lockedParasutRows = rows(CFG.sheets.parasut).filter(r => r[H.INVOICE_GROUP_ID] === lockGid);
+assert(lockedParasutRows.length && lockedParasutRows.every(r => r[H.PARASUT_INVOICE_ID] === "INV-LOCK-2" && r[H.SEND_LOCK] === "Evet" && r[H.CAN_SEND_DRAFT] === "Hayır"), "06 kilidi 07 satırlarını tekrar gönderime kapatmalı");
+const errorGid = secondGroups[1][H.INVOICE_GROUP_ID];
+patchRows(CFG.sheets.parasut, H.INVOICE_GROUP_ID, errorGid, { [H.PARASUT_STATUS]: "Hata", [H.ERROR]: "Paraşüt test hata", [H.SEND_LOCK]: "Hayır", [H.PARASUT_INVOICE_ID]: "" });
+patchRows(CFG.sheets.invoiceGroups, H.INVOICE_GROUP_ID, errorGid, { [H.INVOICE_STATUS]: "Hazır", [H.WARN]: "" });
+sandbox.senkronizeDurumForOpen(second.openId);
+const errorGroup = rows(CFG.sheets.invoiceGroups).find(r => r[H.INVOICE_GROUP_ID] === errorGid);
+const secondOpenSummary = rows(CFG.sheets.open).find(r => r[H.OPEN_ID] === second.openId);
+assert(errorGroup[H.INVOICE_STATUS] === "Hata", "07 hata 06 fatura grubuna yansımalı");
+assert(secondOpenSummary[H.CONTROL_LEVEL] === "Blokaj", "Paraşüt hata 03 blokaj seviyesine yansımalı");
 
 const queue = ss.getSheetByName(CFG.sheets.queue);
 ss.setActiveRange(queue.getRange(2, 1, 1, queue.getLastColumn()));
@@ -446,6 +472,8 @@ const qzOperation = sandbox.ultraPanelOperasyonCalistir("sadeceKargo", qzOperati
 assert(qzOperation.Navlungo_Barcode_URL, "Operasyon response Navlungo_Barcode_URL döndürmeli");
 assert(qzOperation.qzPrinterName === "RP4xx Series 200DPI TSC", "Operasyon response QZ printer adını döndürmeli");
 assert(qzOperation.autoPrintRequested === true, "Operasyon response barkod sonrası otomatik yazdırma isteği döndürmeli");
+const qzOpenSummary = rows(CFG.sheets.open).find(r => r[H.OPEN_ID] === qzOperation.openId);
+assert(qzOpenSummary[H.CARGO_STATUS] === "Barkod Alındı", "Navlungo post ve barkod 03 kargo özetine yansımalı");
 patchRows(CFG.sheets.settings, "Ayar_Kodu", "NAVLUNGO_DEFAULT_BARCODE_TYPE", { "Ayar_Değeri": "pdf-A6" });
 patchRows(CFG.sheets.cargo, H.CARGO_PACKAGE_ID, cargoPackageId, { [H.NAVLUNGO_POST_NUMBER]: "", [H.NAVLUNGO_BARCODE_URL]: "", [H.NAVLUNGO_TRACKING_URL]: "", [H.NAVLUNGO_CANCELLED_AT]: "", [H.NAVLUNGO_STATUS]: "Payload Hazır" });
 const navCreateOpen = sandbox.navlungoKargoOlusturOnayli(cargoPackageId);
@@ -493,6 +521,7 @@ const operationPayload = {
 const justInvoice = sandbox.ultraPanelOperasyonCalistir("sadeceFatura", JSON.parse(JSON.stringify(operationPayload)));
 assert(justInvoice.openId, "Sadece fatura operasyonu Açık_Sipariş_ID döndürmeli");
 assert(rows(CFG.sheets.cargo).some(r => r[H.OPEN_ID] === justInvoice.openId && r[H.CARGO_WAIT] === "Evet"), "Sadece fatura kargoyu bekletmeli");
+assert(rows(CFG.sheets.open).find(r => r[H.OPEN_ID] === justInvoice.openId)[H.CARGO_STATUS] === "Bekletiliyor", "Kargo bekletme 03 kargo özetinde kritik blokaj olmadan görünmeli");
 const cargoForOperation = rows(CFG.sheets.cargo).find(r => r[H.OPEN_ID] === justInvoice.openId);
 const cargoOutPayload = JSON.parse(JSON.stringify(operationPayload));
 cargoOutPayload.openId = justInvoice.openId;
