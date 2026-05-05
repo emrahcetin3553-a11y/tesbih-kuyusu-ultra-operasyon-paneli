@@ -331,3 +331,20 @@ Codex sohbet çıktısı / çalışma özeti şu dosyaya işlendi: `08_KABUL_RAP
 | Kalan risk | Canli Google Sheets UI readback testi bu turda yapilmadi. |
 
 Codex sohbet çıktısı / çalışma özeti şu dosyaya işlendi: `08_KABUL_RAPORLARI/2026-05-05_aktif_gorevler_uygulama_teyit_raporu.md`
+## Duzeltme Notu 2026-05-05-06 - PR #6 Canli Readback Testi Denemesi
+
+| Alan | Aciklama |
+| --- | --- |
+| Duzeltme ID | 2026-05-05-06 |
+| Neden duzenlendi | PR #6 icindeki son talimat yorumu, tek guvenli Acik_Siparis_ID icin `senkronizeDurumForOpen(\"AS-...\")` canli readback testini istedi. |
+| Ne duzeltildi | Kod degistirilmedi. `AS-20260504-001` icin 03/05/06/07/08/11/12 statu alanlari okundu; Apps Script Execution API uzerinden fonksiyon calistirma denendi ve yetki blokaji raporlandi. |
+| Etkilenen dosyalar | `08_KABUL_RAPORLARI/2026-05-05_status_state_canli_readback_test_raporu.md`, `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md` |
+| Etkilenen fonksiyonlar | Kod degisikligi yok. Calistirilmak istenen fonksiyon: `senkronizeDurumForOpen(acikSiparisId)`. |
+| Apps Script durumu | Yukleme yapilmadi; `clasp run` fonksiyon calistirma denemesi Execution API yetki blokajina takildi. |
+| Sheet durumu | Sadece readback yapildi; manuel statu yazimi, silme veya geri alma yapilmadi. |
+| GitHub durumu | Bu rapor dosyalari GitHub'a islenecek. |
+| Test ve kanit | PR #6 son yorum okundu; `AS-20260504-001` icin 03/05/06/07/08/11/12 readback alindi; `clasp run` sonucu: `Unable to run script function. Please make sure you have permission to run the script function.` |
+| Canli POST | Yapilmadi. |
+| Kalan risk | `senkronizeDurumForOpen(\"AS-20260504-001\")` gercek Apps Script runtime'da calistirilamadi; canli readback testi tamamlandi denemez. |
+
+Codex sohbet çıktısı / çalışma özeti şu dosyaya işlendi: `08_KABUL_RAPORLARI/2026-05-05_status_state_canli_readback_test_raporu.md`
