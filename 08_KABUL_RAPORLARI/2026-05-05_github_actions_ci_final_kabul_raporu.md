@@ -177,9 +177,29 @@ Not: Node harness icindeki `salesPostCalls` ve `navlungoPostCalls` izole test sa
 
 - `17a2f9d` commit'i icin yeni run olusmadi; sebep PR'in workflow dosyasinda `origin/main` ile merge conflict tasimasiydi.
 - Workflow conflict bu turda cozuldu.
-- Bu rapor conflict cozum commit'i ile birlikte push edilecek.
-- Commit/push sonrasi yeni GitHub Actions run beklenecek ve tamamlanan job sonucu PR yorumunda ayrica yazilacak.
-- Bu dosya conflict cozum commit'i oncesinde yazildigi icin yeni run ID henuz olusmamistir.
+- Conflict cozum commit'i: `359cdeb73f1ffea4fa98def94533e8d1bbece9fa`
+- PR readback: `mergeable=true`
+- Yeni GitHub Actions run: `25397117008`
+- Workflow: `Node.js CI`
+- Run number: `19`
+- Run status: `completed`
+- Run conclusion: `success`
+
+Job readback:
+
+| Job | Status | Conclusion |
+| --- | --- | --- |
+| `V6.5 Apps Script test harness` | `completed` | `success` |
+
+Step readback:
+
+- `Checkout`: success
+- `Use Node.js 20.x`: success
+- `Install dependencies`: success
+- `Audit dependencies`: success
+- `Run V6.5 acceptance checks`: success
+
+Bu kanitla PR #6 son yorumdaki CI kabul blokaji kapatildi. Bu rapor guncellemesi ayrica commit/push edilecegi icin son rapor commit'i icin olusacak yeni run PR yorumunda ayrica belirtilecektir.
 
 ## 8. Canli Sistem Etkisi
 
@@ -191,8 +211,7 @@ Not: Node harness icindeki `salesPostCalls` ve `navlungoPostCalls` izole test sa
 
 ## 9. Kalan Risk
 
-- Workflow conflict cozum commit'i push edildikten sonraki GitHub Actions run sonucu beklenmelidir.
-- Yeni run yine olusmazsa GitHub Actions tetikleme/izin kuralinin ayri incelenmesi gerekir.
-- Runner kaynakli yeni cancelled durumu olursa yeni run logu ve job durumu ayrica raporlanmalidir.
+- Rapor guncellemesi icin yapilacak son commit yeni bir Actions run olusturabilir; bu run sonucu PR yorumunda nihai olarak yazilmalidir.
+- Canli Google Sheets UI testi bu CI gorevinin kapsami degildi.
 
 Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/2026-05-05_github_actions_ci_final_kabul_raporu.md`

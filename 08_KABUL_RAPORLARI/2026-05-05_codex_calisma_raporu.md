@@ -839,3 +839,21 @@ Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/202
 - `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md`
 
 Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/2026-05-05_github_actions_ci_final_kabul_raporu.md`
+
+## Duzeltme Notu 2026-05-05-19 - GitHub Actions Success Readback
+
+| Alan | Aciklama |
+| --- | --- |
+| Duzeltme ID | 2026-05-05-19 |
+| Neden duzenlendi | Workflow conflict cozum commit'i push edildikten sonra GitHub Actions run sonucunun rapora islenmesi gerekiyordu. |
+| Ne duzeltildi | GitHub Actions run `25397117008` okundu. PR artik `mergeable=true`. `Node.js CI` run number `19` completed/success durumunda. Tek job `V6.5 Apps Script test harness` completed/success. |
+| Etkilenen dosyalar | `08_KABUL_RAPORLARI/2026-05-05_github_actions_ci_final_kabul_raporu.md`, `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md` |
+| Etkilenen fonksiyonlar | Operasyon core/HTML fonksiyonu degismedi. |
+| Apps Script durumu | Apps Script'e push yapilmadi. |
+| Sheet durumu | Canli Sheet verisi degistirilmedi. |
+| GitHub durumu | Success readback rapora islendi; bu rapor guncellemesi GitHub'a push edilecek. |
+| Test ve kanit | GitHub Actions job steps: Checkout, Use Node.js 20.x, Install dependencies, Audit dependencies, Run V6.5 acceptance checks hepsi success. |
+| Canli POST | Yapilmadi. Canli Apps Script, Sheet, Parasut, Navlungo ve e-belge POST calistirilmadi. |
+| Kalan risk | Bu rapor guncellemesi yeni bir Actions run olusturabilir; son run sonucu PR yorumunda yazilacak. |
+
+Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/2026-05-05_github_actions_ci_final_kabul_raporu.md`
