@@ -113,6 +113,49 @@ Ek kullanici talimati:
 
 Codex sohbet çıktısı / çalışma özeti şu dosyaya işlendi: `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md`
 
+## Düzeltme Notu 2026-05-05-03 - Status / State Senkronizasyon Analizi
+
+| Alan | Açıklama |
+| --- | --- |
+| Düzeltme ID | 2026-05-05-03 |
+| Neden düzenlendi | `00_CODEX_TALIMATLARI/AKTIF_GOREVLER.md` içindeki aktif görev, Sheet/Apps Script/Paraşüt/e-belge/ödeme/kargo statülerinin uyumlu hale getirilmesi için analiz ve güvenli senkronizasyon planı istedi. |
+| Ne düzeltildi | Kod davranışı değiştirilmedi. Statü kolonları, statü yazan fonksiyonlar, mevcut statü akışı, çift fatura kilitleri, Navlungo'ya dokunmadan çözüm planı ve gerekli yeni kolon önerileri raporlandı. |
+| Etkilenen dosyalar | `00_CODEX_TALIMATLARI/AKTIF_GOREVLER.md`, `08_KABUL_RAPORLARI/2026-05-05_status_state_senkronizasyon_analiz_raporu.md`, `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md` |
+| Etkilenen fonksiyonlar | Kod değişikliği yok. Analiz edilen ana fonksiyonlar: `patchLogicalStatusRow_`, `applyOrderLifecycle_`, `orderExternalState_`, `kaydetUltraSiparisHizli_`, `rebuildOpenOrderForOpen_`, `ebelgeIstisnaHazirlaForOpen_`, `kontrolMerkeziniGuncelleForOpen_`, `parasutFaturaTaslakGonder_`, `updateInvoiceGroupSendResult_`, `operationInvoiceForOpen_`, `operationCargoForOpen_`, `setKargoBekletForOpen_`, `finalizeOperationResult_`. |
+| Apps Script durumu | Apps Script'e yükleme yapılmadı. Görev analiz ve plan kapsamındaydı. |
+| Sheet durumu | Canlı Sheet değiştirilmedi. `02_SHEET_SISTEM/TESBIH_KUYUSU_MASTER_SHEET (17).xlsx` snapshot'ı read-only okundu. |
+| GitHub durumu | Bu raporlar ve aktif görev sonucu GitHub'a commit/push edilecek. |
+| Test ve kanıt | `node 07_TEST_DOSYALARI/test_v6_5_ultra_operasyon.js` çalıştı ve `ok: true` döndü. Bu yalnız yerel testtir; canlı UI testi olarak yazılmadı. Workbook başlıkları bundled Python + openpyxl ile okundu. |
+| Kalan risk | 06/07 fatura statü drift riski için henüz kod değişikliği yapılmadı. 05 tahsilat ve 11 resmi e-belge sonuç kolonları eklenmeden tam otomasyon statüsü verilmemeli. 08_KARGO_PAKETLERI kolon sıra farkı sonraki sözleşme kontrolünde netleştirilmeli. |
+
+### Bu İşlemde İncelenen Dosyalar
+
+- `00_CODEX_TALIMATLARI/AKTIF_GOREVLER.md`
+- `00_CODEX_TALIMATLARI/CHATGPT_CODEX_KOORDINASYON_TALIMATI.md`
+- `00_CODEX_TALIMATLARI/CHATGPT_INCELEME_ERISIM_TALIMATI.md`
+- `03_APPS_SCRIPT_KOD/tesbih_kuyusu_v6_5_ultra_operasyon_core.gs`
+- `03_APPS_SCRIPT_KOD/ultraSiparisPaneli.html`
+- `07_TEST_DOSYALARI/test_v6_5_ultra_operasyon.js`
+- `02_SHEET_SISTEM/TESBIH_KUYUSU_MASTER_SHEET (17).xlsx`
+- `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md`
+
+### Bu İşlemde Değiştirilen Dosyalar
+
+- `00_CODEX_TALIMATLARI/AKTIF_GOREVLER.md`
+- `08_KABUL_RAPORLARI/2026-05-05_status_state_senkronizasyon_analiz_raporu.md`
+- `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md`
+
+### Bu İşlemde Çalıştırılan Kontroller
+
+- Aktif branch kontrolü: `v6-5-production-candidate`
+- Git durum kontrolü
+- Core fonksiyon araması
+- Panel callback/durum araması
+- Workbook hedef sayfa başlık okuma
+- Yerel V6.5 test dosyası: `ok: true`
+
+Codex sohbet çıktısı / çalışma özeti şu dosyaya işlendi: `08_KABUL_RAPORLARI/2026-05-05_status_state_senkronizasyon_analiz_raporu.md`
+
 ## Duzeltme Notu 2026-05-05-05 - Aktif Gorevler Dosyasinin Kullanici Yapisi ile Yeniden Duzenlenmesi
 
 | Alan | Aciklama |

@@ -89,3 +89,17 @@ Bu görev 1. adımdır. Bitmeden 2. adıma geçilmeyecek.
 ## 9. CODEX SONUÇ ALANI
 
 Codex bu görevi yaptıktan sonra buraya kısa sonuç özeti eklemeli ve ayrıntılı raporu `08_KABUL_RAPORLARI` klasörüne yazmalıdır.
+
+## 10. CODEX UYGULAMA SONUCU - 2026-05-05
+
+- Durum: TAMAMLANDI - analiz ve güvenli senkronizasyon planı yazıldı.
+- Canlı Apps Script davranışı değiştirildi mi?: Hayır.
+- Apps Script'e dosya yüklendi mi?: Hayır.
+- Canlı Sheet üzerinde veri değiştirildi mi?: Hayır.
+- Kod dosyası değişti mi?: Hayır.
+- Çalıştırılan kontrol: `node 07_TEST_DOSYALARI/test_v6_5_ultra_operasyon.js`
+- Kontrol sonucu: `ok: true`, `salesPostCalls=1`, `contactPostCalls=0`, `navlungoPostCalls=6`.
+- Ayrıntılı rapor: `08_KABUL_RAPORLARI/2026-05-05_status_state_senkronizasyon_analiz_raporu.md`
+- Günlük rapor: `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md`
+
+Kısa sonuç: Status/state senkronizasyonu için mevcut 03/05/06/07/08/11/12 statü kolonları ve bunları yazan fonksiyonlar çıkarıldı. Çift fatura riskini azaltan 06 ve 07 kilitlerinin var olduğu, ancak iki katman arasında statü drift riskinin devam ettiği belirlendi. Sonraki adım olarak API çağırmayan `senkronizeDurumForOpen_(openId)` planlandı; kullanıcı/ChatGPT onayı olmadan canlı akış değiştirilmedi.
