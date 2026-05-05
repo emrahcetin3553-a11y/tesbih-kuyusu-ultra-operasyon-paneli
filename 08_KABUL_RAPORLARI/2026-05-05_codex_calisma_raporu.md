@@ -805,6 +805,40 @@ Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/202
 
 Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/2026-05-05_github_actions_ci_final_kabul_raporu.md`
 
+## Duzeltme Notu 2026-05-06-01 - V6.5 Kaydet Performansi ve Moduler Ayristirma Analizi
+
+| Alan | Aciklama |
+| --- | --- |
+| Duzeltme ID | 2026-05-06-01 |
+| Neden duzenlendi | PR #6 son yorum `4382985654`, Ultra Siparis Paneli `Kaydet` isleminin saha testinde yaklasik 110 saniye surdugunu ve ana core dosyasinin kontrollu modullere ayrilmasi gerektigini bildirdi. Yorum, dosya boyutunun tek basina kok neden sayilmamasini ve once performans profilinin cikarilmasini istedi. |
+| Ne duzeltildi | Kodda buyuk refactor yapilmadi. `kaydetUltraSiparisHizli_`, `hafifErpGuncelle_`, `senkronizeDurumForOpen_`, `kontrolMerkeziniGuncelleForOpen_`, `writeObjects_`, `batchWriteRows_`, cache/ayar/product map yuzeyleri incelendi. Kok neden adaylari ve kontrollu moduler ayrim plani raporlandi. |
+| Etkilenen dosyalar | `08_KABUL_RAPORLARI/2026-05-05_v65_moduler_ayristirma_ve_kaydet_performans_analiz_raporu.md`, `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md` |
+| Etkilenen fonksiyonlar | Kod degismedi. Incelenen fonksiyonlar: `ultraSiparisKaydet_`, `kaydetUltraSiparisHizli_`, `topluUltraSiparisKaydet_`, `hafifErpGuncelle_`, `sistemiYenile_`, `senkronizeDurumForOpen_`, `kontrolMerkeziniGuncelleForOpen_`, `writeObjects_`, `batchWriteRows_`, `settingsMap_`, `setting_`, `cacheAyarlariniOku_`, `cacheParasutProductMap_`, `cacheMusteriHafiza_`. |
+| Apps Script durumu | Apps Script'e push yapilmadi; core/HTML degismedi. |
+| Sheet durumu | Canli Sheet verisi degistirilmedi. |
+| GitHub durumu | Analiz raporu ve bu gunluk notu GitHub'a push edilecek. |
+| Test ve kanit | `npm ci` basarili; `npm audit --audit-level=high` 0 vulnerability; `npm test` basarili. Statik taramada core `6663` satir, `objects_(` 185, `writeObjects_(` 33, `setting_(ss` 55 bulundu. |
+| Canli POST | Yapilmadi. Canli Paraşüt, Navlungo ve e-belge POST calistirilmadi. |
+| Kalan risk | Bu tur canli UI kaydet profil suresi olcmemektedir. 110 saniye kok nedenini kesinlestirmek icin bir sonraki adim davranis degistirmeyen timer/profil commit'i ve canli tek siparis kaydet readback testidir. |
+
+### Bu Islemde Incelenen Dosyalar
+
+- `03_APPS_SCRIPT_KOD/tesbih_kuyusu_v6_5_ultra_operasyon_core.gs`
+- `03_APPS_SCRIPT_KOD/ultraSiparisPaneli.html`
+- `07_TEST_DOSYALARI/test_v6_5_ci_checks.js`
+- `07_TEST_DOSYALARI/test_v6_5_ultra_operasyon.js`
+- `07_TEST_DOSYALARI/test_v6_5_son_sheet_referans_sozlesmesi.js`
+- `package.json`
+- `package-lock.json`
+- PR #6 yorum `4382985654`
+
+### Bu Islemde Degistirilen Dosyalar
+
+- `08_KABUL_RAPORLARI/2026-05-05_v65_moduler_ayristirma_ve_kaydet_performans_analiz_raporu.md`
+- `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md`
+
+Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/2026-05-05_v65_moduler_ayristirma_ve_kaydet_performans_analiz_raporu.md`
+
 ## Duzeltme Notu 2026-05-05-20 - Secili Siparis Duzenleme, Arsiv, Sil, Geri Al
 
 | Alan | Aciklama |
