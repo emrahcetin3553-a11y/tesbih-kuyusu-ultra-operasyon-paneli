@@ -240,3 +240,19 @@ PR #6 son saha notu uygulandı:
 - Panel dialog ölçüsü ve yoğunluğu iyileştirildi.
 
 Bu çalışma canlı UI 5-10 sn kabulünü kanıtlamaz; canlı yeniden test için hazırlar.
+
+## 10. GitHub Commit ve CI Kanıtı
+
+- Uygulama commit'i: `55e207a20f9b361f203f6e4fb018ff1c2069bfcc`
+- Branch: `v6-5-production-candidate`
+- PR: `#6`
+- GitHub Actions run ID: `25405860324`
+- GitHub Actions job: `V6.5 Apps Script test harness`
+- GitHub Actions sonucu: `success`
+
+Son yerel tekrar:
+
+- `npm ci`: geçti, 0 vulnerability
+- `npm audit --audit-level=high`: geçti, 0 vulnerability
+- `npm test`: geçti
+- Son profil sayaçları: `schemaFastPass=1`, `lightSavePath=1`, `objectsRead=10`, `writeObjectsCall=5`, `writeObjectsRows=4`

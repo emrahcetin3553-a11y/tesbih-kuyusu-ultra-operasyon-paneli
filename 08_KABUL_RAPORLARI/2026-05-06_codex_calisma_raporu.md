@@ -123,3 +123,18 @@ Kalan risk:
 - Canlı UI tekrar süre testi bu turda yapılmadı; kullanıcı panelden tekrar Kaydet profilini çalıştırmalıdır.
 
 Codex sohbet çıktısı / çalışma özeti şu dosyaya işlendi: `08_KABUL_RAPORLARI/2026-05-06_kaydet_performans_ikinci_seviye_ve_panel_ui_raporu.md`
+
+## 14. PR #6 İkinci Seviye Görev GitHub Kanıtı
+
+- Uygulama commit'i: `55e207a20f9b361f203f6e4fb018ff1c2069bfcc`
+- Branch: `v6-5-production-candidate`
+- GitHub Actions run ID: `25405860324`
+- GitHub Actions job: `V6.5 Apps Script test harness`
+- GitHub Actions sonucu: `success`
+- Rapor dosyası: `08_KABUL_RAPORLARI/2026-05-06_kaydet_performans_ikinci_seviye_ve_panel_ui_raporu.md`
+
+Son yerel tekrar:
+
+- `npm ci`: geçti, 0 vulnerability
+- `npm audit --audit-level=high`: geçti, 0 vulnerability
+- `npm test`: geçti
