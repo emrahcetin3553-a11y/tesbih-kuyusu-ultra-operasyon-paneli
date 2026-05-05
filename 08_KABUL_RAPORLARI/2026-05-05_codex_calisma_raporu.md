@@ -424,6 +424,35 @@ Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/202
 
 Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/2026-05-05_apps_script_execution_api_izin_raporu.md`
 
+## Duzeltme Notu 2026-05-05-13 - PR #6 Panel Menu/Kisayol Guvenilirlik Analizi
+
+| Alan | Aciklama |
+| --- | --- |
+| Duzeltme ID | 2026-05-05-13 |
+| Neden duzenlendi | PR #6 son yorumu, ust menu kisayollarinin callback eslesmesi, secili satir baglami, parametre ihtiyaci, risk seviyesi ve onay oncesi guvenli duzeltme planinin raporlanmasini istedi. |
+| Ne duzeltildi | Kod degistirilmedi. `onOpen_()` menu haritasi, 37 menu item, public wrapper parametreleri, callback var/yok durumu ve riskli menu noktalarinin duzeltme plani raporlandi. |
+| Etkilenen dosyalar | `08_KABUL_RAPORLARI/2026-05-05_panel_menu_kisayol_guvenilirlik_analiz_raporu.md`, `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md` |
+| Etkilenen fonksiyonlar | Kod degisikligi yok. Incelenen ana fonksiyonlar: `onOpen_`, `selectedOpenIds_`, `openIdFromRelatedRow_`, `openUltraPanelForEdit_`, `getDialogData_`, `ultraPanelPayloadForOpenId_`, `kaydetVeErpGuncelle_`, `operationFromOpenId_`, `performOrderOperation_`, `parasutFaturaTaslakGonderOnayli_`, `parasutTaslakPayloadTestEt_`, `navlungoTopluKargoOlustur_`. |
+| Apps Script durumu | Apps Script push/deploy yapilmadi. Canli proje dosyasi degistirilmedi. |
+| Sheet durumu | Gercek Sheet verisi okunup yazilmadi; yalniz repo kodu statik analiz edildi. |
+| GitHub durumu | Bu rapor dosyalari GitHub'a commit/push edilecek. |
+| Test ve kanit | GitHub connector ile PR #6 son yorum okundu; statik menu cikarma yapildi; 37 menu item icin callback var; missing callback 0; public function 106; duplicate public function 0; core SHA256 `062FA6202CE9856E852F4C80FE2F6957CFC6A6192D7806C2EF2CBBC447374ABE`. |
+| Canli POST | Yapilmadi. Parasut/Navlungo/e-belge fonksiyonlari calistirilmadi. |
+| Kalan risk | Bu rapor onay oncesi analizdir. Menu duzeltmeleri henuz uygulanmadi; ozellikle parametre isteyen Parasut menuleri, full-system fallback yapan `kaydetVeErpGuncelle_` ve canli gate acikken operasyon yapan fatura/kargo menuleri duzeltme bekler. |
+
+### Bu Islemde Incelenen Dosyalar
+
+- `03_APPS_SCRIPT_KOD/tesbih_kuyusu_v6_5_ultra_operasyon_core.gs`
+- `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md`
+- PR #6 son yorum akisi
+
+### Bu Islemde Degistirilen Dosyalar
+
+- `08_KABUL_RAPORLARI/2026-05-05_panel_menu_kisayol_guvenilirlik_analiz_raporu.md`
+- `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md`
+
+Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/2026-05-05_panel_menu_kisayol_guvenilirlik_analiz_raporu.md`
+
 ## Duzeltme Notu 2026-05-05-12 - PR #6 Execution API Final Readback
 
 | Alan | Aciklama |
