@@ -48,6 +48,9 @@ var TK6 = (function () {
     }
   };
 
+  var PERF_CTX = null;
+  var REQUEST_CACHE = null;
+
   var H = {
     Q_ID: "Kuyruk_ID",
     CREATED: "Kayıt_Tarihi",
@@ -1486,6 +1489,7 @@ var TK6 = (function () {
       current[h[header]] = next === undefined ? "" : next;
     });
     sh.getRange(rowNum, 1, 1, Math.max(1, current.length)).setValues([current]);
+    invalidateSheetCache_(sh.getName());
   }
 
   function openIdFromRelatedRow_(ss, sheetName, row) {
@@ -1605,10 +1609,12 @@ var TK6 = (function () {
 
   function kaydetUltraSiparisHizli_(form, options) {
     var started = Date.now();
+    var ownsProfile = performanceProfileStart_("kaydetUltraSiparisHizli_", { openId: form && form.openId });
+    try {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var deferRefresh = !!(options && options.deferRefresh);
-    ensureCoreSheetsReadyForSave_(ss);
-    form = normalizeUltraForm_(form || {}, ss);
+    performanceMeasure_("ensureCoreSheetsReadyForSave_", function () { ensureCoreSheetsReadyForSave_(ss); });
+    form = performanceMeasure_("normalizeUltraForm_", function () { return normalizeUltraForm_(form || {}, ss); });
     if (!form.openId) {
       var recoveredOpenId = recoverOpenIdFromPanelForm_(ss, form);
       if (recoveredOpenId) form.openId = recoveredOpenId;
@@ -1703,20 +1709,19 @@ var TK6 = (function () {
     if (queueObj[H.FAST_PRODUCTS] || queueObj[H.FAST_PAYMENTS] || queueObj[H.FAST_CARGO]) processQueueQuickInputs_(ss, queueRow);
     cargoPackageId = cargoPackageId || cargoPackageIdForOpen_(ss, openId);
     if (deferRefresh) {
-      return { ok: true, openId: openId, cargoPackageId: cargoPackageId, kargoPaketId: cargoPackageId, queueId: qid, elapsedMs: Date.now() - started, status: "Kaydedildi; toplu ERP güncelleme bekliyor", deferred: true, form: form };
+      return finishSaveResult_({ ok: true, openId: openId, cargoPackageId: cargoPackageId, kargoPaketId: cargoPackageId, queueId: qid, elapsedMs: Date.now() - started, status: "Kaydedildi; toplu ERP güncelleme bekliyor", deferred: true, form: form }, ownsProfile);
     }
-    hafifErpGuncelle_(openId);
-    applyInvoicePanelHints_(ss, openId, form || {});
-    autoCariBaglaForOpen_(ss, openId, false);
-    updateMusteriHafizaForOpen_(ss, openId);
-    parasutTaslaklariniHazirlaForOpen_(ss, openId);
-    senkronizeDurumForOpen_(openId);
-    ebelgeIstisnaHazirlaForOpen_(ss, openId);
-    rebuildOpenOrderForOpen_(ss, openId);
-    senkronizeDurumForOpen_(openId);
-    kontrolMerkeziniGuncelleForOpen_(ss, openId);
-    var control = panelKontrolOzetiForOpen_(ss, openId);
-    return {
+    hafifErpGuncelle_(openId, { skipFinalSync: true });
+    performanceMeasure_("applyInvoicePanelHints_", function () { applyInvoicePanelHints_(ss, openId, form || {}); });
+    performanceMeasure_("autoCariBaglaForOpen_", function () { autoCariBaglaForOpen_(ss, openId, false); });
+    performanceMeasure_("updateMusteriHafizaForOpen_", function () { updateMusteriHafizaForOpen_(ss, openId); });
+    performanceMeasure_("parasutTaslaklariniHazirlaForOpen_", function () { parasutTaslaklariniHazirlaForOpen_(ss, openId); });
+    performanceMeasure_("ebelgeIstisnaHazirlaForOpen_", function () { ebelgeIstisnaHazirlaForOpen_(ss, openId); });
+    performanceMeasure_("rebuildOpenOrderForOpen_:post", function () { rebuildOpenOrderForOpen_(ss, openId); });
+    performanceMeasure_("senkronizeDurumForOpen_:final", function () { senkronizeDurumForOpen_(openId); });
+    performanceMeasure_("kontrolMerkeziniGuncelleForOpen_:final", function () { kontrolMerkeziniGuncelleForOpen_(ss, openId); });
+    var control = performanceMeasure_("panelKontrolOzetiForOpen_", function () { return panelKontrolOzetiForOpen_(ss, openId); });
+    return finishSaveResult_({
       ok: control.ok,
       openId: openId,
       cargoPackageId: cargoPackageId,
@@ -1725,11 +1730,17 @@ var TK6 = (function () {
       elapsedMs: Date.now() - started,
       status: control.ok ? "Kaydedildi ve ERP güncellendi; kontrol merkezi temiz" : "Kaydedildi ve ERP güncellendi; kontrol gerekli",
       control: control
-    };
+    }, ownsProfile);
+    } catch (err) {
+      performanceProfileFail_(ownsProfile, err);
+      throw err;
+    }
   }
 
   function topluUltraSiparisKaydet_(payloadList) {
     var started = Date.now();
+    var ownsProfile = performanceProfileStart_("topluUltraSiparisKaydet_", { openId: "BATCH" });
+    try {
     var results = [];
     var saved = [];
     (payloadList || []).forEach(function (payload) {
@@ -1761,7 +1772,11 @@ var TK6 = (function () {
         }
       });
     }
-    return { ok: results.every(function (r) { return r.ok; }), count: results.length, elapsedMs: Date.now() - started, results: results };
+    return finishSaveResult_({ ok: results.every(function (r) { return r.ok; }), count: results.length, elapsedMs: Date.now() - started, results: results, status: "Toplu kaydet tamamlandı" }, ownsProfile);
+    } catch (err) {
+      performanceProfileFail_(ownsProfile, err);
+      throw err;
+    }
   }
 
   function recoverOpenIdFromPanelForm_(ss, form) {
@@ -2307,22 +2322,26 @@ var TK6 = (function () {
     return true;
   }
 
-  function hafifErpGuncelle_(openId) {
-    if (!openId) return false;
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
-    odemeleriKontrolEtForOpen_(ss, openId);
-    urunKalemleriniKontrolEtForOpen_(ss, openId);
-    faturaGruplariniOlusturForOpen_(ss, openId);
-    rebuildOpenOrderForOpen_(ss, openId);
-    kargoPaketleriniOlusturForOpen_(ss, openId);
-    finans808OnizlemeOlusturForOpen_(ss, openId);
-    parasutTaslaklariniHazirlaForOpen_(ss, openId);
-    senkronizeDurumForOpen_(openId);
-    ebelgeIstisnaHazirlaForOpen_(ss, openId);
-    rebuildOpenOrderForOpen_(ss, openId);
-    senkronizeDurumForOpen_(openId);
-    kontrolMerkeziniGuncelleForOpen_(ss, openId);
-    return true;
+  function hafifErpGuncelle_(openId, options) {
+    return performanceMeasure_("hafifErpGuncelle_", function () {
+      if (!openId) return false;
+      var skipFinalSync = !!(options && options.skipFinalSync);
+      var ss = SpreadsheetApp.getActiveSpreadsheet();
+      performanceMeasure_("odemeleriKontrolEtForOpen_", function () { odemeleriKontrolEtForOpen_(ss, openId); });
+      performanceMeasure_("urunKalemleriniKontrolEtForOpen_", function () { urunKalemleriniKontrolEtForOpen_(ss, openId); });
+      performanceMeasure_("faturaGruplariniOlusturForOpen_", function () { faturaGruplariniOlusturForOpen_(ss, openId); });
+      performanceMeasure_("rebuildOpenOrderForOpen_:pre", function () { rebuildOpenOrderForOpen_(ss, openId); });
+      performanceMeasure_("kargoPaketleriniOlusturForOpen_", function () { kargoPaketleriniOlusturForOpen_(ss, openId); });
+      performanceMeasure_("finans808OnizlemeOlusturForOpen_", function () { finans808OnizlemeOlusturForOpen_(ss, openId); });
+      performanceMeasure_("parasutTaslaklariniHazirlaForOpen_", function () { parasutTaslaklariniHazirlaForOpen_(ss, openId); });
+      performanceMeasure_("ebelgeIstisnaHazirlaForOpen_", function () { ebelgeIstisnaHazirlaForOpen_(ss, openId); });
+      performanceMeasure_("rebuildOpenOrderForOpen_:final", function () { rebuildOpenOrderForOpen_(ss, openId); });
+      if (!skipFinalSync) {
+        performanceMeasure_("senkronizeDurumForOpen_:final", function () { senkronizeDurumForOpen_(openId); });
+        performanceMeasure_("kontrolMerkeziniGuncelleForOpen_:final", function () { kontrolMerkeziniGuncelleForOpen_(ss, openId); });
+      }
+      return true;
+    });
   }
 
   function rowsExceptOpen_(rows, openId) {
@@ -2330,6 +2349,16 @@ var TK6 = (function () {
   }
 
   function replaceRowsForOpen_(ss, sheetName, headers, openId, nextRows) {
+    return performanceMeasure_("replaceRowsForOpen_:" + sheetName, function () {
+      var deltaActive = yes_(setting_(ss, "KAYDET_DELTA_UPDATE_AKTIF", "Evet"));
+      if (deltaActive) return replaceRowsForOpenDelta_(ss, sheetName, headers, openId, nextRows);
+      performanceCounter_("fullReplaceCall");
+      performanceNote_("KAYDET_DELTA_UPDATE_AKTIF kapalı: " + sheetName);
+      return replaceRowsForOpenFull_(ss, sheetName, headers, openId, nextRows);
+    });
+  }
+
+  function replaceRowsForOpenFull_(ss, sheetName, headers, openId, nextRows) {
     var sh = sheet_(ss, sheetName);
     var existingRows = objects_(sh);
     var scopedRows = nextRows || [];
@@ -2348,6 +2377,61 @@ var TK6 = (function () {
     if (!inserted) scopedRows.forEach(function (next) { rows.push(next); });
     writeObjects_(sh, headers, rows);
     return true;
+  }
+
+  function replaceRowsForOpenDelta_(ss, sheetName, headers, openId, nextRows) {
+    openId = String(openId || "").trim();
+    if (!openId) {
+      performanceCounter_("deltaFallbackNoOpenId");
+      performanceNote_("Delta yazım için Açık_Sipariş_ID eksik: " + sheetName);
+      return replaceRowsForOpenFull_(ss, sheetName, headers, openId, nextRows);
+    }
+    var sh = ensureSheet_(ss, sheetName, headers);
+    var h = headers_(sh);
+    if (h[H.OPEN_ID] === undefined) {
+      performanceCounter_("deltaFallbackNoOpenHeader");
+      performanceNote_("Delta yazım için Açık_Sipariş_ID başlığı yok: " + sheetName);
+      return replaceRowsForOpenFull_(ss, sheetName, headers, openId, nextRows);
+    }
+    var lastRow = sh.getLastRow();
+    var lastCol = Math.max(1, sh.getLastColumn());
+    var openCol = h[H.OPEN_ID] + 1;
+    var matches = [];
+    if (lastRow >= 2) {
+      var openValues = sh.getRange(2, openCol, lastRow - 1, 1).getValues();
+      openValues.forEach(function (row, index) {
+        if (String(row[0] || "").trim() === openId) matches.push(index + 2);
+      });
+    }
+    var headerRow = sh.getRange(1, 1, 1, lastCol).getValues()[0];
+    var scopedRows = nextRows || [];
+    var updateCount = Math.min(matches.length, scopedRows.length);
+    for (var i = 0; i < updateCount; i++) {
+      sh.getRange(matches[i], 1, 1, lastCol).setValues([objectToSheetRow_(sheetName, headerRow, scopedRows[i])]);
+    }
+    if (scopedRows.length > matches.length) {
+      var rowsToAppend = scopedRows.slice(matches.length).map(function (obj) {
+        return objectToSheetRow_(sheetName, headerRow, obj);
+      });
+      sh.getRange(sh.getLastRow() + 1, 1, rowsToAppend.length, lastCol).setValues(rowsToAppend);
+    }
+    if (matches.length > scopedRows.length) {
+      for (var d = matches.length - 1; d >= scopedRows.length; d--) {
+        if (typeof sh.deleteRows === "function") sh.deleteRows(matches[d], 1);
+        else sh.getRange(matches[d], 1, 1, lastCol).clearContent();
+      }
+    }
+    invalidateSheetCache_(sheetName);
+    performanceCounter_("deltaReplaceCall");
+    performanceCounter_("deltaRowsUpdated", updateCount);
+    performanceCounter_("deltaRowsInserted", Math.max(0, scopedRows.length - matches.length));
+    performanceCounter_("deltaRowsDeleted", Math.max(0, matches.length - scopedRows.length));
+    return true;
+  }
+
+  function objectToSheetRow_(sheetName, headerRow, obj) {
+    obj = normalizeObjectForSheetWrite_(sheetName, obj || {});
+    return (headerRow || []).map(function (name) { return obj[name] !== undefined ? obj[name] : ""; });
   }
 
   function odemeleriKontrolEtForOpen_(ss, openId) {
@@ -2746,6 +2830,7 @@ var TK6 = (function () {
   }
 
   function kontrolMerkeziniGuncelleForOpen_(ss, openId) {
+    return performanceMeasure_("kontrolMerkeziniGuncelleForOpen_", function () {
     var issues = [];
     collectIssues_(issues, CFG.sheets.open, objects_(sheet_(ss, CFG.sheets.open)).filter(function (row) { return row[H.OPEN_ID] === openId; }), H.OPEN_ID, H.BLOCK_REASON, "ERP", "Kritik");
     collectIssues_(issues, CFG.sheets.items, objects_(sheet_(ss, CFG.sheets.items)).filter(function (row) { return row[H.OPEN_ID] === openId; }), H.ITEM_ID, H.WARN, "Ürün", "Yüksek");
@@ -2758,6 +2843,7 @@ var TK6 = (function () {
     var keep = objects_(sh).filter(function (row) { return !controlRowRelatedToOpen_(row, openId); });
     writeObjects_(sh, HEADERS.control, keep.concat(issues));
     return true;
+    });
   }
 
   function acikSiparisleriGrupla_() {
@@ -3794,6 +3880,126 @@ var TK6 = (function () {
     return { ok: true, message: "02 kimlik bağlantılı; 04-05-06-07 toplamlar uyumlu" };
   }
 
+  function performanceProfileStart_(name, meta) {
+    if (PERF_CTX) return false;
+    PERF_CTX = {
+      name: name || "operation",
+      startedMs: Date.now(),
+      openId: String(meta && meta.openId || "").trim(),
+      steps: {},
+      counters: {},
+      notes: []
+    };
+    REQUEST_CACHE = { settings: null, productMap: null, objects: {} };
+    return true;
+  }
+
+  function performanceProfileEnd_(owner) {
+    if (!owner || !PERF_CTX) return null;
+    PERF_CTX.totalMs = Date.now() - PERF_CTX.startedMs;
+    var summary = performanceProfileSummary_(PERF_CTX);
+    try { Logger.log("[KAYDET_PROFILE] " + safeJson_(summary)); } catch (err) {}
+    PERF_CTX = null;
+    REQUEST_CACHE = null;
+    return summary;
+  }
+
+  function performanceProfileFail_(owner, err) {
+    if (!owner || !PERF_CTX) return null;
+    PERF_CTX.error = safeErrorMessage_(err);
+    return performanceProfileEnd_(owner);
+  }
+
+  function performanceMeasure_(label, fn) {
+    if (!PERF_CTX) return fn();
+    var started = Date.now();
+    try {
+      return fn();
+    } finally {
+      performanceAdd_(label, Date.now() - started);
+    }
+  }
+
+  function performanceAdd_(label, ms) {
+    if (!PERF_CTX || !label) return;
+    if (!PERF_CTX.steps[label]) PERF_CTX.steps[label] = { count: 0, ms: 0 };
+    PERF_CTX.steps[label].count++;
+    PERF_CTX.steps[label].ms += ms;
+  }
+
+  function performanceCounter_(name, amount) {
+    if (!PERF_CTX || !name) return;
+    PERF_CTX.counters[name] = (PERF_CTX.counters[name] || 0) + (amount || 1);
+  }
+
+  function performanceNote_(note) {
+    if (PERF_CTX && note && PERF_CTX.notes.length < 20) PERF_CTX.notes.push(String(note));
+  }
+
+  function performanceProfileSummary_(ctx) {
+    var steps = [];
+    Object.keys(ctx.steps || {}).forEach(function (name) {
+      steps.push({ name: name, count: ctx.steps[name].count, ms: ctx.steps[name].ms });
+    });
+    steps.sort(function (a, b) { return b.ms - a.ms; });
+    return {
+      name: ctx.name,
+      openId: ctx.openId,
+      totalMs: ctx.totalMs || 0,
+      topSteps: steps.slice(0, 15),
+      counters: ctx.counters || {},
+      notes: ctx.notes || [],
+      error: ctx.error || ""
+    };
+  }
+
+  function performanceProfileText_(profile) {
+    if (!profile) return "";
+    var top = (profile.topSteps || []).slice(0, 5).map(function (s) {
+      return s.name + "=" + s.ms + "ms/" + s.count;
+    }).join(", ");
+    return "Kaydet profil toplam " + profile.totalMs + " ms" + (top ? " | " + top : "");
+  }
+
+  function finishSaveResult_(result, owner) {
+    var profile = performanceProfileEnd_(owner);
+    if (profile) {
+      result.performanceProfile = profile;
+      result.performanceProfileText = performanceProfileText_(profile);
+    }
+    return result;
+  }
+
+  function cloneObjects_(rows) {
+    return (rows || []).map(function (row) {
+      var out = {};
+      Object.keys(row || {}).forEach(function (key) { out[key] = row[key]; });
+      return out;
+    });
+  }
+
+  function clonePlainObject_(obj) {
+    var out = {};
+    Object.keys(obj || {}).forEach(function (key) { out[key] = obj[key]; });
+    return out;
+  }
+
+  function cachedObjectsForSheet_(sheetName) {
+    if (!REQUEST_CACHE || !REQUEST_CACHE.objects || !sheetName) return null;
+    return REQUEST_CACHE.objects[sheetName] ? cloneObjects_(REQUEST_CACHE.objects[sheetName]) : null;
+  }
+
+  function cacheObjectsForSheet_(sheetName, rows) {
+    if (!REQUEST_CACHE || !REQUEST_CACHE.objects || !sheetName) return;
+    REQUEST_CACHE.objects[sheetName] = cloneObjects_(rows || []);
+  }
+
+  function invalidateSheetCache_(sheetName) {
+    if (!REQUEST_CACHE || !sheetName) return;
+    if (REQUEST_CACHE.objects) delete REQUEST_CACHE.objects[sheetName];
+    if (sheetName === CFG.sheets.settings) REQUEST_CACHE.settings = null;
+  }
+
   function ensureSheet_(ss, name, requiredHeaders) {
     var sh = sheet_(ss, name) || ss.insertSheet(name);
     if (sh.getLastRow() < 1) sh.getRange(1, 1).setValue(requiredHeaders[0]);
@@ -3809,29 +4015,51 @@ var TK6 = (function () {
   }
 
   function objects_(sh) {
-    if (!sh || sh.getLastRow() < 2) return [];
-    var values = sh.getDataRange().getValues();
-    var headers = values.shift();
-    return values.map(function (row) {
-      var obj = {};
-      headers.forEach(function (name, i) { if (name) obj[name] = row[i]; });
-      return obj;
-    }).filter(function (obj) {
-      return Object.keys(obj).some(function (k) { return obj[k] !== "" && obj[k] !== null && obj[k] !== undefined; });
+    return performanceMeasure_("objects_:" + (sh ? sh.getName() : "none"), function () {
+      if (!sh || sh.getLastRow() < 2) return [];
+      var sheetName = sh.getName();
+      var cached = cachedObjectsForSheet_(sheetName);
+      if (cached) {
+        performanceCounter_("objectsCacheHit");
+        return cached;
+      }
+      performanceCounter_("objectsRead");
+      var values = sh.getDataRange().getValues();
+      var headers = values.shift();
+      var out = values.map(function (row) {
+        var obj = {};
+        headers.forEach(function (name, i) { if (name) obj[name] = row[i]; });
+        return obj;
+      }).filter(function (obj) {
+        return Object.keys(obj).some(function (k) { return obj[k] !== "" && obj[k] !== null && obj[k] !== undefined; });
+      });
+      cacheObjectsForSheet_(sheetName, out);
+      return cloneObjects_(out);
     });
   }
 
   function writeObjects_(sh, headers, objects) {
-    ensureSheet_(SpreadsheetApp.getActiveSpreadsheet(), sh.getName(), headers);
-    clearBody_(sh);
-    if (!objects || !objects.length) return;
-    var sheetName = sh.getName();
-    var h = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
-    var rows = objects.map(function (obj) {
-      obj = normalizeObjectForSheetWrite_(sheetName, obj || {});
-      return h.map(function (name) { return obj[name] !== undefined ? obj[name] : ""; });
+    return performanceMeasure_("writeObjects_:" + (sh ? sh.getName() : "none"), function () {
+      ensureSheet_(SpreadsheetApp.getActiveSpreadsheet(), sh.getName(), headers);
+      clearBody_(sh);
+      if (!objects || !objects.length) {
+        cacheObjectsForSheet_(sh.getName(), []);
+        performanceCounter_("writeObjectsCall");
+        return;
+      }
+      var sheetName = sh.getName();
+      var h = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+      var normalized = [];
+      var rows = objects.map(function (obj) {
+        obj = normalizeObjectForSheetWrite_(sheetName, obj || {});
+        normalized.push(obj);
+        return h.map(function (name) { return obj[name] !== undefined ? obj[name] : ""; });
+      });
+      sh.getRange(2, 1, rows.length, h.length).setValues(rows);
+      cacheObjectsForSheet_(sheetName, normalized);
+      performanceCounter_("writeObjectsCall");
+      performanceCounter_("writeObjectsRows", rows.length);
     });
-    sh.getRange(2, 1, rows.length, h.length).setValues(rows);
   }
 
   function clearBody_(sh) {
@@ -3850,13 +4078,21 @@ var TK6 = (function () {
   }
 
   function settingsMap_(ss) {
-    var sh = sheet_(ss, CFG.sheets.settings);
-    var out = {};
-    if (!sh || sh.getLastRow() < 2) return out;
-    var values = sh.getDataRange().getValues();
-    values.shift();
-    values.forEach(function (row) { if (row[0]) out[String(row[0])] = row[1]; });
-    return out;
+    return performanceMeasure_("settingsMap_", function () {
+      if (REQUEST_CACHE && REQUEST_CACHE.settings) {
+        performanceCounter_("settingsCacheHit");
+        return clonePlainObject_(REQUEST_CACHE.settings);
+      }
+      var sh = sheet_(ss, CFG.sheets.settings);
+      var out = {};
+      if (!sh || sh.getLastRow() < 2) return out;
+      performanceCounter_("settingsRead");
+      var values = sh.getDataRange().getValues();
+      values.shift();
+      values.forEach(function (row) { if (row[0]) out[String(row[0])] = row[1]; });
+      if (REQUEST_CACHE) REQUEST_CACHE.settings = clonePlainObject_(out);
+      return out;
+    });
   }
 
   function setting_(ss, key, fallback) {
@@ -3896,6 +4132,7 @@ var TK6 = (function () {
       ["QZ_AUTO_PRINT_AFTER_BARCODE", "Evet", "Barkod URL oluşunca panel otomatik yazdırır", "Hayır", now, ""],
       ["QZ_PRINT_COPIES", "1", "Barkod yazdırma kopya adedi", "Hayır", now, ""],
       ["QZ_PRINT_MODE", "pdf", "QZ barkod yazdırma veri tipi", "Hayır", now, ""],
+      ["KAYDET_DELTA_UPDATE_AKTIF", "Evet", "Kaydet akışı Açık_Sipariş_ID kapsamlı satır yazımı kullanır", "Hayır", now, "Hayır yapılırsa tam gövde yazımı kullanılır"],
       ["SISTEM_OPERASYON_SAATI_KAPANIS", CFG.cutoff, "Operasyon kapanış saati", "Evet", now, ""],
       ["TCKN_VARSAYILAN_GERCEK_KISI", CFG.defaultTckn, "Gerçek kişi TCKN boş ise kullanılır", "Evet", now, ""],
       ["BANKA_HAREKET_MODULU_AKTIF", "Evet", "14_BANKA_HAREKETLERI ödeme teyit yardımcısıdır", "Evet", now, ""],
@@ -3903,7 +4140,10 @@ var TK6 = (function () {
       ["KARGO_UCRETI_STANDART", String(CFG.defaultCargoFee), "808 finans ön izleme için varsayılan kargo maliyeti", "Hayır", now, ""]
     ];
     var rows = required.filter(function (r) { return existing[r[0]] === undefined; });
-    if (rows.length) sh.getRange(sh.getLastRow() + 1, 1, rows.length, 6).setValues(rows);
+    if (rows.length) {
+      sh.getRange(sh.getLastRow() + 1, 1, rows.length, 6).setValues(rows);
+      invalidateSheetCache_(CFG.sheets.settings);
+    }
     normalizeNavlungoSettings_(ss);
   }
 
@@ -3931,16 +4171,29 @@ var TK6 = (function () {
         values[formatRow][h[H.SETTING_VALUE]] = formatMap[typeKey];
       }
     }
-    if (changed) sh.getRange(2, 1, values.length, sh.getLastColumn()).setValues(values);
+    if (changed) {
+      sh.getRange(2, 1, values.length, sh.getLastColumn()).setValues(values);
+      invalidateSheetCache_(CFG.sheets.settings);
+    }
   }
 
   function productIdMap_(ss, required) {
-    var propsRaw = PropertiesService.getScriptProperties().getProperty(CFG.productMapSetting);
-    var raw = propsRaw || setting_(ss, CFG.productMapSetting, "{}") || "{}";
-    var parsed = {};
-    try { parsed = JSON.parse(raw || "{}"); } catch (err) { throw new Error("PARASUT_PRODUCT_ID_MAP_JSON geçerli JSON değil."); }
-    if (required && !Object.keys(parsed).length) throw new Error("PARASUT_PRODUCT_ID_MAP_JSON boş.");
-    return parsed;
+    return performanceMeasure_("productIdMap_", function () {
+      if (REQUEST_CACHE && REQUEST_CACHE.productMap) {
+        performanceCounter_("productMapCacheHit");
+        var cached = clonePlainObject_(REQUEST_CACHE.productMap);
+        if (required && !Object.keys(cached).length) throw new Error("PARASUT_PRODUCT_ID_MAP_JSON boş.");
+        return cached;
+      }
+      performanceCounter_("productMapRead");
+      var propsRaw = PropertiesService.getScriptProperties().getProperty(CFG.productMapSetting);
+      var raw = propsRaw || setting_(ss, CFG.productMapSetting, "{}") || "{}";
+      var parsed = {};
+      try { parsed = JSON.parse(raw || "{}"); } catch (err) { throw new Error("PARASUT_PRODUCT_ID_MAP_JSON geçerli JSON değil."); }
+      if (REQUEST_CACHE) REQUEST_CACHE.productMap = clonePlainObject_(parsed);
+      if (required && !Object.keys(parsed).length) throw new Error("PARASUT_PRODUCT_ID_MAP_JSON boş.");
+      return parsed;
+    });
   }
 
   function contactIdMap_() {
@@ -4151,6 +4404,7 @@ var TK6 = (function () {
       }
     });
     sh.getRange(2, 1, values.length, sh.getLastColumn()).setValues(values);
+    invalidateSheetCache_(sh.getName());
   }
 
   function assignSync_(row, key, value) {
@@ -4224,6 +4478,7 @@ var TK6 = (function () {
   }
 
   function senkronizeDurumForOpen_(openId) {
+    return performanceMeasure_("senkronizeDurumForOpen_", function () {
     openId = String(openId || "").trim();
     if (!openId) throw new Error("Açık_Sipariş_ID zorunlu.");
     var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -4351,6 +4606,7 @@ var TK6 = (function () {
         open: changedOpen
       }
     };
+    });
   }
 
   function kontrolMerkezindeKritikBlokajVar_(ss, moduleName) {
@@ -6098,6 +6354,7 @@ var TK6 = (function () {
     var h = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
     var row = h.map(function (name) { return obj[name] !== undefined ? obj[name] : ""; });
     sh.getRange(sh.getLastRow() + 1, 1, 1, h.length).setValues([row]);
+    invalidateSheetCache_(sh.getName());
   }
 
   function upsertObjectByKey_(sh, headers, keyName, keyValue, obj) {
@@ -6112,6 +6369,7 @@ var TK6 = (function () {
     Object.keys(obj).forEach(function (name) {
       if (h[name] !== undefined) sh.getRange(rowNum, h[name] + 1).setValue(obj[name]);
     });
+    invalidateSheetCache_(sh.getName());
   }
 
   function findRowByKey_(sh, keyName, keyValue) {
@@ -6177,7 +6435,12 @@ var TK6 = (function () {
 
   function val_(row, h, name) { return h[name] !== undefined ? row[h[name]] : ""; }
   function setIf_(row, h, name, value) { if (h[name] !== undefined) row[h[name]] = value === undefined || value === null ? "" : value; }
-  function setCell_(sh, row, h, name, value) { if (h[name] !== undefined) sh.getRange(row, h[name] + 1).setValue(value); }
+  function setCell_(sh, row, h, name, value) {
+    if (h[name] !== undefined) {
+      sh.getRange(row, h[name] + 1).setValue(value);
+      invalidateSheetCache_(sh.getName());
+    }
+  }
 
   function queueRowHasData_(row, h) {
     return !!(val_(row, h, H.PHONE) || val_(row, h, H.OWNER) || val_(row, h, H.RAW) || val_(row, h, H.OPEN_ID));

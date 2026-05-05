@@ -970,9 +970,10 @@
   }
   function summarize(res) {
     if (!res) return "Yanıt alınamadı";
-    if (res.control && res.control.summary) return `${res.status || ""}\nAçık_Sipariş_ID: ${res.openId || res.control.openId || ""}\nSüre: ${res.elapsedMs || ""} ms\n${groupLines(res.control.summary)}`;
-    if (res.blocks && Array.isArray(res.blocks)) return `${res.status || ""}\n${groupLines(res.blocks)}`;
-    if (res.issues) return groupLines(res.issues);
+    const profileLine = res.performanceProfileText ? `\n${res.performanceProfileText}` : "";
+    if (res.control && res.control.summary) return `${res.status || ""}\nAçık_Sipariş_ID: ${res.openId || res.control.openId || ""}\nSüre: ${res.elapsedMs || ""} ms\n${groupLines(res.control.summary)}${profileLine}`;
+    if (res.blocks && Array.isArray(res.blocks)) return `${res.status || ""}\n${groupLines(res.blocks)}${profileLine}`;
+    if (res.issues) return groupLines(res.issues) + profileLine;
     return JSON.stringify(res, null, 2);
   }
   function checkAll() {

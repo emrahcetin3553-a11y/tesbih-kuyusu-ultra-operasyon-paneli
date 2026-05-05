@@ -66,6 +66,11 @@ class MockSheet {
   setFrozenRows() { return this; }
   autoResizeColumns() { return this; }
   autoResizeRows() { return this; }
+  deleteRows(rowPosition, howMany) {
+    const count = howMany || 1;
+    this.data.splice(rowPosition - 1, count);
+    return this;
+  }
 }
 
 class MockSpreadsheet {
@@ -331,6 +336,9 @@ const payload = {
 };
 const saved = sandbox.ultraSiparisKaydet(JSON.parse(JSON.stringify(payload)));
 assert(saved.openId, "Ultra panel kaydı Açık_Sipariş_ID üretmeli");
+assert(saved.performanceProfile && saved.performanceProfile.totalMs >= 0, "Kaydet profil özeti dönmeli");
+assert((saved.performanceProfile.topSteps || []).some(s => s.name.indexOf("hafifErpGuncelle_") !== -1), "Kaydet profili ERP adımını ölçmeli");
+assert(!JSON.stringify(saved.performanceProfile).includes("Mehmet") && !JSON.stringify(saved.performanceProfile).includes("+905"), "Kaydet profili müşteri verisi içermemeli");
 assert(rows(CFG.sheets.queue)[0][H.OWNER] === "Mehmet Nuri Çetin", "Birleşik isim doğru normalize edilmeli");
 assert(rows(CFG.sheets.cargo)[0][H.CARGO_RECEIVER] === "Mehmet Nuri Çetin", "Kargo alıcısı tam ad-soyad akmalı");
 assert(rows(CFG.sheets.payments)[0][H.PAYER] === "Mehmet Nuri Çetin", "Ödeme yapan tam ad-soyad akmalı");
@@ -478,6 +486,7 @@ editPayload.faturalar[0].faturaIlce = "gaziemir";
 editPayload.faturalar[0].faturaAdres = "Guncel teslimat adresi 2";
 const edited = sandbox.ultraSiparisKaydet(editPayload);
 assert(edited.openId === editOpenId, "Edit save must not create a new open order");
+assert(edited.performanceProfile && edited.performanceProfile.counters && edited.performanceProfile.counters.deltaReplaceCall >= 1, "Edit kaydı delta satır yazımı sayacı üretmeli");
 assert((edited.kargoPaketId || edited.cargoPackageId) === editCargoPackageId, "Edit save must keep the existing cargo package id");
 assert(rows(CFG.sheets.queue).length === beforeEditCounts.queue, "Edit save must not append a queue row");
 assert(rows(CFG.sheets.items).filter(r => r[H.OPEN_ID] === editOpenId).length === beforeEditCounts.items, "Edit save must not duplicate item rows");
@@ -694,5 +703,7 @@ console.log(JSON.stringify({
   contactPostCalls,
   tokenRefreshCalls,
   navlungoAuthCalls,
-  navlungoPostCalls
+  navlungoPostCalls,
+  saveProfileTopSteps: saved.performanceProfile.topSteps.slice(0, 5),
+  saveProfileCounters: saved.performanceProfile.counters
 }, null, 2));
