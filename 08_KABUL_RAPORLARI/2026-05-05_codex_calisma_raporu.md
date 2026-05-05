@@ -424,6 +424,37 @@ Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/202
 
 Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/2026-05-05_apps_script_execution_api_izin_raporu.md`
 
+## Duzeltme Notu 2026-05-05-12 - PR #6 Execution API Final Readback
+
+| Alan | Aciklama |
+| --- | --- |
+| Duzeltme ID | 2026-05-05-12 |
+| Neden duzenlendi | PR #6 son yorumu, kod/panel degistirmeden GitHub manifest ile canli Apps Script manifest eslesmesini, `normalizeTelefon` Execution API testini ve tek ID `senkronizeDurumForOpen` final readback testini istedi. |
+| Ne duzeltildi | Kod degistirilmedi. Yeni final readback raporu olusturuldu; manifest SHA eslesmesi, `normalizeTelefon("05321234567")`, `senkronizeDurumForOpen("AS-20260504-001")`, test oncesi/sonrasi 03/05/06/07/08/11/12 statu readback sonucu yazildi. |
+| Etkilenen dosyalar | `08_KABUL_RAPORLARI/2026-05-05_execution_api_final_readback_raporu.md`, `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md` |
+| Etkilenen fonksiyonlar | Kod degisikligi yok. Test edilen fonksiyonlar: `normalizeTelefon`, `senkronizeDurumForOpen`. |
+| Apps Script durumu | `clasp pull --force` ile canli manifest tekrar cekildi; repo manifest SHA ile canli manifest SHA eslesti. Push yapilmadi, cunku manifest zaten eslesiyordu. |
+| Sheet durumu | `AS-20260504-001` icin 03/05/06/07/08/11/12 test oncesi ve sonrasi readback yapildi; beklenmeyen statu degisikligi olmadi. |
+| GitHub durumu | Bu rapor dosyalari GitHub'a commit/push edilecek. |
+| Test ve kanit | `normalizeTelefon` sonucu `+905321234567`; `senkronizeDurumForOpen` sonucu `ok: true`, `changed.invoiceGroups = false`, `changed.parasut = false`, `changed.open = false`; 12_KONTROL_MERKEZI `CTRL-OK / Kapalı / Blokaj_Mı = Hayır`. |
+| Canli POST | Yapilmadi. Parasut/Navlungo/e-belge POST fonksiyonlari calistirilmadi. |
+| Kalan risk | Bu gorev yalniz Execution API final readback goreviydi; panel menu/kisayol guvenilirligi ayri gorev olarak kalir. |
+
+### Bu Islemde Incelenen Dosyalar
+
+- `appsscript.json`
+- `C:\Users\emrah\Desktop\clasp_v65_main_upload\appsscript.json`
+- `08_KABUL_RAPORLARI/2026-05-05_execution_api_final_readback_raporu.md`
+- `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md`
+- Canli Sheet readback araliklari: `03_ACIK_SIPARISLER`, `05_ODEMELER`, `06_FATURA_GRUPLARI`, `07_PARASUT_FATURA`, `08_KARGO_PAKETLERI`, `11_EBELGE_ISTISNA`, `12_KONTROL_MERKEZI`
+
+### Bu Islemde Degistirilen Dosyalar
+
+- `08_KABUL_RAPORLARI/2026-05-05_execution_api_final_readback_raporu.md`
+- `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md`
+
+Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/2026-05-05_execution_api_final_readback_raporu.md`
+
 ## Duzeltme Notu 2026-05-05-10 - Desktop OAuth ile Clasp Run Blokajinin Acilmasi
 
 | Alan | Aciklama |
