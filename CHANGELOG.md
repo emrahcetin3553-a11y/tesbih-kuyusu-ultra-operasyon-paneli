@@ -1,62 +1,28 @@
 # Changelog
 
-## 2026-05-02 23:45 - V6.4.5 panel varsayılan akış düzeltmesi
+## 2026-05-05 15:54 - V6.5 kalici stabilizasyon ve temizlik
 
-- Kargo_Alıcısı alanının Sipariş_Sahibi yazılırken ilk harfte kilitlenmesine neden olan otomatik alan davranışı düzeltildi.
-- Otomatik doldurulan alanlar `auto` olarak izlenir; operatör elle değiştirmediyse tam ad-soyad yazıldıkça güncellenir.
-- Sipariş_Sahibi tam ad-soyad olduğunda Ödeme_Yapan, ödeme/fatura telefonu, adresi, il/ilçesi ve Fatura_Kişisi varsayılan olarak aynı panel içinde akar.
-- Birleşik yaygın ad-soyad girişleri için panel tarafı normalizasyon yardımcısı eklendi: `mehmetnuriçetin`, `nimeçetin`, `bedihaçetin`, `yaşarçetin`, `emrahçetin`.
-- V6.4.5 core ve güncel Ultra panel canlı Apps Script projesine yüklendi; remote core SHA256 lokal ile doğrulandı.
+- Aktif dalin `v6-5-production-candidate` ve PR `#6` oldugu dokumante edildi.
+- Canli Apps Script core SHA ile repo core SHA eslestirildi.
+- `08_KARGO_PAKETLERI` kod baslik sozlesmesi canli Sheet sirasina hizalandi.
+- `13_VERI_SOZLUGU` icine canli 08 kargo bekletme ve barkod yazdirma kolonlari eklendi.
+- `NAVLUNGO_DEFAULT_BARCODE_TYPE` canli ayari `3` degerinden `pdf` degerine cekildi.
+- API yanit saklama riski icin bundan sonraki kayitlarda `barcode_pdf`, telefon, e-posta ve adres alanlari maskelenecek sekilde guvenli metin suzgeci guclendirildi.
+- V6.5 Node test setine 08 baslik sozlesmesi ve Navlungo response PDF saklamama kontrolleri eklendi.
 
-## 2026-05-02 21:34 - V6.4.4 Ultra panel tek merkez düzeltmesi
+## 2026-05-05 - Execution API ve menu guvenli duzeltmeleri
 
-- Ayrı `topluSiparisPaneli.html` aktif akıştan kaldırıldı; çoklu sipariş, Ultra paneldeki `Yeni sipariş ekle` blokları ve backend `topluUltraSiparisKaydet` üzerinden çalışır.
-- Telefon alanı yazım sırasında normalize edilmeyecek şekilde düzeltildi; normalizasyon blur/kayıt öncesinde `+905xxxxxxxxx` formatına kapanır.
-- Kargo bilgileri ödeme ve fatura/cari varsayılanlarını besleyecek şekilde güçlendirildi; operatörün elle dokunduğu alanlar otomatik olarak ezilmez.
-- Fatura/Cari bölümüne `Fatura_Eposta` eklendi ve `06_FATURA_GRUPLARI` Sheet sözleşmesine işlendi.
-- Panel içine görünür `Cari seç / ara` ve `Cari oluştur` akışı eklendi; canlı cari oluşturma kapısı kapalıysa payload üretilir, POST yapılmaz.
-- `Kontrol et` ve `Kaydet ve ERP güncelle` akışı kayıt öncesi telefon/ad-soyad/kargo/ödeme/fatura doğrulamasını sıkılaştırdı; sahte OK vermeyecek şekilde mock kapısı güncellendi.
-- Canlı Apps Script projesine yalnız V6.4.4 core ve aktif HTML dosyaları yüklendi; remote core SHA256 lokal ile doğrulandı.
+- Apps Script Execution API yetkilendirme ve `clasp run` readback raporlari eklendi.
+- `senkronizeDurumForOpen("AS-20260504-001")` readback testi raporlandi.
+- Secili siparis baglami yokken menu kisayollarinin tum sistemi yenileme yoluna dusmemesi icin guvenli durdurma mantigi eklendi.
 
-## 2026-05-02 16:31 - V6.4.3 gerçek panel düzeltmesi
+## 2026-05-04 - V6.5 Parasut, Navlungo ve QZ Tray is akislari
 
-- Ultra Sipariş Paneli tek merkez akışına göre yeniden güçlendirildi.
-- Müşteri telefonu/adı girilince kargo varsayılanları, ödeme yapan girilince fatura/cari bloğu otomatik oluşacak şekilde düzeltildi.
-- TCKN boş gerçek kişi için `11111111111` ve `e-Arşiv` varsayılanı güçlendirildi.
-- Kontrol Et sahte OK vermeyecek şekilde gerçek `12_KONTROL_MERKEZI` sonucuna bağlandı.
-- Kargo açık sipariş hazırlık blokajı ile son gönderim kapanış kontrolü ayrıldı.
-- Canlı Apps Script projesine V6.4.3 core ve güncel panel dosyaları yüklendi.
+- Parasut yeni satis faturasi create payload akisi duzeltildi; eski detail referansi gonderilmemesi test edildi.
+- Navlungo gonderi olusturma, barkod alma, sorgulama ve iptal akislari V6.5 core icinde aktif hale getirildi.
+- QZ Tray barkod yazdirma sonucu 08 kargo paketine yazilacak sekilde panel ve backend baglantisi eklendi.
 
-## 2026-05-02 15:30 - V6.4.2 üretim kabul hazırlığı
+## 2026-05-02 - V6.4.x referans calismalari
 
-- V6.4.2 core ve Sheet aday dosyaları V6.4.1 korunarak ayrı üretildi.
-- Günlük menü 7 ana operatör komutuna indirildi; teknik komutlar `Gelişmiş / Teknik` alt menüsüne alındı.
-- Açık sipariş kargo hazırlığı, kargo bilgileri tam ise gereksiz blokaj üretmeyecek şekilde düzeltildi.
-- Paraşüt taslak ID bekleyen e-belge satırları blokaj yerine hazırlık durumunda bırakıldı; canlı e-belge kapısı kapalı kalıyor.
-- V6.4.2 mock, Sheet builder, syntax, header ve veri sözlüğü kontrolleri için yeni rapor seti eklendi.
-
-## 2026-05-02 12:00 - V6.4.1 GitHub arşiv paketi
-
-- Temiz GitHub klasör yapısı oluşturuldu.
-- Aktif V6.4.1 core, HTML panelleri, Sheet dosyası, test dosyaları ve kabul raporları ayrıştırıldı.
-- Secret içermeyen `.example` ve hazırlık notları eklendi.
-
-## 2026-05-02 11:56 - V6.4.1 kabul raporları
-
-- Sheet gerçek kabul raporu eklendi.
-- Panel gerçek test raporu eklendi.
-- Paraşüt GET hazırlık raporu eklendi.
-- Performans ve toplu sipariş raporları eklendi.
-- Kod kontrol ve canlıya geçiş karar raporu eklendi.
-
-## 2026-05-02 11:40 - V6.4.1 kod düzeltmesi
-
-- Gümüş satırı kontrolünde kapsam dışı değişken hatası düzeltildi.
-- Toplu sipariş kaydında ağır ERP yenileme tek toplu adıma indirildi.
-- Mock ölçümde `salesPostCalls = 0` korundu.
-
-## 2026-05-02 10:52 - V6.4 Ultra Operasyon adayı
-
-- Ultra sipariş paneli, toplu sipariş paneli, cari seçim ve ürün/ödeme/kargo dialogları üretildi.
-- Paraşüt, Navlungo ve banka hareketi hazırlık akışları eklendi.
-- İlk V6.4 mock test ve rapor seti üretildi.
+- V6.4.1 ile V6.4.5 arasindaki uretim adayi denemeleri referans olarak repo icinde korunuyor.
+- Aktif canli kaynak V6.5 core ve V6.5 panel dosyalaridir.

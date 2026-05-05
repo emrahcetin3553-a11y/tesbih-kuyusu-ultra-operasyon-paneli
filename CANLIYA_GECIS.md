@@ -1,86 +1,55 @@
-# Canlıya Geçiş
+# Canliya Gecis
 
-## 1. Apps Script'e Yüklenecek Dosyalar
+## 1. Apps Script'e Yuklenecek Aktif Dosyalar
 
-- `03_APPS_SCRIPT_KOD/tesbih_kuyusu_v6_4_5_ultra_operasyon_core.gs`
+- `appsscript.json`
+- `03_APPS_SCRIPT_KOD/tesbih_kuyusu_v6_5_ultra_operasyon_core.gs`
 - `03_APPS_SCRIPT_KOD/ultraSiparisPaneli.html`
 - `03_APPS_SCRIPT_KOD/cariSecDialog.html`
 - `03_APPS_SCRIPT_KOD/urunEkleDialog.html`
 - `03_APPS_SCRIPT_KOD/odemeEkleDialog.html`
 - `03_APPS_SCRIPT_KOD/kargoBilgisiDialog.html`
 
-Not: Ayrı `topluSiparisPaneli.html` V6.4.5 aktif akışından kaldırıldı. Çoklu sipariş, Ultra panel içindeki `Yeni sipariş ekle` bloklarıyla yapılır.
+`topluSiparisPaneli.html` aktif V6.5 operator akisi icinde kullanilmaz. Coklu siparis Ultra panel icindeki yeni siparis bloklariyla yurur.
 
 ## 2. Script Properties Kontrol Listesi
 
-- `PARASUT_CLIENT_ID`
-- `PARASUT_CLIENT_SECRET`
-- `PARASUT_COMPANY_ID`
-- `PARASUT_ACCESS_TOKEN`
-- `PARASUT_REFRESH_TOKEN`
-- `PARASUT_ACCESS_TOKEN_EXPIRES_AT`
-- `PARASUT_CALLBACK_URL`
-- `PARASUT_PRODUCT_ID_MAP_JSON`
-- `PARASUT_CONTACT_ID_MAP_JSON`
+Secret degerler GitHub'a yazilmaz ve raporlara acik basilmamalidir.
 
-Secret değerler dokümana veya GitHub'a yazılmaz.
+- Parasut: client id, client secret, company id, access token, refresh token, token bitis zamani, callback URL, product/contact map.
+- Navlungo: QA/LIVE kullanici adi, sifre, ortam, access token, token bitis zamani.
+- QZ Tray: yazici adi ve otomatik yazdirma ayarlari Sheet `01_AYARLAR` uzerinden okunur.
 
-## 3. İlk Çalıştırma Sırası
+## 3. Ilk Calistirma Sirasi
 
-1. Sheet'i aç ve yenile.
-2. Menü görünmüyorsa Apps Script'te `onOpen()` çalıştır.
+1. Sheet'i ac ve `TESBIH KUYUSU PANEL` menusunun geldigini kontrol et.
+2. `onOpen()`
 3. `sistemKolonlariniHazirla()`
 4. `otomatikGorunumuDuzenle()`
-5. `v645GercekSheetKabulKontrolu()`
-6. `parasutApiBaglantiTestiTam()`
+5. `parasutApiBaglantiTestiTam()`
+6. `navlungoBaglantiTestiTam()`
+7. Secili siparis uzerinden Ultra panel duzenleme testi.
 
-## 4. Test Siparişi Senaryoları
+## 4. Guvenli Test Sirasi
 
-- Tek müşteri, tek ürün, tek ödeme.
-- Tek müşteri, çok ürün, tek ödeme.
-- Tek açık sipariş içinde iki farklı ödeme yapan kişi.
-- Sipariş sahibi, ödeme yapan ve kargo alıcısı farklı kişi.
-- Gümüş ürün satırı.
-- Eksik ödeme veya eksik kargo ile kontrollü blokaj.
+- Secili siparisi duzenle: 02, 03, 04, 06 ve 08 satirlarindan panel dolu acilmali.
+- Kaydet: mevcut `Açık_Sipariş_ID` ve `Kargo_Paket_ID` korunmali.
+- Sadece fatura: fatura varsa tekrar gonderim engellenmeli.
+- Sadece kargo: fatura tekrar kesilmeden Navlungo akisi calismali.
+- Fatura ve kargo: kontrol merkezi temizse tek akista ilerlemeli.
+- QZ Tray: barkod URL olusursa yazdirma sonucu 08'e yazilmali.
 
-## 5. Paraşüt API Test Sırası
+## 5. Canli Kapi Kurallari
 
-1. Script Properties var/yok kontrolü.
-2. Token refresh.
-3. Company scoped GET.
-4. 6 ürün GET.
-5. Cari aday arama.
-6. Fatura payload dry-run.
-7. Canlı POST kapısı kapalı kontrolü.
+Canli kapilar kullanici operasyon ihtiyacina gore acik olabilir. Codex veya otomasyon rastgele canli POST calistirmaz. Her canli islem secili kayit, temiz kontrol, acik ayar ve kullanici onayi gerektirir.
 
-## 6. Navlungo Test Sırası
+## 6. Geri Donus Plani
 
-1. Kargo paketi satırı oluştu mu kontrol et.
-2. `navlungoKargoTaslakTestEt()` ile payload üret.
-3. `NAVLUNGO_CANLI_GONDERIM = Hayır` iken canlı gönderim yapılmadığını doğrula.
+- Canli kapilari kapat.
+- 06, 07, 08 ve 12 uzerindeki gonderim kilidi, hata ve blokaj alanlarini oku.
+- Canli Parasut veya Navlungo kaydi olustuysa silme yerine ilgili ID ile operasyon notu dus.
+- Gerekirse aktif V6.5 core onceki Git commitinden yeniden Apps Script'e yuklenir.
 
-## 7. Canlı Kapılar
+## 7. Kabul Notu
 
-Varsayılan:
-
-- `PARASUT_CANLI_GONDERIM = Hayır`
-- `EBELGE_CANLI_GONDERIM = Hayır`
-- `NAVLUNGO_CANLI_GONDERIM = Hayır`
-
-Açma işlemi sadece temiz kontrol merkezi, operatör onayı ve tek fatura/kargo denemesi için yapılmalıdır. Test sonrası kapı tekrar `Hayır` yapılmalıdır.
-
-## 8. İlk Canlı Deneme Prosedürü
-
-1. Tek temiz fatura grubu seç.
-2. `12_KONTROL_MERKEZI` temiz olmalı.
-3. Paraşüt cari ID doğrulanmalı.
-4. `PARASUT_CANLI_GONDERIM = Evet` yapılmalı.
-5. Sadece tek grup için `parasutFaturaTaslakGonderOnayli(faturaGrubuId)` çalıştırılmalı.
-6. Sonuç yazıldıktan sonra kapı tekrar `Hayır` yapılmalı.
-
-## 9. Geri Dönüş Planı
-
-- Canlı kapıları `Hayır` yap.
-- Gönderim kilidi ve hata mesajlarını 06/07/08 üzerinde kontrol et.
-- Gerekirse V6.4.1 core dosyasını geri dönüş paketi olarak yeniden yükle.
-- Paraşüt veya Navlungo tarafında oluşan canlı kayıt varsa sistem içi ID ile not düş.
+Gercek UI uzerinden kabul senaryolari calistirilmadan nihai canli kabul tamamlandi denmez. Bu dokuman canliya gecis sirasi ve guvenlik kapilarini tarif eder.

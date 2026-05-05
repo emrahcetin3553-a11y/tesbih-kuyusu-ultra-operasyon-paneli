@@ -1,23 +1,23 @@
 # Proje Durum Raporu
 
-Güncel aday: Tesbih Kuyusu V6.4.5 Ultra Operasyon Paneli
+Guncel aday: Tesbih Kuyusu V6.5 Ultra Operasyon Paneli
 
 | Kontrol | Durum | Not |
 |---|---|---|
-| Sheet hazır mı? | Evet | V6.4.5 Sheet üretildi; `Fatura_Eposta` ve veri sözlüğü uyumu doğrulandı |
-| Apps Script hazır mı? | Koşullu | V6.4.5 core canlı Apps Script projesine yüklendi ve SHA256 doğrulandı |
-| Ultra panel hazır mı? | Koşullu | Tek merkez panel, çoklu blok, cari seç/oluştur ve kayıt öncesi doğrulama eklendi |
-| Ayrı toplu sipariş paneli aktif mi? | Hayır | Ayrı HTML dosyası kaldırıldı; çoklu kayıt Ultra panel içinden yapılır |
-| Paraşüt GET testi hazır mı? | Evet | `parasutApiBaglantiTestiTam()` korunuyor; token/secret loglanmaz |
-| Paraşüt canlı POST kapısı kapalı mı? | Evet | `PARASUT_CANLI_GONDERIM = Hayır` varsayılan kalır |
-| Navlungo canlı POST kapısı kapalı mı? | Evet | `NAVLUNGO_CANLI_GONDERIM = Hayır` varsayılan kalır |
-| e-Belge canlı gönderim kapısı kapalı mı? | Evet | `EBELGE_CANLI_GONDERIM = Hayır` varsayılan kalır |
-| Banka hareketi modülü hazır mı? | Evet | Teyit yardımcısıdır; fatura kaynağı değildir |
-| Veri sözlüğü tam mı? | Evet | 242 kolon satırı, boş sözlük satırı yok, `01_AYARLAR` dahil |
-| Mock test sonucu | Geçti | `V6_4_4_ULTRA_OPERASYON_MOCK_OK`, `salesPostCalls = 0` |
-| Gerçek Apps Script UI testi | Bekliyor | Browser/UI otomasyonu bu ortamda çalışmadı; kullanıcı manuel UI kanıtı vermeden canlı kabul denmez |
-| Genel hazır olma yüzdesi | 92/100 | Kod ve upload tamam; gerçek UI 10 sipariş kanıtı olmadan 95+ canlı kabul verilmez |
+| Aktif branch | `v6-5-production-candidate` | PR #6 uzerinde ilerliyor |
+| `main` guncel mi? | Hayir | Canli aday kodu bu branch uzerindedir |
+| Apps Script core | Eslesiyor | Repo core ve canli pull SHA256 eslesti |
+| Ultra panel | Kosullu hazir | Panel aktif; gercek UI kabul testleri kullanici tarafinda kanitlanmali |
+| Parasut fatura create | Calisir durumda | Yeni sales invoice create payload akisi test setinde geciyor |
+| Parasut canli kapi | Acik olabilir | Canli Sheet degerleri kullanici operasyonuna baglidir; rastgele POST calistirilmaz |
+| Navlungo gonderi | Calisir durumda | Canli gonderi ve barkod akisi mevcut |
+| Navlungo barcode type | Duzeltildi | `NAVLUNGO_DEFAULT_BARCODE_TYPE = pdf` readback alindi |
+| 08 kolon sozlesmesi | Duzeltildi | Kod baslik sirasi canli 08 sirasi ile hizalandi |
+| 13 veri sozlugu | Duzeltildi | Eksik 08 kargo bekletme ve barkod yazdirma kolonlari eklendi |
+| API response saklama riski | Izleniyor | Yeni kayitlarda hassas alan maskeleme guclendirildi; eski hucreler bu turda temizlenmedi |
+| V6.4.x dosyalari | Referans | Aktif Apps Script kaynagi degildir |
+| Gercek UI 10 siparis testi | Yapilmadi | Bu turda canli UI testi calistirilmadi |
 
 ## Son Karar
 
-V6.4.5, kod ve Sheet düzeltmesi yapılmış bir üretim adayıdır. Nihai canlı kabul için `TESBIH_KUYUSU_MASTER_SHEET` üzerinde Ultra panelden gerçek UI ile en az 10 sipariş kaydı ve sayfa readback kanıtı gerekir. Bu kanıt alınmadan “canlı kabul tamamlandı” denmez.
+V6.5 canli operasyon adayi guclendirildi. Bu turda canli Sheet uzerinde ayar ve veri sozlugu duzeltmeleri yapildi, Apps Script core canli projeye yuklendi ve SHA readback alindi. Nihai canli kabul icin gercek UI uzerinden siparis kabul senaryolari ayrica kanitlanmalidir.

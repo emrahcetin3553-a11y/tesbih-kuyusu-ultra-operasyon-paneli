@@ -596,3 +596,47 @@ Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/202
 | Kalan risk | Sorun artik yanlis Google hesabi degil; standart Google Cloud Project `projectId`, Apps Script API enable durumu ve Desktop OAuth client ile yeniden `clasp login` adimi tamamlanmadan `clasp run` calismayacak. |
 
 Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/2026-05-05_apps_script_execution_api_izin_raporu.md`
+## Duzeltme Notu 2026-05-05-13 - PR #6 V6.5 Kalici Stabilizasyon ve Temizlik
+
+| Alan | Aciklama |
+| --- | --- |
+| Duzeltme ID | 2026-05-05-13 |
+| Neden duzenlendi | PR #6 son yorumu V6.5 gercek operasyon paneli icin canli Sheet, Apps Script SHA, 08/13 kolon sozlesmesi, API response riski ve stale dokumanlarin birlikte duzeltilmesini istedi. |
+| Ne duzeltildi | `NAVLUNGO_DEFAULT_BARCODE_TYPE` canli ayari `pdf` yapildi; 13 veri sozlugune eksik 08 kargo/barkod kolonlari eklendi; `HEADERS.cargo` canli 08 sirasi ile hizalandi; API response maskelemesi guclendirildi; README/CHANGELOG/PROJE_DURUM_RAPORU/CANLIYA_GECIS V6.5 durumuna guncellendi. |
+| Etkilenen dosyalar | `03_APPS_SCRIPT_KOD/tesbih_kuyusu_v6_5_ultra_operasyon_core.gs`, `07_TEST_DOSYALARI/test_v6_5_ultra_operasyon.js`, `README.md`, `CHANGELOG.md`, `PROJE_DURUM_RAPORU.md`, `CANLIYA_GECIS.md`, `08_KABUL_RAPORLARI/2026-05-05_v65_kalici_stabilizasyon_ve_temizlik_raporu.md`, `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md` |
+| Etkilenen fonksiyonlar | `sanitizeApiText_`; ayrica `HEADERS.cargo` sabit sozlesmesi. |
+| Apps Script durumu | `clasp push --force` kontrol edildi; `clasp pull --force` sonrasi lokal/canli pull core SHA `02ED97D68B89242A5F972964B005B34D11743E558F1562188426A09BEF6CE6CA` eslesti. |
+| Sheet durumu | `01_AYARLAR!B23` `pdf` readback alindi; `13_VERI_SOZLUGU!A270:F276` 7 yeni 08 satiri readback alindi. |
+| GitHub durumu | Bu degisiklikler GitHub'a commit/push edilecek ve PR #6'ya sonuc yorumu yazilacak. |
+| Test ve kanit | `SYNTAX_OK`; duplicate function yok; aktif core/HTML yasak kelime taramasi temiz; V6.5 Node test seti `ok: true`; 08 header contract testi gecti; 13 readback gecti. |
+| Canli POST | Yapilmadi. Canli Parasut/Navlungo/e-belge POST fonksiyonlari calistirilmadi. |
+| Kalan risk | Gercek UI kabul testi bu turda calistirilmadi; eski response hucreleri toplu temizlenmedi; `main` branch PR #6 merge edilene kadar guncel degil. |
+
+### Bu Islemde Incelenen Dosyalar
+
+- `README.md`
+- `CHANGELOG.md`
+- `PROJE_DURUM_RAPORU.md`
+- `CANLIYA_GECIS.md`
+- `03_APPS_SCRIPT_KOD/tesbih_kuyusu_v6_5_ultra_operasyon_core.gs`
+- `03_APPS_SCRIPT_KOD/ultraSiparisPaneli.html`
+- `07_TEST_DOSYALARI/test_v6_5_ultra_operasyon.js`
+- `08_KABUL_RAPORLARI/2026-05-05_guncel_proje_derin_durum_analiz_raporu.md`
+- `08_KABUL_RAPORLARI/2026-05-05_panel_menu_kisayol_guvenli_duzeltme_raporu.md`
+- `08_KABUL_RAPORLARI/2026-05-05_execution_api_final_readback_raporu.md`
+- `08_KABUL_RAPORLARI/2026-05-05_apps_script_execution_api_izin_raporu.md`
+- `08_KABUL_RAPORLARI/2026-05-05_panel_menu_kisayol_guvenilirlik_analiz_raporu.md`
+- Canli Sheet: `01_AYARLAR`, `07_PARASUT_FATURA`, `08_KARGO_PAKETLERI`, `13_VERI_SOZLUGU`
+
+### Bu Islemde Degistirilen Dosyalar
+
+- `03_APPS_SCRIPT_KOD/tesbih_kuyusu_v6_5_ultra_operasyon_core.gs`
+- `07_TEST_DOSYALARI/test_v6_5_ultra_operasyon.js`
+- `README.md`
+- `CHANGELOG.md`
+- `PROJE_DURUM_RAPORU.md`
+- `CANLIYA_GECIS.md`
+- `08_KABUL_RAPORLARI/2026-05-05_v65_kalici_stabilizasyon_ve_temizlik_raporu.md`
+- `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md`
+
+Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/2026-05-05_v65_kalici_stabilizasyon_ve_temizlik_raporu.md`

@@ -278,9 +278,9 @@ var TK6 = (function () {
       H.PACKAGE_NOTE, H.NAVLUNGO_POST_NUMBER, H.NAVLUNGO_REFERENCE_ID, H.NAVLUNGO_TRACKING_URL,
       H.NAVLUNGO_BARCODE_URL, H.NAVLUNGO_CARRIER_ID, H.NAVLUNGO_CARRIER_NAME, H.NAVLUNGO_STATUS,
       H.NAVLUNGO_LAST_RESPONSE, H.NAVLUNGO_LAST_ERROR, H.NAVLUNGO_CREATED_AT, H.NAVLUNGO_CANCELLED_AT,
-      H.NAVLUNGO_TEST, H.NAVLUNGO_PAYLOAD_HASH, H.BARCODE_PRINTED, H.BARCODE_PRINT_DATE,
-      H.BARCODE_PRINT_RESULT, H.BARCODE_PRINT_ERROR, H.CARGO_WAIT, H.CARGO_WAIT_REASON,
-      H.CARGO_EXIT_DATE, H.WARN
+      H.NAVLUNGO_TEST, H.NAVLUNGO_PAYLOAD_HASH, H.WARN, H.CARGO_WAIT, H.CARGO_WAIT_REASON,
+      H.CARGO_EXIT_DATE, H.BARCODE_PRINTED, H.BARCODE_PRINT_DATE, H.BARCODE_PRINT_RESULT,
+      H.BARCODE_PRINT_ERROR
     ],
     memory: [
       H.PHONE, H.OWNER, "Son_Kargo_Alıcısı", "Son_Kargo_Tel", "Son_İl", "Son_İlçe",
@@ -3648,6 +3648,11 @@ var TK6 = (function () {
       .replace(/"access_token"\s*:\s*"[^"]+"/g, '"access_token":"***"')
       .replace(/"refresh_token"\s*:\s*"[^"]+"/g, '"refresh_token":"***"')
       .replace(/"client_secret"\s*:\s*"[^"]+"/g, '"client_secret":"***"')
+      .replace(/"password"\s*:\s*"[^"]+"/g, '"password":"***"')
+      .replace(/"barcode_pdf"\s*:\s*"[^"]+"/g, '"barcode_pdf":"***"')
+      .replace(/"phone"\s*:\s*"[^"]+"/g, '"phone":"***"')
+      .replace(/"email"\s*:\s*"[^"]+"/g, '"email":"***"')
+      .replace(/"address"\s*:\s*"[^"]+"/g, '"address":"***"')
       .replace(/Bearer\s+[A-Za-z0-9._-]+/g, "Bearer ***")
       .slice(0, 800);
   }

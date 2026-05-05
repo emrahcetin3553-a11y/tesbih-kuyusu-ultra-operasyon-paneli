@@ -201,7 +201,7 @@ const sandbox = {
       if (url.includes("domestic-api") && method === "post" && url.includes("barcode/getBarcode")) {
         navlungoPostCalls++;
         navlungoPayloads.push({ endpoint: "barcode/getBarcode", payload: JSON.parse(options.payload || "{}") });
-        return response(200, { data: { barcode_url: "https://qa.navlungo.test/label/NL-QA-1.pdf" } });
+        return response(200, { data: { barcode_url: "https://qa.navlungo.test/label/NL-QA-1.pdf", barcode_pdf: "JVBERi0xLjQK-sensitive-pdf-bytes" } });
       }
       if (url.includes("domestic-api") && method === "get" && url.includes("post/check/")) {
         return response(200, { data: { status: { status_name: "QA hazır" }, tracking_url: "https://qa.navlungo.test/track/NL-QA-1", barcode: "https://qa.navlungo.test/label/NL-QA-1.pdf" } });
@@ -271,6 +271,18 @@ sandbox.sistemKolonlariniHazirla();
 sandbox.onOpen();
 menuItems.forEach(item => assert(typeof sandbox[item.fn] === "function", "Menü fonksiyonu bağlı değil: " + item.fn));
 assert(!menuItems.some(item => item.label === "Toplu sipariş paneli"), "Ayrı toplu panel menüde kalmamalı");
+const liveCargoHeaderContract = [
+  "Kargo_Paket_ID", "Açık_Sipariş_ID", "Kargo_Alıcısı", "Kargo_Tel", "İl", "İlçe",
+  "Adres", "Kargo_Firması", "Paket_Durumu", "Barkod", "Takip_No", "Geç_Ekleme_Var_Mı",
+  "Paket_Notu", "Navlungo_Post_Number", "Navlungo_Reference_ID", "Navlungo_Tracking_URL",
+  "Navlungo_Barcode_URL", "Navlungo_Carrier_ID", "Navlungo_Carrier_Name", "Navlungo_Status",
+  "Navlungo_Last_Response", "Navlungo_Last_Error", "Navlungo_Created_At", "Navlungo_Cancelled_At",
+  "Navlungo_Test_Mu", "Navlungo_Payload_Hash", "Kontrol_Uyarısı", "Kargo_Bekletilsin_Mi",
+  "Kargo_Bekletme_Nedeni", "Kargo_Cikis_Tarihi", "Barkod_Yazdirildi_Mi", "Barkod_Yazdirma_Tarihi",
+  "Barkod_Yazdirma_Sonucu", "Barkod_Yazdirma_Hata"
+];
+assert(JSON.stringify(HEADERS.cargo) === JSON.stringify(liveCargoHeaderContract), "08_KARGO_PAKETLERI kod başlık sözleşmesi canlı Sheet sırasıyla eşleşmeli");
+assert(JSON.stringify(HEADERS.dictionary) === JSON.stringify(["Sayfa", "Kolon", "Kaynak", "Amaç", "Zorunlu_Mu", "Not"]), "13_VERI_SOZLUGU başlık sözleşmesi korunmalı");
 
 assert(menuItems.some(item => item.fn === "seciliParasutCariAdaylariniGetir"), "Secili Paraşüt cari aday wrapper menude olmali");
 assert(menuItems.some(item => item.fn === "seciliParasutTaslakPayloadTestEt"), "Secili Paraşüt payload wrapper menude olmali");
@@ -503,6 +515,7 @@ const navCreateOpen = sandbox.navlungoKargoOlusturOnayli(cargoPackageId);
 assert(navCreateOpen.ok === true && rows(CFG.sheets.cargo)[0][H.NAVLUNGO_POST_NUMBER] === "NL-QA-1", "Navlungo gönderi oluşturma sonucu Sheet'e yazılmalı");
 const navBarcodeOpen = sandbox.navlungoBarkodAl(cargoPackageId);
 assert(navBarcodeOpen.ok === true && rows(CFG.sheets.cargo)[0][H.NAVLUNGO_BARCODE_URL], "Navlungo barkod URL Sheet'e yazılmalı");
+assert(!String(rows(CFG.sheets.cargo)[0][H.NAVLUNGO_LAST_RESPONSE] || "").includes("JVBER"), "08 Navlungo_Last_Response barkod PDF içeriğini saklamamalı");
 const lastBarcodePayload = navlungoPayloads.filter(x => x.endpoint === "barcode/getBarcode").slice(-1)[0];
 assert(lastBarcodePayload && lastBarcodePayload.payload.barcode_type === "pdf", "Navlungo barkod tipi getBarcode için pdf olarak normalize edilmeli");
 const navCancelOpen = sandbox.navlungoGonderiIptalEt(cargoPackageId);
