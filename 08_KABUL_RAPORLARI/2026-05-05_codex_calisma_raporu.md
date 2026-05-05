@@ -723,3 +723,42 @@ Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/202
 - `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md`
 
 Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/2026-05-05_github_actions_node_ci_duzeltme_raporu.md`
+
+## Duzeltme Notu 2026-05-05-16 - UI Modal Dialog Scope Duzeltmesi
+
+| Alan | Aciklama |
+| --- | --- |
+| Duzeltme ID | 2026-05-05-16 |
+| Neden duzenlendi | PR #6 son yorumu, Sheet UI'da `Ui.showModalDialog` icin `script.container.ui` izin hatasi goruldugunu ve manifest scope'unun duzeltilmesini istedi. |
+| Ne duzeltildi | `appsscript.json` icindeki `oauthScopes` listesine `https://www.googleapis.com/auth/script.container.ui` eklendi. Mevcut `spreadsheets` ve `script.external_request` scope'lari korundu. |
+| Etkilenen dosyalar | `appsscript.json`, `08_KABUL_RAPORLARI/2026-05-05_ui_modal_dialog_scope_duzeltme_raporu.md`, `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md` |
+| Etkilenen fonksiyonlar | Fonksiyon mantigi degismedi. Yalniz Apps Script manifest yetki kapsami guncellendi. |
+| Apps Script durumu | `C:/Users/emrah/Desktop/clasp_v65_main_upload` klasorunden `clasp push --force` ile 7 aktif dosya yuklendi ve `clasp pull --force` ile readback alindi. Manifest SHA256 `EE111E1EA5BE30071E84DCDAE1570F3C1078B3814D463DA97367F71799EA267D`, core SHA256 `3FAF15A4EB51ECC82FBD262F4D6EAAFDBAEC472E50CF099634DA587043FB4642` eslesti. |
+| Sheet durumu | Canli Sheet verisi degistirilmedi. |
+| GitHub durumu | Bu degisiklikler GitHub'a commit/push edilecek ve PR #6'ya sonuc yorumu yazilacak. |
+| Test ve kanit | `npm test` basarili: core syntax, duplicate public function, aktif uretim dosyalarinda yasak ifade, V6.5 Node test seti ve son Sheet referans sozlesme testi OK. |
+| Canli POST | Yapilmadi. Canli Parasut/Navlungo/e-belge POST calistirilmadi. |
+| Kalan risk | Kullanici Google yeni yetki onayini vermeden ve Sheet UI'da panel tekrar acilmeden UI modal testi tam gecti sayilamaz. |
+
+### Bu Islemde Incelenen Dosyalar
+
+- `appsscript.json`
+- `C:/Users/emrah/Desktop/clasp_v65_main_upload/.clasp.json`
+- `C:/Users/emrah/Desktop/clasp_v65_main_upload/appsscript.json`
+- `03_APPS_SCRIPT_KOD/tesbih_kuyusu_v6_5_ultra_operasyon_core.gs`
+- `03_APPS_SCRIPT_KOD/ultraSiparisPaneli.html`
+- `03_APPS_SCRIPT_KOD/cariSecDialog.html`
+- `03_APPS_SCRIPT_KOD/urunEkleDialog.html`
+- `03_APPS_SCRIPT_KOD/odemeEkleDialog.html`
+- `03_APPS_SCRIPT_KOD/kargoBilgisiDialog.html`
+- `07_TEST_DOSYALARI/test_v6_5_ci_checks.js`
+- `07_TEST_DOSYALARI/test_v6_5_ultra_operasyon.js`
+- `07_TEST_DOSYALARI/test_v6_5_son_sheet_referans_sozlesmesi.js`
+
+### Bu Islemde Degistirilen Dosyalar
+
+- `appsscript.json`
+- `08_KABUL_RAPORLARI/2026-05-05_ui_modal_dialog_scope_duzeltme_raporu.md`
+- `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md`
+
+Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/2026-05-05_ui_modal_dialog_scope_duzeltme_raporu.md`
