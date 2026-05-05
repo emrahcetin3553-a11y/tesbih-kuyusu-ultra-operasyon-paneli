@@ -329,16 +329,16 @@ var TK6 = (function () {
       .addItem("Sistemi canlıya hazırla", "sistemiCanliyaHazirla")
       .addItem("Paraşüt ürün kartlarını kontrol et", "parasutUrunKartlariniKontrolEt")
       .addItem("Paraşüt cari hazırlığı yap", "parasutCariHazirla")
-      .addItem("Paraşüt cari adaylarını getir", "parasutCariAdaylariniGetir")
-      .addItem("Paraşüt taslak payload test et", "parasutTaslakPayloadTestEt")
-      .addItem("Paraşüt taslak gönder", "parasutFaturaTaslakGonderOnayli")
+      .addItem("Paraşüt cari adaylarını getir", "seciliParasutCariAdaylariniGetir")
+      .addItem("Paraşüt taslak payload test et", "seciliParasutTaslakPayloadTestEt")
+      .addItem("Paraşüt taslak gönder", "seciliParasutFaturaTaslakGonderOnayli")
       .addItem("e-Belge / istisna hazırlığı yap", "ebelgeIstisnaHazirla")
       .addItem("16:00 sonrası geç ekleme işlemi", "gecEklemeIstisnaIslemi")
       .addItem("Banka hareketlerini içeri al", "bankaHareketleriniIceriAl")
       .addItem("Banka hareketlerini eşleştir", "bankaHareketleriniEsle")
       .addItem("Banka eşleşmelerini kontrol et", "bankaEslesmeKontrolMerkeziniGuncelle")
       .addItem("Navlungo API bağlantı testi", "navlungoBaglantiTestiTam")
-      .addItem("Navlungo toplu kargo oluştur", "navlungoTopluKargoOlustur");
+      .addItem("Navlungo toplu kargo oluştur", "seciliNavlungoTopluKargoOlustur");
     ui.createMenu("TESBİH KUYUSU PANEL")
       .addItem("Ultra sipariş paneli", "ultraSiparisPaneli")
       .addItem("Seçili siparişi düzenle", "seciliSiparisiDuzenle")
@@ -938,6 +938,7 @@ var TK6 = (function () {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var phone = selectedPhone_();
     if (!phone) return userNotice_("Müşteri hafızasından silmek için telefon içeren bir satır seçin.");
+    confirmUi_("Müşteri hafızasından sil", "Telefon: " + normalizePhone_(phone) + "\n\n09_MUSTERI_HAFIZA ve 15_MUSTERI_ADRESLERI kayıtları pasifleştirilecek. Devam edilsin mi?");
     var rows = objects_(sheet_(ss, CFG.sheets.memory));
     var changed = false;
     rows.forEach(function (row) {
@@ -977,46 +978,138 @@ var TK6 = (function () {
   }
 
   function selectedOpenIds_() {
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var sh = ss.getActiveSheet();
-    var range = sh.getActiveRange();
-    if (!range) return [];
-    var ids = [];
-    for (var offset = 0; offset < range.getNumRows(); offset++) {
-      var rowNum = range.getRow() + offset;
-      if (rowNum < 2) continue;
-      var row = rowObjectFromSheetRow_(sh, rowNum);
-      var openId = row[H.OPEN_ID] || openIdFromRelatedRow_(ss, sh.getName(), row);
-      if (openId) ids.push(openId);
-    }
-    return uniqueArray_(ids);
+    return uniqueArray_(selectedContexts_({ quiet: true }).map(function (ctx) { return ctx.openId; }).filter(Boolean));
   }
 
   function selectedPhone_() {
-    var sh = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-    var range = sh.getActiveRange();
-    if (!range || range.getRow() < 2) return "";
-    var row = rowObjectFromSheetRow_(sh, range.getRow());
+    var ctx = selectedContext_({ quiet: true });
+    if (!ctx) return "";
+    var row = ctx.row || {};
     return normalizePhone_(row[H.PHONE] || row[H.CARGO_TEL] || row[H.INVOICE_TEL] || row[H.PAYER_TEL] || "");
   }
 
   function logicalPatchSelected_(mode) {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var contexts;
+    try { contexts = selectedContexts_(); }
+    catch (err) { return userNotice_(safeErrorMessage_(err)); }
+    var ids = contexts.map(function (ctx) { return ctx.openId; }).filter(Boolean);
+    ids = uniqueArray_(ids);
+    if (!ids.length) return userNotice_("Seçili satırdan Açık_Sipariş_ID bulunamadı.");
+    confirmSelectedLifecycle_(mode, ids, contexts);
+    var results = ids.map(function (openId) { return applyOrderLifecycle_(ss, openId, mode); });
+    return { ok: results.every(function (r) { return r.ok !== false; }), mode: mode, openIds: ids, results: results };
+  }
+
+  function selectedContextSheets_() {
+    return [CFG.sheets.queue, CFG.sheets.open, CFG.sheets.items, CFG.sheets.payments, CFG.sheets.invoiceGroups, CFG.sheets.parasut, CFG.sheets.cargo, CFG.sheets.memory, CFG.sheets.addressMemory];
+  }
+
+  function selectedOrderContextSheets_() {
+    return [CFG.sheets.queue, CFG.sheets.open, CFG.sheets.items, CFG.sheets.payments, CFG.sheets.invoiceGroups, CFG.sheets.parasut, CFG.sheets.cargo];
+  }
+
+  function selectedContext_(options) {
+    var list = selectedContexts_(options);
+    return list.length ? list[0] : null;
+  }
+
+  function selectedContexts_(options) {
+    options = options || {};
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
     var sh = ss.getActiveSheet();
-    var range = sh.getActiveRange();
-    if (!range) return userNotice_("Lütfen işlem yapılacak siparişi seçin.");
-    var ids = [];
+    var range = sh && sh.getActiveRange ? sh.getActiveRange() : (ss.getActiveRange ? ss.getActiveRange() : null);
+    if (!sh || !range) {
+      if (options.quiet) return [];
+      throw new Error("Lütfen işlem yapılacak satırı seçin.");
+    }
+    var sheetName = sh.getName();
+    var allowed = options.allowedSheets || selectedContextSheets_();
+    if (allowed.indexOf(sheetName) === -1) {
+      if (options.quiet) return [];
+      throw new Error("Bu menü işlemi seçili sayfada çalışmaz: " + sheetName);
+    }
+    var out = [];
     for (var offset = 0; offset < range.getNumRows(); offset++) {
       var rowNum = range.getRow() + offset;
       if (rowNum < 2) continue;
       var row = rowObjectFromSheetRow_(sh, rowNum);
-      var openId = row[H.OPEN_ID] || openIdFromRelatedRow_(ss, sh.getName(), row);
-      if (openId) ids.push(openId);
+      var openId = String(row[H.OPEN_ID] || openIdFromRelatedRow_(ss, sheetName, row) || "").trim();
+      out.push({
+        ss: ss,
+        sheetName: sheetName,
+        rowNum: rowNum,
+        row: row,
+        openId: openId,
+        queueId: String(row[H.Q_ID] || "").trim(),
+        invoiceGroupId: String(row[H.INVOICE_GROUP_ID] || "").trim(),
+        cargoPackageId: String(row[H.CARGO_PACKAGE_ID] || "").trim(),
+        phone: normalizePhone_(row[H.PHONE] || row[H.CARGO_TEL] || row[H.INVOICE_TEL] || row[H.PAYER_TEL] || "")
+      });
     }
-    ids = uniqueArray_(ids);
-    if (!ids.length) return userNotice_("Seçili satırdan Açık_Sipariş_ID bulunamadı.");
-    var results = ids.map(function (openId) { return applyOrderLifecycle_(ss, openId, mode); });
-    return { ok: results.every(function (r) { return r.ok !== false; }), mode: mode, openIds: ids, results: results };
+    if (!out.length && !options.quiet) throw new Error("Lütfen veri satırı seçin.");
+    return out;
+  }
+
+  function selectedInvoiceGroupId_(ctx) {
+    ctx = ctx || selectedContext_({ allowedSheets: [CFG.sheets.invoiceGroups, CFG.sheets.parasut, CFG.sheets.open, CFG.sheets.queue, CFG.sheets.items, CFG.sheets.payments] });
+    if (!ctx) throw new Error("Fatura grubu için satır seçin.");
+    if (ctx.invoiceGroupId) return ctx.invoiceGroupId;
+    if (!ctx.openId) throw new Error("Seçili satırdan Açık_Sipariş_ID veya Fatura_Grubu_ID alınamadı.");
+    var groups = objects_(sheet_(ctx.ss, CFG.sheets.invoiceGroups)).filter(function (row) { return row[H.OPEN_ID] === ctx.openId; });
+    if (groups.length === 1 && groups[0][H.INVOICE_GROUP_ID]) return groups[0][H.INVOICE_GROUP_ID];
+    if (groups.length > 1) throw new Error("Bu siparişte birden fazla fatura grubu var; lütfen 06_FATURA_GRUPLARI veya 07_PARASUT_FATURA satırını seçin.");
+    throw new Error("Seçili sipariş için fatura grubu bulunamadı.");
+  }
+
+  function selectedCargoPackageIds_() {
+    var contexts = selectedContexts_({ allowedSheets: [CFG.sheets.cargo] });
+    var ids = contexts.map(function (ctx) { return ctx.cargoPackageId; }).filter(Boolean);
+    if (!ids.length) throw new Error("Navlungo işlemi için 08_KARGO_PAKETLERI üzerinde Kargo_Paket_ID içeren satır seçin.");
+    return uniqueArray_(ids);
+  }
+
+  function contextSummary_(ctx) {
+    if (!ctx) return "";
+    var parts = [ctx.sheetName + " satır " + ctx.rowNum];
+    if (ctx.openId) parts.push("Açık_Sipariş_ID=" + ctx.openId);
+    if (ctx.invoiceGroupId) parts.push("Fatura_Grubu_ID=" + ctx.invoiceGroupId);
+    if (ctx.cargoPackageId) parts.push("Kargo_Paket_ID=" + ctx.cargoPackageId);
+    return parts.join("\n");
+  }
+
+  function liveGateSummary_(ss) {
+    return [
+      "PARASUT_CANLI_GONDERIM=" + setting_(ss, CFG.liveParasutSendSetting, "Hayır"),
+      "PARASUT_CARI_CANLI_OLUSTURMA=" + setting_(ss, "PARASUT_CARI_CANLI_OLUSTURMA", "Hayır"),
+      "EBELGE_CANLI_GONDERIM=" + setting_(ss, CFG.liveEbelgeSendSetting, "Hayır"),
+      "NAVLUNGO_CANLI_GONDERIM=" + setting_(ss, CFG.liveNavlungoSendSetting, "Hayır")
+    ].join("\n");
+  }
+
+  function confirmUi_(title, message) {
+    var ui;
+    try { ui = SpreadsheetApp.getUi(); } catch (err) { throw new Error("Bu işlem menü onayı gerektirir; Apps Script düzenleyicisinden doğrudan çalıştırmayın."); }
+    if (!ui || !ui.alert || !ui.ButtonSet || !ui.Button) throw new Error("Bu işlem menü onayı gerektirir.");
+    var response = ui.alert(title, message, ui.ButtonSet.YES_NO);
+    if (response !== ui.Button.YES) throw new Error("İşlem operatör onayıyla iptal edildi.");
+  }
+
+  function confirmSelectedOperation_(action, ctx) {
+    var labels = {
+      faturaKargo: "Fatura ve kargo oluştur",
+      sadeceFatura: "Sadece fatura oluştur",
+      sadeceKargo: "Sadece kargo hazırla",
+      bekleyenKargo: "Bekleyen kargoyu çıkar",
+      kargoBeklet: "Kargo beklet"
+    };
+    confirmUi_(labels[action] || "Operasyon", "Seçili kayıt:\n" + contextSummary_(ctx) + "\n\nCanlı kapılar:\n" + liveGateSummary_(ctx.ss) + "\n\nDevam edilsin mi?");
+  }
+
+  function confirmSelectedLifecycle_(mode, ids, contexts) {
+    var labels = { cancel: "Sil / iptal", restore: "Geri al", archive: "Arşivle" };
+    var summary = (contexts || []).map(contextSummary_).join("\n\n");
+    confirmUi_(labels[mode] || "Kayıt işlemi", "Etkilenecek siparişler: " + ids.join(", ") + "\n\nSeçili kayıt özeti:\n" + summary + "\n\nDevam edilsin mi?");
   }
 
   function patchLogicalStatusRow_(sh, rowNum, mode) {
@@ -1193,14 +1286,11 @@ var TK6 = (function () {
   }
 
   function kaydetVeErpGuncelle_() {
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var sh = ss.getActiveSheet();
-    var h = headers_(sh);
-    var row = sh.getActiveRange() ? sh.getActiveRange().getRow() : 0;
-    var openId = row >= 2 && h[H.OPEN_ID] !== undefined ? sh.getRange(row, h[H.OPEN_ID] + 1).getValue() : "";
-    if (openId) return { ok: true, openId: openId, refreshed: hafifErpGuncelle_(openId) };
-    sistemiYenile_();
-    return { ok: true, openId: "", refreshed: true };
+    var ctx;
+    try { ctx = selectedContext_({ allowedSheets: selectedOrderContextSheets_() }); }
+    catch (err) { return userNotice_(safeErrorMessage_(err)); }
+    if (!ctx.openId) return userNotice_("Açık_Sipariş_ID bulunamadı. Kaydet ve ERP güncelle için siparişle ilişkili bir satır seçin.");
+    return { ok: true, openId: ctx.openId, refreshed: hafifErpGuncelle_(ctx.openId), selected: contextSummary_(ctx) };
   }
 
   function ultraSiparisKaydet_(form) {
@@ -3063,6 +3153,30 @@ var TK6 = (function () {
     return { ok: true, candidates: cariAdaylariniTopla_(criteria, true) };
   }
 
+  function seciliParasutCariAdaylariniGetir_() {
+    var ctx = selectedContext_({ allowedSheets: [CFG.sheets.invoiceGroups, CFG.sheets.parasut, CFG.sheets.open, CFG.sheets.queue, CFG.sheets.items, CFG.sheets.payments] });
+    var groupId = selectedInvoiceGroupId_(ctx);
+    var group = findObjectByKeyText_(sheet_(ctx.ss, CFG.sheets.invoiceGroups), H.INVOICE_GROUP_ID, groupId);
+    if (!group) throw new Error("Seçili kayıt için fatura grubu bulunamadı: " + groupId);
+    var result = parasutCariAdaylariniGetir_(cariCriteriaFromGroup_(group));
+    result.groupId = groupId;
+    result.openId = group[H.OPEN_ID] || ctx.openId || "";
+    return result;
+  }
+
+  function seciliParasutTaslakPayloadTestEt_() {
+    var ctx = selectedContext_({ allowedSheets: [CFG.sheets.invoiceGroups, CFG.sheets.parasut, CFG.sheets.open, CFG.sheets.queue, CFG.sheets.items, CFG.sheets.payments] });
+    var groupId = selectedInvoiceGroupId_(ctx);
+    return parasutTaslakPayloadTestEt_(groupId);
+  }
+
+  function seciliParasutFaturaTaslakGonderOnayli_() {
+    var ctx = selectedContext_({ allowedSheets: [CFG.sheets.invoiceGroups, CFG.sheets.parasut, CFG.sheets.open, CFG.sheets.queue, CFG.sheets.items, CFG.sheets.payments] });
+    var groupId = selectedInvoiceGroupId_(ctx);
+    confirmUi_("Paraşüt taslak gönder", "Seçili kayıt:\n" + contextSummary_(ctx) + "\nFatura_Grubu_ID=" + groupId + "\n\nCanlı kapılar:\n" + liveGateSummary_(ctx.ss) + "\n\nDevam edilsin mi?");
+    return parasutFaturaTaslakGonderOnayli_(groupId);
+  }
+
   function parasutCariOlusturVeyaBagla_(faturaGrubuId, secim) {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var rows = objects_(sheet_(ss, CFG.sheets.invoiceGroups));
@@ -4558,6 +4672,13 @@ var TK6 = (function () {
     return { ok: results.every(function (r) { return r.ok !== false; }), count: results.length, results: results };
   }
 
+  function seciliNavlungoTopluKargoOlustur_() {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var ids = selectedCargoPackageIds_();
+    confirmUi_("Navlungo toplu kargo oluştur", "Seçili Kargo_Paket_ID değerleri:\n" + ids.join("\n") + "\n\nCanlı kapılar:\n" + liveGateSummary_(ss) + "\n\nDevam edilsin mi?");
+    return navlungoTopluKargoOlustur_(ids);
+  }
+
   function navlungoTopluBarkodAl_(seciliPaketler) {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var rows = navlungoSelectedCargoRows_(ss, seciliPaketler).filter(function (row) { return row[H.NAVLUNGO_POST_NUMBER]; });
@@ -5111,8 +5232,12 @@ var TK6 = (function () {
 
   function operationFromOpenId_(action, openId) {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var id = String(openId || "").trim() || (selectedOpenIds_()[0] || "");
+    var ctx = null;
+    if (!openId) ctx = selectedContext_({ allowedSheets: selectedOrderContextSheets_() });
+    var id = String(openId || (ctx && ctx.openId) || "").trim();
     if (!id) throw new Error("İşlem için Açık_Sipariş_ID bulunamadı. Lütfen sipariş satırını seçin.");
+    if (!ctx) ctx = { ss: ss, sheetName: "Parametre", rowNum: 0, row: {}, openId: id, invoiceGroupId: "", cargoPackageId: "", phone: "" };
+    confirmSelectedOperation_(action, ctx);
     hafifErpGuncelle_(id);
     return performOrderOperation_(ss, action, id, {}, { ok: true, openId: id });
   }
@@ -5974,6 +6099,9 @@ var TK6 = (function () {
     parasutUrunGetir: parasutUrunGetir_,
     parasutCariHazirla: parasutCariHazirla_,
     parasutCariAdaylariniGetir: parasutCariAdaylariniGetir_,
+    seciliParasutCariAdaylariniGetir: seciliParasutCariAdaylariniGetir_,
+    seciliParasutTaslakPayloadTestEt: seciliParasutTaslakPayloadTestEt_,
+    seciliParasutFaturaTaslakGonderOnayli: seciliParasutFaturaTaslakGonderOnayli_,
     parasutCariOlusturVeyaBagla: parasutCariOlusturVeyaBagla_,
     parasutCariPanelAksiyonu: parasutCariPanelAksiyonu_,
     parasutCariBul: parasutCariBul_,
@@ -6047,6 +6175,7 @@ var TK6 = (function () {
     navlungoGonderiSorgula: navlungoGonderiSorgula_,
     navlungoGonderiIptalEt: navlungoGonderiIptalEt_,
     navlungoTopluKargoOlustur: navlungoTopluKargoOlustur_,
+    seciliNavlungoTopluKargoOlustur: seciliNavlungoTopluKargoOlustur_,
     navlungoTopluBarkodAl: navlungoTopluBarkodAl_,
     navlungoAdresDegisikligiKontrolEt: navlungoAdresDegisikligiKontrolEt_,
     qzBarkodBilgisi: qzBarkodBilgisi_,
@@ -6086,6 +6215,9 @@ function parasutUrunIdMapOku() { return TK6.parasutUrunIdMapOku(); }
 function parasutUrunGetir(productId) { return TK6.parasutUrunGetir(productId); }
 function parasutCariHazirla() { return TK6.parasutCariHazirla(); }
 function parasutCariAdaylariniGetir(faturaBilgisi) { return TK6.parasutCariAdaylariniGetir(faturaBilgisi); }
+function seciliParasutCariAdaylariniGetir() { return TK6.seciliParasutCariAdaylariniGetir(); }
+function seciliParasutTaslakPayloadTestEt() { return TK6.seciliParasutTaslakPayloadTestEt(); }
+function seciliParasutFaturaTaslakGonderOnayli() { return TK6.seciliParasutFaturaTaslakGonderOnayli(); }
 function parasutCariOlusturVeyaBagla(faturaGrubuId, secim) { return TK6.parasutCariOlusturVeyaBagla(faturaGrubuId, secim); }
 function parasutCariPanelAksiyonu(openId, payer, mode, contactId) { return TK6.parasutCariPanelAksiyonu(openId, payer, mode, contactId); }
 function parasutCariBul(criteria) { return TK6.parasutCariBul(criteria); }
@@ -6159,6 +6291,7 @@ function navlungoBarkodAl(kargoPaketId) { return TK6.navlungoBarkodAl(kargoPaket
 function navlungoGonderiSorgula(kargoPaketId) { return TK6.navlungoGonderiSorgula(kargoPaketId); }
 function navlungoGonderiIptalEt(kargoPaketId) { return TK6.navlungoGonderiIptalEt(kargoPaketId); }
 function navlungoTopluKargoOlustur(seciliPaketler) { return TK6.navlungoTopluKargoOlustur(seciliPaketler); }
+function seciliNavlungoTopluKargoOlustur() { return TK6.seciliNavlungoTopluKargoOlustur(); }
 function navlungoTopluBarkodAl(seciliPaketler) { return TK6.navlungoTopluBarkodAl(seciliPaketler); }
 function navlungoAdresDegisikligiKontrolEt(acikSiparisId) { return TK6.navlungoAdresDegisikligiKontrolEt(acikSiparisId); }
 function qzBarkodBilgisi(kargoPaketId) { return TK6.qzBarkodBilgisi(kargoPaketId); }

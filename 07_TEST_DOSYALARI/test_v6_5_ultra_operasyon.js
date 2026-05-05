@@ -144,11 +144,14 @@ const sandbox = {
   SpreadsheetApp: {
     getActiveSpreadsheet: () => ss,
     getUi: () => ({
+      ButtonSet: { YES_NO: "YES_NO" },
+      Button: { YES: "YES", NO: "NO" },
       createMenu: () => ({
         addItem(label, fn) { menuItems.push({ label, fn }); return this; },
         addSubMenu() { return this; },
         addToUi() { return this; }
       }),
+      alert() { return "YES"; },
       showModalDialog() {}
     })
   },
@@ -269,6 +272,11 @@ sandbox.onOpen();
 menuItems.forEach(item => assert(typeof sandbox[item.fn] === "function", "Menü fonksiyonu bağlı değil: " + item.fn));
 assert(!menuItems.some(item => item.label === "Toplu sipariş paneli"), "Ayrı toplu panel menüde kalmamalı");
 
+assert(menuItems.some(item => item.fn === "seciliParasutCariAdaylariniGetir"), "Secili Paraşüt cari aday wrapper menude olmali");
+assert(menuItems.some(item => item.fn === "seciliParasutTaslakPayloadTestEt"), "Secili Paraşüt payload wrapper menude olmali");
+assert(menuItems.some(item => item.fn === "seciliParasutFaturaTaslakGonderOnayli"), "Secili Paraşüt gonder wrapper menude olmali");
+assert(menuItems.some(item => item.fn === "seciliNavlungoTopluKargoOlustur"), "Secili Navlungo toplu wrapper menude olmali");
+
 const payload = {
   whatsAppTel: "05523730403",
   siparisSahibi: "mehmetnuriçetin",
@@ -295,11 +303,17 @@ assert(rows(CFG.sheets.parasut)[0][H.PARASUT_CONTACT_ID], "Paraşüt taslak sat�
 const gid = rows(CFG.sheets.invoiceGroups)[0][H.INVOICE_GROUP_ID];
 patchRows(CFG.sheets.invoiceGroups, H.INVOICE_GROUP_ID, gid, { [H.PARASUT_CONTACT_ID]: "1062372249" });
 sandbox.parasutTaslaklariniHazirla();
+const invoiceSheetForMenu = ss.getSheetByName(CFG.sheets.invoiceGroups);
+ss.setActiveRange(invoiceSheetForMenu.getRange(2, 1, 1, invoiceSheetForMenu.getLastColumn()));
+const selectedCariCandidates = sandbox.seciliParasutCariAdaylariniGetir();
+assert(selectedCariCandidates.groupId === gid, "Secili Paraşüt cari aday wrapper aktif 06 satirindaki fatura grubunu kullanmali");
 const postsBeforePayload = salesPostCalls;
 const dry = sandbox.parasutTaslakPayloadTestEt(gid);
 assert(salesPostCalls === postsBeforePayload, "parasutTaslakPayloadTestEt API POST yapmamalı");
 assert(dry.payload.data.relationships.contact.data.id === "1062372249", "Fatura payload contact relationship doğru cari ID içermeli");
 assert(!dry.payload.included, "Yeni satış faturası create payload included kullanmamalı");
+const selectedDry = sandbox.seciliParasutTaslakPayloadTestEt();
+assert(selectedDry.groupId === gid, "Secili Paraşüt payload wrapper aktif 06 satirindaki fatura grubunu kullanmali");
 const invoiceDetails = dry.payload.data.relationships.details.data;
 assert(invoiceDetails.length === 2, "Tesbih ve kargo hizmet satırları payload içinde olmalı");
 assert(invoiceDetails.some(d => d.relationships.product.data.id === "1066258492"), "Tesbih ürün ID payload içinde olmalı");
@@ -368,6 +382,8 @@ assert(secondOpenSummary[H.CONTROL_LEVEL] === "Blokaj", "Paraşüt hata 03 bloka
 
 const queue = ss.getSheetByName(CFG.sheets.queue);
 ss.setActiveRange(queue.getRange(2, 1, 1, queue.getLastColumn()));
+const menuRefresh = sandbox.kaydetVeErpGuncelle();
+assert(menuRefresh.openId === saved.openId, "Kaydet ve ERP guncelle secili siparis openId degeriyle hafif guncelleme yapmali");
 sandbox.seciliSiparisiDuzenle();
 const dialogData = sandbox.getDialogData();
 assert(dialogData.editOrders[0].kargo && dialogData.editOrders[0].kargo.kargoPaketId, "Selected edit payload must include Kargo_Paket_ID");
@@ -405,6 +421,11 @@ assert(rows(CFG.sheets.cargo).filter(r => r[H.CARGO_PACKAGE_ID] === editCargoPac
 assertThrows(() => sandbox.ultraSiparisKaydet(Object.assign({}, editPayload, { openId: "AS-BULUNAMADI-999" })), "Düzenleme için mevcut Açık_Sipariş_ID bulunamadı", "Missing edit open id must not create a new order");
 assert(dialogData.editOrders.length === 1 && dialogData.editOrders[0].openId === saved.openId, "Seçili sipariş düzenleme panel payload üretmeli");
 
+const settingsSheetForMenu = ss.getSheetByName(CFG.sheets.settings);
+ss.setActiveRange(settingsSheetForMenu.getRange(2, 1, 1, settingsSheetForMenu.getLastColumn()));
+const unsafeMenuRefresh = sandbox.kaydetVeErpGuncelle();
+assert(unsafeMenuRefresh.ok === false, "Kaydet ve ERP guncelle siparis baglami yoksa sistemiYenile yoluna dusmemeli");
+
 assert(html.includes("Adres geçmişi"), "Panel adres geçmişi bloğunu içermeli");
 assert(html.includes("Müşteri hafızası"), "Panel müşteri hafızası bloğunu içermeli");
 assert(html.includes("Yeni sipariş ekle"), "Çoklu sipariş aynı panelde yeni blokla çalışmalı");
@@ -420,6 +441,8 @@ assert(saved.cargoPackageId === cargoPackageId, "Kaydet sonucu gerçek Kargo_Pak
 assertThrows(() => sandbox.navlungoKargoTaslakTestEt(), "Kargo_Paket_ID parametresi boş geldi", "Aktif 08 satırı yoksa parametresiz Navlungo tekli işlem durmalı");
 const cargoSheet = ss.getSheetByName(CFG.sheets.cargo);
 ss.setActiveRange(cargoSheet.getRange(2, 1, 1, cargoSheet.getLastColumn()));
+const selectedNavBulk = sandbox.seciliNavlungoTopluKargoOlustur();
+assert(selectedNavBulk.count === 1 && selectedNavBulk.results[0].kargoPaketId === cargoPackageId, "Secili Navlungo toplu wrapper sadece aktif 08 Kargo_Paket_ID degerini kullanmali");
 const navDryParamless = sandbox.navlungoKargoTaslakTestEt();
 assert(navDryParamless.kargoPaketId === cargoPackageId, "Parametresiz Navlungo dry-run aktif 08 satırındaki Kargo_Paket_ID değerini kullanmalı");
 const navDry = sandbox.navlungoKargoTaslakTestEt(cargoPackageId);

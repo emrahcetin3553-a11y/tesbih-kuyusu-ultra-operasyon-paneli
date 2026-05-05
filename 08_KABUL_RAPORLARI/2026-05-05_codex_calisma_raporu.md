@@ -384,6 +384,41 @@ Codex sohbet çıktısı / çalışma özeti şu dosyaya işlendi: `08_KABUL_RAP
 
 Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/2026-05-05_apps_script_execution_api_izin_raporu.md`
 
+## Duzeltme Notu 2026-05-05-13 - PR #6 Panel Menu Kisayol Guvenli Duzeltme
+
+| Alan | Aciklama |
+| --- | --- |
+| Duzeltme ID | 2026-05-05-13 |
+| Neden duzenlendi | PR #6 son yorumu, parametre isteyen menu fonksiyonlarinin secili satir baglamina baglanmasini, riskli menu islemlerinde onay alinmasini ve `Kaydet ve ERP guncelle` fonksiyonunun siparis baglami yokken tum sistemi yenilememesini istedi. |
+| Ne duzeltildi | `selectedContext_` tabanli baglam cozumu eklendi; Parasut/Navlungo teknik menuleri secili wrapper fonksiyonlara baglandi; riskli operasyon, lifecycle ve musteri hafizasi pasiflestirme islemlerine onay eklendi; `kaydetVeErpGuncelle_` sadece secili `Acik_Siparis_ID` icin hafif guncelleme yapacak hale getirildi. |
+| Etkilenen dosyalar | `03_APPS_SCRIPT_KOD/tesbih_kuyusu_v6_5_ultra_operasyon_core.gs`, `07_TEST_DOSYALARI/test_v6_5_ultra_operasyon.js`, `08_KABUL_RAPORLARI/2026-05-05_panel_menu_kisayol_guvenli_duzeltme_raporu.md`, `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md` |
+| Apps Script'e yuklendi mi | Evet. `clasp push --force` ile 7 aktif dosya yuklendi ve `clasp pull --force` ile remote readback alindi. |
+| Sheet tarafinda degisiklik yapildi mi | Hayir. Bu turda Sheet verisi veya kolonlari degistirilmedi. |
+| GitHub'a islendi mi | Bu rapor guncellemesinden sonra commit/push yapilacak. |
+| Calistirilan testler | `node --check 07_TEST_DOSYALARI/test_v6_5_ultra_operasyon.js`; core `vm.Script` syntax; duplicate function taramasi; production core yasak kelime taramasi; `node 07_TEST_DOSYALARI/test_v6_5_ultra_operasyon.js` |
+| Test sonucu | Syntax OK; duplicate function yok; yasak kelime taramasi temiz; Node mock testi gecti: `ok=true`, `openRows=4`, `invoiceGroups=5`, `addressRows=5`. |
+| Apps Script SHA kaniti | Lokal GitHub core ve canli Apps Script pull core SHA256 ayni: `775B41C489B8CF66EA305275FF73FDCCAB751D1D0CCCA11EF8B8F1D2456753A2`. |
+| Canli POST | Gercek Parasut/Navlungo/e-belge POST calistirilmadi. Node mock testindeki POST sayimlari local harness davranisidir. |
+| Kalan risk | Gercek Google Sheets UI uzerinde menu onay pencereleri manuel tiklama ile dogrulanmadi; canli gonderim testi calistirilmadi. |
+
+### Bu Islemde Incelenen Dosyalar
+
+- `03_APPS_SCRIPT_KOD/tesbih_kuyusu_v6_5_ultra_operasyon_core.gs`
+- `07_TEST_DOSYALARI/test_v6_5_ultra_operasyon.js`
+- `appsscript.json`
+- `C:\Users\emrah\Desktop\clasp_v65_main_upload\.clasp.json`
+- `C:\Users\emrah\Desktop\clasp_v65_main_upload\tesbih_kuyusu_v6_5_ultra_operasyon_core.js`
+- `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md`
+
+### Bu Islemde Degistirilen Dosyalar
+
+- `03_APPS_SCRIPT_KOD/tesbih_kuyusu_v6_5_ultra_operasyon_core.gs`
+- `07_TEST_DOSYALARI/test_v6_5_ultra_operasyon.js`
+- `08_KABUL_RAPORLARI/2026-05-05_panel_menu_kisayol_guvenli_duzeltme_raporu.md`
+- `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md`
+
+Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/2026-05-05_panel_menu_kisayol_guvenli_duzeltme_raporu.md`
+
 ## Duzeltme Notu 2026-05-05-13 - Guncel Proje Derin Durum Analizi
 
 | Alan | Aciklama |
