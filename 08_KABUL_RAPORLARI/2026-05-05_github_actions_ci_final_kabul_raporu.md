@@ -54,11 +54,17 @@ Sonraki `25382694848` ve `25384294291` run'larinda durum farklidir:
 - Joblar runner step'lerine girmeden cancelled olmustur.
 - Log blob'u bulunmadigi icin `npm ci` veya `npm test` failure kaniti yoktur.
 
-Bu nedenle yeni problem, test kodunun patlamasi degil; PR workflow'unun eski matrix joblariyla runner'a ulasamadan cancelled/failure durumuna dusmesidir.
+Ek readback:
+
+- `17a2f9df2adc1af880d00e33e07c528131fded4a` commit'i GitHub'a push edildi.
+- Bu commit icin GitHub connector `workflow_runs: []` ve `statuses: []` dondurdu.
+- PR readback `mergeable=false` dondurdu.
+- `git merge-tree` kontrolunde `.github/workflows/node.js.yml` dosyasinda `origin/main` ile branch arasinda add/add merge conflict oldugu goruldu.
+- Bu nedenle `17a2f9d` icin yeni PR Actions run'i olusmadi; sorun test failure degil, PR mergeability/workflow conflict durumuydu.
 
 ## 4. Yapilan Duzeltme
 
-PR branch icine proje gercegine uygun workflow dosyasi eklendi:
+PR branch icinde proje gercegine uygun workflow dosyasi korundu:
 
 - `.github/workflows/node.js.yml`
 
@@ -86,6 +92,13 @@ Calisan CI adimlari:
 - V6.5 Node test seti
 - Son Sheet referans sozlesme testi
 
+Son ek duzeltme:
+
+- `origin/main` branch'i PR branch'ine merge edildi.
+- `.github/workflows/node.js.yml` add/add conflict'i cozuldu.
+- Eski 18/20/22 matrix yerine V6.5 icin tek Node 20.x kabul test harness'i korundu.
+- Bu cozum testleri kapatmaz; `npm ci`, `npm audit`, `npm test` adimlari gercek calisir.
+
 ## 5. Incelenen Dosyalar
 
 - `.github/workflows/node.js.yml`
@@ -103,6 +116,8 @@ Calisan CI adimlari:
 - `02_SHEET_SISTEM/TESBIH_KUYUSU_MASTER_SHEET (20).xlsx`
 - GitHub Actions run `25382694848`
 - GitHub Actions run `25384294291`
+- PR mergeability readback
+- `git merge-tree` workflow conflict readback
 
 ## 6. Lokal Test Sonuclari
 
@@ -156,11 +171,15 @@ Sonuc:
 }
 ```
 
-Not: Node harness icindeki `salesPostCalls` ve `navlungoPostCalls` izole test sayaçlaridir. Bu rapor turunda canli POST calistirilmadi.
+Not: Node harness icindeki `salesPostCalls` ve `navlungoPostCalls` izole test sayaclaridir. Bu rapor turunda canli POST calistirilmadi.
 
 ## 7. GitHub Actions Post-Push Durumu
 
-Bu rapor workflow duzeltmesi ile birlikte commit edilecek. Commit/push sonrasi yeni GitHub Actions run beklenecek ve PR yorumunda tamamlanan job sonucu yazilacak. Bu dosya commit aninda yeni run ID henuz olusmamistir.
+- `17a2f9d` commit'i icin yeni run olusmadi; sebep PR'in workflow dosyasinda `origin/main` ile merge conflict tasimasiydi.
+- Workflow conflict bu turda cozuldu.
+- Bu rapor conflict cozum commit'i ile birlikte push edilecek.
+- Commit/push sonrasi yeni GitHub Actions run beklenecek ve tamamlanan job sonucu PR yorumunda ayrica yazilacak.
+- Bu dosya conflict cozum commit'i oncesinde yazildigi icin yeni run ID henuz olusmamistir.
 
 ## 8. Canli Sistem Etkisi
 
@@ -172,7 +191,8 @@ Bu rapor workflow duzeltmesi ile birlikte commit edilecek. Commit/push sonrasi y
 
 ## 9. Kalan Risk
 
-- Bu rapor commit edildikten sonraki GitHub Actions run sonucu beklenmelidir.
+- Workflow conflict cozum commit'i push edildikten sonraki GitHub Actions run sonucu beklenmelidir.
+- Yeni run yine olusmazsa GitHub Actions tetikleme/izin kuralinin ayri incelenmesi gerekir.
 - Runner kaynakli yeni cancelled durumu olursa yeni run logu ve job durumu ayrica raporlanmalidir.
 
 Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/2026-05-05_github_actions_ci_final_kabul_raporu.md`

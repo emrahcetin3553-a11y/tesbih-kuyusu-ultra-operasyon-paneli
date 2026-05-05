@@ -804,3 +804,38 @@ Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/202
 - `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md`
 
 Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/2026-05-05_github_actions_ci_final_kabul_raporu.md`
+
+## Duzeltme Notu 2026-05-05-18 - GitHub Actions Merge Conflict Cozumu
+
+| Alan | Aciklama |
+| --- | --- |
+| Duzeltme ID | 2026-05-05-18 |
+| Neden duzenlendi | `17a2f9d` commit'i push edildikten sonra GitHub connector bu SHA icin `workflow_runs: []` ve `statuses: []` dondurdu. PR readback `mergeable=false` idi. Yeni run olusmamasinin sebebini netlestirmek gerekiyordu. |
+| Ne duzeltildi | `git merge-tree` ile `.github/workflows/node.js.yml` dosyasinda `origin/main` ile add/add conflict oldugu dogrulandi. `origin/main` PR branch'ine merge edildi ve workflow conflict'i V6.5 Node 20 kabul test harness'i korunarak cozuldu. |
+| Etkilenen dosyalar | `.github/workflows/node.js.yml`, `08_KABUL_RAPORLARI/2026-05-05_github_actions_ci_final_kabul_raporu.md`, `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md` |
+| Etkilenen fonksiyonlar | Operasyon core/HTML fonksiyonu degismedi. |
+| Apps Script durumu | Apps Script'e push yapilmadi. |
+| Sheet durumu | Canli Sheet verisi degistirilmedi. |
+| GitHub durumu | Bu conflict cozum commit'i GitHub'a push edilecek; yeni GitHub Actions run'i beklenip PR yorumunda sonucu yazilacak. |
+| Test ve kanit | `npm ci` basarili; `npm audit` 0 vulnerability; `npm test` basarili. Testler core syntax, duplicate public function, yasak ifade, V6.5 Node test seti ve son Sheet referans sozlesmesini kapsiyor. |
+| Canli POST | Yapilmadi. Canli Apps Script, Sheet, Parasut, Navlungo ve e-belge POST calistirilmadi. |
+| Kalan risk | Bu not conflict cozum commit'i push edilmeden once yazildi; yeni GitHub Actions run sonucu commit/push sonrasi ayrica beklenecek. |
+
+### Bu Islemde Incelenen Dosyalar
+
+- `.github/workflows/node.js.yml`
+- `origin/main:.github/workflows/node.js.yml`
+- `08_KABUL_RAPORLARI/2026-05-05_github_actions_ci_final_kabul_raporu.md`
+- `package.json`
+- `package-lock.json`
+- `07_TEST_DOSYALARI/test_v6_5_ci_checks.js`
+- `07_TEST_DOSYALARI/test_v6_5_ultra_operasyon.js`
+- `07_TEST_DOSYALARI/test_v6_5_son_sheet_referans_sozlesmesi.js`
+
+### Bu Islemde Degistirilen Dosyalar
+
+- `.github/workflows/node.js.yml`
+- `08_KABUL_RAPORLARI/2026-05-05_github_actions_ci_final_kabul_raporu.md`
+- `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md`
+
+Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/2026-05-05_github_actions_ci_final_kabul_raporu.md`
