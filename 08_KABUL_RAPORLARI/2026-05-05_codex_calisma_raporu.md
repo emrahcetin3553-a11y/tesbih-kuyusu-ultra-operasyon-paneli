@@ -365,3 +365,21 @@ Codex sohbet çıktısı / çalışma özeti şu dosyaya işlendi: `08_KABUL_RAP
 | Kalan risk | Cloud Project ID, Apps Script API enable durumu ve Desktop OAuth client ile `clasp login --use-project-scopes` adimi tamamlanmadan `clasp run` blokaji kalkmiyor. |
 
 Codex sohbet çıktısı / çalışma özeti şu dosyaya işlendi: `08_KABUL_RAPORLARI/2026-05-05_apps_script_execution_api_izin_raporu.md`
+
+## Duzeltme Notu 2026-05-05-08 - PR #6 Kullanici Bilgi Guncellemesi
+
+| Alan | Aciklama |
+| --- | --- |
+| Duzeltme ID | 2026-05-05-08 |
+| Neden duzenlendi | PR #6 icindeki son kullanici bilgi guncellemesi, canli Sheet ve Apps Script linklerini referans alarak Execution API / `clasp run` blokajinin tekrar kontrol edilmesini istedi. |
+| Ne duzeltildi | Kod degistirilmedi. Canli Sheet ID, Apps Script `scriptId`, repo ve canli upload manifestleri, `.clasp.json`, `clasp apis`, `clasp show-authorized-user`, `clasp deployments` ve `clasp run onOpen` sonucu rapora islendi. |
+| Etkilenen dosyalar | `08_KABUL_RAPORLARI/2026-05-05_apps_script_execution_api_izin_raporu.md`, `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md` |
+| Etkilenen fonksiyonlar | Kod degisikligi yok. Yetki testinde parametresiz `onOpen` denendi; yine Execution API izin blokajina takildi. |
+| Apps Script durumu | Kod push yapilmadi. Yeni deployment yapilmadi. Mevcut deployment listesi readback alindi. |
+| Sheet durumu | Google Sheets metadata readback yapildi; veri yazimi yapilmadi. |
+| GitHub durumu | Bu raporlar GitHub'a commit/push edilecek. |
+| Test ve kanit | `executionApi.access = MYSELF` repo ve canli manifestte var; `.clasp.json scriptId` kullanici linkiyle eslesiyor; `.clasp.json projectId` yok; `clasp apis` sonucu `GCP project ID is not set`; `clasp run onOpen` sonucu `Unable to run script function...`. |
+| Canli POST | Yapilmadi. Parasut/Navlungo/e-belge POST calistirilmadi. |
+| Kalan risk | Apps Script Project Settings icinde standart Google Cloud Project baglantisi, `projectId`, Apps Script API enable durumu ve Desktop OAuth client ile yeniden `clasp login` adimi tamamlanmadan `normalizeTelefon` ve `senkronizeDurumForOpen` CLI uzerinden calismayacak. |
+
+Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/2026-05-05_apps_script_execution_api_izin_raporu.md`

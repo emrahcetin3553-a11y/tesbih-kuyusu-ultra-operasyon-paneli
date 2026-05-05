@@ -281,3 +281,201 @@ Bu nedenle PR #6'daki canli readback testi henuz tamamlanmis sayilamaz.
 Bu rapor GitHub'a islenecektir.
 
 Codex sohbet çıktısı / çalışma özeti şu dosyaya işlendi: `08_KABUL_RAPORLARI/2026-05-05_apps_script_execution_api_izin_raporu.md`
+
+## 14. Kullanici Bilgi Guncellemesi Readback - 2026-05-05
+
+PR #6 icindeki son kullanici bilgi guncellemesi okundu.
+
+Yorum:
+
+- URL: `https://github.com/emrahcetin3553-a11y/tesbih-kuyusu-ultra-operasyon-paneli/pull/6#issuecomment-4377969538`
+- Canli Sheet: `https://docs.google.com/spreadsheets/d/1ebgYLgOEE3uET6NRYviGXnh1cziUIal84aJhjhcCY80/edit?gid=1008771279#gid=1008771279`
+- Apps Script proje: `https://script.google.com/u/0/home/projects/1-lU86xNoxXkuiX8pz8P2MkkIdbbLvT0Ub9bOhrcDLgLQ3a2aio6vIg77/edit`
+
+### 14.1 Canli Sheet Linki Readback
+
+Google Sheets metadata readback yapildi.
+
+Sonuc:
+
+- Spreadsheet ID: `1ebgYLgOEE3uET6NRYviGXnh1cziUIal84aJhjhcCY80`
+- `gid=1008771279` karsiligi: `02_WHATSAPP_KUYRUGU`
+- Sayfa listesi okundu: `02_WHATSAPP_KUYRUGU`, `03_ACIK_SIPARISLER`, `04_URUN_KALEMLERI`, `05_ODEMELER`, `06_FATURA_GRUPLARI`, `07_PARASUT_FATURA`, `08_KARGO_PAKETLERI`, `09_MUSTERI_HAFIZA`, `10_808_FINANS_ONIZLEME`, `11_EBELGE_ISTISNA`, `12_KONTROL_MERKEZI`, `14_BANKA_HAREKETLERI`, `15_MUSTERI_ADRESLERI`, `00_KULLANIM_KILAVUZU`, `01_AYARLAR`, `13_VERI_SOZLUGU`
+
+Not:
+
+- Bu islem readback'tir.
+- Sheet verisi degistirilmedi.
+
+### 14.2 Apps Script Proje Linki ve `.clasp.json` Eslesmesi
+
+Canli upload klasoru:
+
+`C:\Users\emrah\Desktop\clasp_v65_main_upload`
+
+`.clasp.json` sonucu:
+
+```json
+{
+  "scriptId": "1-lU86xNoxXkuiX8pz8P2MkkIdbbLvT0Ub9bOhrcDLgLQ3a2aio6vIg77",
+  "rootDir": ""
+}
+```
+
+Degerlendirme:
+
+- `.clasp.json` icindeki `scriptId`, kullanicinin verdigi Apps Script proje linkindeki proje ID ile ayni.
+- Bu kisim dogru.
+- `.clasp.json` icinde `projectId` yok.
+- Repo kokunde `.clasp.json` bulunmuyor; canli upload klasorundeki `.clasp.json` lokal runtime dosyasidir.
+
+### 14.3 `appsscript.json` Execution API Durumu
+
+Kontrol edilen dosyalar:
+
+- `appsscript.json`
+- `C:\Users\emrah\Desktop\clasp_v65_main_upload\appsscript.json`
+
+Her iki dosyada da durum ayni:
+
+```json
+"executionApi": {
+  "access": "MYSELF"
+}
+```
+
+Degerlendirme:
+
+- Kullanici notundaki `appsscript.json kurulu` bilgisi dogrulandi.
+- `executionApi.access = MYSELF` hem GitHub kopyasinda hem canli pull/upload klasorunde mevcut.
+- Bu ayar tek basina `clasp run` blokajini kaldirmiyor.
+
+### 14.4 Google Cloud Project / Apps Script API Durumu
+
+Komut:
+
+```powershell
+clasp apis
+```
+
+Sonuc:
+
+```text
+GCP project ID is not set, unable to continue.
+```
+
+Degerlendirme:
+
+- Apps Script projesinin Project Settings ekranindaki Google Cloud Project baglantisi CLI tarafindan okunamadi.
+- Lokal `.clasp.json` icinde `projectId` olmadigi icin `clasp apis` Apps Script API etkinligini dogrulayamiyor.
+- Bu nedenle `clasp run` icin eksik kalan ana ayar halen standart Google Cloud Project / OAuth client baglantisidir.
+
+### 14.5 Clasp Oturumu ve Deployment Durumu
+
+Komut:
+
+```powershell
+clasp show-authorized-user
+```
+
+Sonuc:
+
+```text
+You are logged in as emrahcetin3553@gmail.com.
+OAuth client ID: 1072944905499-vm2v2i5dvn0a0d2o4ca36i1vge8cvbn0.apps.googleusercontent.com (google-provided).
+```
+
+Komut:
+
+```powershell
+clasp deployments
+```
+
+Sonuc:
+
+```text
+Found 4 deployments.
+- AKfycbwyobVRSZ0vEJw03ZT51KBMWdB3abAogBHszEudv8XZ @HEAD
+- AKfycbwhFR4XH7NVFfVnzEV4iT6mlHuh9k_J_hZqPJUVET6NR2XLzXKutwVb5XieJgk2gDT7yA @5 - V6.5 execution api permission refresh
+- AKfycbycIB1opNh46-rbzfNr-6emwadwKoVGRcn5vayS0UB0aRlM92zcbILxGjBivrr95-P8Lg @3 - V6.4.1 acceptance execution api
+- AKfycbyl_t-pNBBkccjo1dMuf5AXKc1UdeviCKJXylGlQgJ9nl7kTxy91rQsixcc7McTVl311A @4 - V6.5 Navlungo API dry-run runtime
+```
+
+Degerlendirme:
+
+- Deployment mevcut.
+- Oturum mevcut.
+- Ancak oturum Google-provided OAuth client ile acik.
+- `clasp run` icin kalici ve temiz yol, Apps Script projesiyle ayni standart Google Cloud Project altinda Desktop OAuth client olusturup `clasp login --use-project-scopes --creds ...` ile yeniden yetkilendirmektir.
+
+### 14.6 Fonksiyon Calistirma Durumu
+
+Guncel tekrar test:
+
+```powershell
+clasp run onOpen
+```
+
+Sonuc:
+
+```text
+Unable to run script function. Please make sure you have permission to run the script function.
+```
+
+Degerlendirme:
+
+- Hata fonksiyon parametresi veya `senkronizeDurumForOpen` fonksiyonuna ozel degil.
+- Parametresiz ve zararsiz `onOpen` bile Execution API yetki katmaninda takiliyor.
+- `normalizeTelefon` ve `senkronizeDurumForOpen` icin kalici cozum de ayni Cloud Project / OAuth ayari tamamlanmadan gelmeyecek.
+
+### 14.7 Kalici Cozum Yolu
+
+Kalici cozum icin sira:
+
+1. Apps Script Project Settings ekraninda Google Cloud Platform project bolumu acilacak.
+2. Bu Apps Script projesi standart bir Google Cloud Project'e baglanacak. Gerekli olan deger Project Number'dir.
+3. Ayni Cloud Project icin `projectId` not edilecek ve lokal `.clasp.json` icine eklenecek.
+4. Google Cloud Console'da Apps Script API etkinlestirilecek.
+5. Ayni Cloud Project icinde Desktop OAuth Client olusturulacak.
+6. `client_secret.json` sadece lokal tutulacak; GitHub'a yazilmayacak.
+7. Clasp yeniden yetkilendirilecek:
+
+```powershell
+clasp login --user tesbih-runtime --use-project-scopes --include-clasp-scopes --creds client_secret.json
+```
+
+8. Sonra testler sirayla tekrar calistirilacak:
+
+```powershell
+clasp run normalizeTelefon --user tesbih-runtime --params '[\"05321234567\"]'
+clasp run senkronizeDurumForOpen --user tesbih-runtime --params '[\"AS-20260504-001\"]'
+```
+
+### 14.8 Bu Turda Yapilmayanlar
+
+- Kod degistirilmedi.
+- Apps Script'e kod push yapilmadi.
+- Sheet verisi degistirilmedi.
+- Parasut POST yapilmadi.
+- Navlungo POST yapilmadi.
+- e-Belge POST yapilmadi.
+- Secret, token, API key, refresh token veya client secret rapora yazilmadi.
+
+### 14.9 Net Sonuc
+
+Kullanici tarafindan verilen Sheet ve Apps Script linkleri dogru runtime hedefini isaret ediyor.
+
+`appsscript.json` icinde Execution API ayari kurulu:
+
+- `executionApi.access = MYSELF`
+
+Fakat `clasp run` blokaji halen suruyor.
+
+Kok neden:
+
+- `.clasp.json` icinde `projectId` yok.
+- Apps Script Project Settings icindeki standart Google Cloud Project baglantisi CLI tarafindan dogrulanamiyor.
+- Clasp oturumu Google-provided OAuth client ile acik.
+- Apps Script API executable icin gerekli Cloud Project / Desktop OAuth client zinciri tamamlanmadan `normalizeTelefon` ve `senkronizeDurumForOpen` CLI uzerinden calismayacak.
+
+Bu nedenle PR #6 readback testi hala tamamlandi sayilamaz.
