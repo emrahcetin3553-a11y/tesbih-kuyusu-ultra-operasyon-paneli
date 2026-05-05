@@ -26,11 +26,13 @@ Bu rapor, kullanicinin bundan sonraki calisma kuralini repo icinde kayit altina 
 ## Degistirilen Dosyalar
 
 - `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md`
+- `appsscript.json`
 
 ## Apps Script'e Yuklenen Dosyalar
 
 - Bu turda Apps Script'e dosya yuklenmedi.
 - Sadece `clasp pull --force` ile canli dosyalar okundu.
+- Canli Apps Script manifest dosyasi `appsscript.json` GitHub tarafinda eksik goruldu ve secret icermedigi dogrulanarak repo kokune eklendi.
 
 ## Sheet Tarafinda Degistirilen veya Uretilen Dosyalar
 
@@ -39,6 +41,7 @@ Bu rapor, kullanicinin bundan sonraki calisma kuralini repo icinde kayit altina 
 ## GitHub'a Islenen Dosyalar
 
 - `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md`
+- `appsscript.json`
 
 ## Calistirilan Kontroller
 
@@ -47,6 +50,7 @@ Bu rapor, kullanicinin bundan sonraki calisma kuralini repo icinde kayit altina 
 - `clasp pull --force`
 - Core SHA256 karsilastirmasi
 - Panel SHA256 karsilastirmasi
+- Canli `appsscript.json` icerik kontrolu
 
 ## Kontrol Sonuclari
 
@@ -56,10 +60,14 @@ Bu rapor, kullanicinin bundan sonraki calisma kuralini repo icinde kayit altina 
 - Canli Apps Script panel SHA256: `7E8BB96D0A6B95ED0B05E43F2D9669278E0CE08C93F2570C56A9A30CBA2B583E`
 - GitHub panel SHA256: `7E8BB96D0A6B95ED0B05E43F2D9669278E0CE08C93F2570C56A9A30CBA2B583E`
 - Panel eslesmesi: Evet
+- Canli Apps Script manifest dosyasi repo tarafinda eklendi: `appsscript.json`
+- Manifest gizli bilgi kontrolu: token, secret, API key veya refresh token icermiyor
 
 ## Canli Apps Script ile GitHub Eslesiyor mu?
 
 Evet. Bu turda canli Apps Script projesinden cekilen V6.5 core ve ultra panel dosyalari GitHub `v6-5-production-candidate` branch'indeki karsiliklariyla SHA256 seviyesinde eslesti.
+
+Ek kontrol sonucunda canli Apps Script dosya setindeki `appsscript.json` manifest dosyasinin GitHub repo kokunde bulunmadigi goruldu. Dosya gizli bilgi icermedigi icin repo kokune eklendi ve GitHub'a islenecek dosya listesine dahil edildi.
 
 ## Kalan Riskler
 
@@ -67,6 +75,7 @@ Evet. Bu turda canli Apps Script projesinden cekilen V6.5 core ve ultra panel do
 - Bu turda Apps Script'e yeni dosya yuklenmedi.
 - Bu turda Paraşüt, Navlungo veya QZ fiziksel yazdirma testi calistirilmadi.
 - `main` branch canli V6.5 durumu temsil etmiyor; guncel durum `v6-5-production-candidate` branch uzerindedir.
+- Masaustunde repo disinda olusturulmus genel gecici klasorler GitHub proje dosyasi olarak islenmedi; proje teslim dosyasi niteligindeki dosyalar repo altinda takip edilmelidir.
 
 ## Bir Sonraki Onerilen Adim
 
