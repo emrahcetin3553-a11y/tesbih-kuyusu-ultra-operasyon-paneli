@@ -1,105 +1,157 @@
 # AKTİF GÖREVLER
 
 ## 1. DURUM
-- Aktif görev: STATÜ / STATE SENKRONİZASYONU
-- Durum: BAŞLATILDI
+- Aktif görev: STATÜ / STATE SENKRONİZASYONU - GÜVENLİ UYGULAMA
+- Durum: UYGULAMA TALİMATI VERİLDİ
 - Başlatılma tarihi: 2026-05-05
 - Son güncelleme: 2026-05-05
 - Aktif branch: `v6-5-production-candidate`
 - Ana çalışma dosyası: `03_APPS_SCRIPT_KOD/tesbih_kuyusu_v6_5_ultra_operasyon_core.gs`
 
-## 2. HEDEF
+## 2. ÖNCEKİ ANALİZ SONUCU
 
-Sheet, Apps Script, Paraşüt satış faturası, resmi e-belge hazırlık katmanı, ödeme ve kargo katmanlarının aynı sipariş/fatura durumunu göstermesini sağlamak.
+Önceki analiz tamamlandı ve raporlandı:
 
-Bu görev yalnızca analiz ve güvenli statü senkronizasyon planı içindir. Bu aşamada tahsilat modülü, resmi e-belge gönderimi veya canlı POST değişikliği yapılmayacak.
-
-## 3. NEDEN BU GÖREV ÖNCE YAPILIYOR?
-
-Mevcut analizde görülen durum:
-
-- `07_PARASUT_FATURA` içinde Paraşüt faturaları gönderilmiş görünüyor.
-- `06_FATURA_GRUPLARI` içinde bazı fatura grupları hâlâ `Hazır` veya farklı statüde kalabiliyor.
-- `03_ACIK_SIPARISLER` içinde fatura durumu üst özet olarak güncel durumu tam yansıtmıyor.
-- `05_ODEMELER` içinde ödeme/tahsilat statüsü tam otomasyon için yeterince net değil.
-- `11_EBELGE_ISTISNA` resmi e-belge karar katmanı olarak hazır ama resmi sonuç alanları henüz tamamlanmış değil.
-- `12_KONTROL_MERKEZI` tüm blokajları ve başarı durumlarını tek merkezden kesin biçimde kapatmıyor.
-
-Bu nedenle tahsilat veya resmi e-belge modülünden önce durum/state senkronizasyonu zorunludur.
-
-## 4. YAPILACAKLAR
-
-- [ ] `03_ACIK_SIPARISLER`, `05_ODEMELER`, `06_FATURA_GRUPLARI`, `07_PARASUT_FATURA`, `08_KARGO_PAKETLERI`, `11_EBELGE_ISTISNA`, `12_KONTROL_MERKEZI` sayfalarındaki durum kolonlarını analiz et.
-- [ ] Apps Script içinde bu sayfalara statü yazan tüm fonksiyonları bul.
-- [ ] `Paraşüt_Fatura_ID`, `Gönderim_Kilidi`, `Paraşüt_Durumu`, `Fatura_Durumu`, `Paket_Durumu`, `Navlungo_Status`, `ERP_Kapanış_Uygun_Mu`, `Blokaj_Nedeni` alanlarının hangi sırayla güncellendiğini çıkar.
-- [ ] Aynı fatura grubunun tekrar gönderilmesini engelleyen kilitlerin yeterli olup olmadığını analiz et.
-- [ ] Paraşüt satış faturası oluşturulduğunda üst sayfalara hangi statülerin yazılması gerektiğini belirle.
-- [ ] Kargo/Navlungo mevcut çalışan akışına dokunmadan statü senkronizasyonunun nasıl yapılacağını planla.
-- [ ] Tahsilat modülü ve resmi e-belge modülü eklenmeden önce gerekli yeni statü kolonlarını öner.
-- [ ] Kod değişikliği gerekiyorsa önce sadece plan çıkar; kullanıcı/ChatGPT onayı olmadan canlı akışta davranış değiştirme.
-
-## 5. İNCELENECEK DOSYALAR
-
-Öncelikli dosyalar:
-
-- `03_APPS_SCRIPT_KOD/tesbih_kuyusu_v6_5_ultra_operasyon_core.gs`
-- `03_APPS_SCRIPT_KOD/ultraSiparisPaneli.html`
-- `07_TEST_DOSYALARI/test_v6_5_ultra_operasyon.js`
-- `02_SHEET_SISTEM/TESBIH_KUYUSU_MASTER_SHEET (17).xlsx`
-- `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md`
-- `00_CODEX_TALIMATLARI/CHATGPT_CODEX_KOORDINASYON_TALIMATI.md`
-- `00_CODEX_TALIMATLARI/CHATGPT_INCELEME_ERISIM_TALIMATI.md`
-
-## 6. BEKLENEN RAPOR
-
-Codex raporunda şu başlıklar açıkça bulunmalı:
-
-1. İncelenen dosyalar
-2. Statü yazan fonksiyonlar
-3. Mevcut statü akışı
-4. Tespit edilen uyumsuzluklar
-5. Tekrar gönderim / çift fatura riski var mı?
-6. Kargo/Navlungo tarafına dokunmadan çözüm önerisi
-7. Gerekli yeni kolonlar veya mevcut kolonların net kullanımı
-8. Test edilmesi gereken senaryolar
-9. Kod değişikliği önerisi varsa dosya/fonksiyon bazlı plan
-10. GitHub commit bilgisi ve rapor dosyası yolu
-
-## 7. KESİN SINIRLAR
-
-Bu görevde şunlar yapılmayacak:
-
-- Paraşüt tahsilat API entegrasyonu yazılmayacak.
-- Resmi e-Arşiv/e-Fatura canlı gönderim modülü yazılmayacak.
-- Navlungo çalışan gönderi/barkod akışı bozulmayacak.
-- Canlı Apps Script davranışı değiştirilmeyecek.
-- Kullanıcı/ChatGPT onayı olmadan tam otomasyon açılmayacak.
-
-## 8. CHATGPT NOTU
-
-Şu anki kesin başlama sırası:
-
-1. Statü/state senkronizasyonu
-2. Tahsilat modülü
-3. Resmi e-belge modülü
-4. En son hepsini tek `Fatura ve kargo oluştur` akışına bağlama
-
-Bu görev 1. adımdır. Bitmeden 2. adıma geçilmeyecek.
-
-## 9. CODEX SONUÇ ALANI
-
-Codex bu görevi yaptıktan sonra buraya kısa sonuç özeti eklemeli ve ayrıntılı raporu `08_KABUL_RAPORLARI` klasörüne yazmalıdır.
-
-## 10. CODEX UYGULAMA SONUCU - 2026-05-05
-
-- Durum: TAMAMLANDI - analiz ve güvenli senkronizasyon planı yazıldı.
-- Canlı Apps Script davranışı değiştirildi mi?: Hayır.
-- Apps Script'e dosya yüklendi mi?: Hayır.
-- Canlı Sheet üzerinde veri değiştirildi mi?: Hayır.
-- Kod dosyası değişti mi?: Hayır.
-- Çalıştırılan kontrol: `node 07_TEST_DOSYALARI/test_v6_5_ultra_operasyon.js`
-- Kontrol sonucu: `ok: true`, `salesPostCalls=1`, `contactPostCalls=0`, `navlungoPostCalls=6`.
-- Ayrıntılı rapor: `08_KABUL_RAPORLARI/2026-05-05_status_state_senkronizasyon_analiz_raporu.md`
+- Analiz raporu: `08_KABUL_RAPORLARI/2026-05-05_status_state_senkronizasyon_analiz_raporu.md`
 - Günlük rapor: `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md`
 
-Kısa sonuç: Status/state senkronizasyonu için mevcut 03/05/06/07/08/11/12 statü kolonları ve bunları yazan fonksiyonlar çıkarıldı. Çift fatura riskini azaltan 06 ve 07 kilitlerinin var olduğu, ancak iki katman arasında statü drift riskinin devam ettiği belirlendi. Sonraki adım olarak API çağırmayan `senkronizeDurumForOpen_(openId)` planlandı; kullanıcı/ChatGPT onayı olmadan canlı akış değiştirilmedi.
+Kritik sonuç:
+
+- Mevcut sistem gerçek ve çalışan V6.5 operasyon sistemidir.
+- Sahte test tespit edilmedi; mock test gerçek test akışı kuruyor.
+- Eksik kapsam: resmi e-belge ve tahsilat henüz test/entegrasyon kapsamına alınmadı.
+- En önemli risk: 03/06/07/08/11/12 arasında statü drift riski.
+- Sonraki güvenli adım: API çağırmayan `senkronizeDurumForOpen_(openId)` fonksiyonu.
+
+## 3. BU GÖREVİN HEDEFİ
+
+Bu görevde yalnızca statü/state senkronizasyonu için güvenli kod uygulaması yapılacak.
+
+Amaç:
+
+- 03/05/06/07/08/11/12 sayfalarındaki durumların aynı sipariş için birbirini doğru yansıtmasını sağlamak.
+- Paraşüt satış faturası sonucu 07'de oluştuysa 06 ve 03 üst özetinin bunu doğru görmesini sağlamak.
+- 06 veya 07 içinde gönderim kilidi varsa aynı fatura grubunun tekrar gönderilmesini daha güvenli biçimde engellemek.
+- Kargo/Navlungo mevcut çalışan akışına dokunmadan 08 sonucunun 03 üst özete doğru yansımasını sağlamak.
+- 11 e-belge karar katmanının 03 üst özete doğru yansımasını sağlamak.
+- 12 kontrol merkezi üretimi öncesinde durumların tek merkezli olarak uyumlanmasını sağlamak.
+
+## 4. KESİN SINIRLAR
+
+Bu görevde KESİNLİKLE yapılmayacaklar:
+
+- Paraşüt tahsilat API entegrasyonu yazılmayacak.
+- Resmi e-Arşiv/e-Fatura gönderim modülü yazılmayacak.
+- Paraşüt'e yeni canlı POST davranışı eklenmeyecek.
+- Navlungo gönderi/barkod/iptal çalışan sözleşmesi değiştirilmeyecek.
+- Ultra operasyon paneli kırılmayacak, buton isimleri ve mevcut callback sözleşmesi bozulmayacak.
+- Yeni ayrı panel, sahte demo panel veya kullanılmayan HTML dosyası oluşturulmayacak.
+- Çöp fonksiyon, dummy fonksiyon, sahte başarı fonksiyonu, fake test veya kullanılmayan üretim dosyası eklenmeyecek.
+- Mevcut çalışan V6.5 akışını büyük refactor ile değiştirme.
+- Kullanıcı/ChatGPT onayı olmadan tam otomasyon açma.
+- `main` branch canlı kaynakmış gibi gösterilmeyecek; aktif çalışma branch'i `v6-5-production-candidate`.
+
+## 5. YAPILACAK TEKNİK İŞ
+
+Ana dosya:
+
+- `03_APPS_SCRIPT_KOD/tesbih_kuyusu_v6_5_ultra_operasyon_core.gs`
+
+Eklenecek veya düzenlenecek yapı:
+
+- [ ] Yeni fonksiyon: `senkronizeDurumForOpen_(openId)`
+- [ ] Bu fonksiyon API çağrısı yapmayacak; yalnızca Sheet okuma/yazma yapacak.
+- [ ] 06, 07, 08, 11, 05, 12 satırlarını `openId` ile okuyacak.
+- [ ] 07'de `Paraşüt_Fatura_ID` veya `Gönderim_Kilidi` varsa 06 fatura grubuna uyumlu statü/kilit yansıtacak.
+- [ ] 06'da `Paraşüt_Fatura_ID` veya `Gönderim_Kilidi` varsa 07 satırlarının tekrar gönderim için yanlış hazır görünmesini engelleyecek.
+- [ ] 08 içinde `Navlungo_Post_Number`, `Navlungo_Barcode_URL`, `Paket_Durumu`, `Navlungo_Status` alanlarından 03 `Kargo_Durumu` üst özetini hesaplayacak.
+- [ ] 11 içinde `Gönderim_Durumu`, `Kontrol_Seviyesi`, `Resmi_Gönderim_Blokaj_Nedeni` alanlarından 03 `E_Belge_Durumu` üst özetini hesaplayacak.
+- [ ] 05 ödeme durumunu tahsilat tamamlandı gibi göstermeyecek; tahsilat modülü eklenene kadar yalnız ödeme hazırlık/teyit durumunu yansıtacak.
+- [ ] 12 kontrol merkezi üretiminden önce statülerin drift yapmasını azaltacak.
+
+## 6. BAĞLANTI NOKTALARI
+
+Kod uygulanırsa güvenli çağrı noktaları şunlar olacak:
+
+- `kaydetUltraSiparisHizli_` sonunda, kontrol merkezi üretiminden önce.
+- `parasutFaturaTaslakGonder_` başarı/hata sonucundan sonra.
+- `finalizeOperationResult_` içinde kontrol merkezi özetinden önce.
+- Gerekirse `hafifErpGuncelle_` veya `rebuildOpenOrderForOpen_` ile uyumlu, ama bu fonksiyonların ana iş mantığı bozulmadan.
+
+Codex önce mevcut fonksiyon yapısını incelemeli; en küçük güvenli değişiklikle uygulamalıdır.
+
+## 7. TEST ŞARTLARI
+
+Test dosyası:
+
+- `07_TEST_DOSYALARI/test_v6_5_ultra_operasyon.js`
+
+Eklenecek test senaryoları:
+
+- [ ] 07'de `Paraşüt_Fatura_ID` var, 06 boş: senkronizasyon 06'yı kilitlemeli ve ikinci POST oluşmamalı.
+- [ ] 06'da `Paraşüt_Fatura_ID` veya `Gönderim_Kilidi` var, 07 boş/hazır: senkronizasyon 07'nin yanlış tekrar gönderime hazır görünmesini engellemeli.
+- [ ] Paraşüt create başarılı: 07, 06, 03 ve 12 aynı sonucu göstermeli.
+- [ ] Paraşüt create hata: 07 hata, 06 hata, 12 blokaj, 03 blokaj göstermeli.
+- [ ] Navlungo post ve barkod var: 08 statüleri korunmalı, 03 kargo üst özeti doğru olmalı.
+- [ ] Kargo bekletiliyor: 08 `Bekletiliyor`, 12 kritik hata değil bilinçli bekletme bilgisi üretmeli.
+- [ ] Ödeme var ama tahsilat modülü yok: sistem tahsilatı tamamlandı gibi göstermemeli.
+
+Var olan testler kırılmayacak:
+
+- Core syntax OK olmalı.
+- Duplicate function kontrolü geçmeli.
+- Yasak ifade taraması geçmeli.
+- Node V6.5 test seti geçmeli.
+- Mevcut `salesPostCalls=1` beklenen akış bozulmamalı.
+
+## 8. DOSYA POLİTİKASI
+
+Codex sadece gerekli dosyaları değiştirmelidir.
+
+Beklenen değişiklikler:
+
+- `03_APPS_SCRIPT_KOD/tesbih_kuyusu_v6_5_ultra_operasyon_core.gs`
+- `07_TEST_DOSYALARI/test_v6_5_ultra_operasyon.js`
+- `08_KABUL_RAPORLARI/<tarihli_uygulama_raporu>.md`
+- Gerekirse bu dosyada sonuç alanı güncellemesi.
+
+Oluşturulmaması gerekenler:
+
+- Kullanılmayan yeni HTML panel dosyası.
+- Üretime bağlı olmayan demo/test kopya dosyaları.
+- `copy`, `backup`, `tmp`, `dummy`, `fake`, `old`, `deneme` isimli çöp dosyalar.
+- Gereksiz yeni klasör.
+- Canlı sistemle eşleşmeyen paralel core dosyası.
+
+## 9. RAPOR ŞARTI
+
+Codex işlem sonunda `08_KABUL_RAPORLARI` içine yeni rapor yazacak.
+
+Raporda şu başlıklar zorunlu:
+
+1. Neden düzenlendi?
+2. Ne düzeltildi?
+3. Hangi dosyalar değişti?
+4. Hangi fonksiyonlar eklendi/değişti?
+5. Apps Script'e yükleme yapıldı mı?
+6. Sheet tarafında değişiklik yapıldı mı?
+7. GitHub commit SHA nedir?
+8. Hangi testler çalıştırıldı?
+9. Test sonucu nedir?
+10. Canlı POST yapıldı mı?
+11. Kalan riskler nelerdir?
+12. Bir sonraki önerilen adım nedir?
+
+Rapor gerçek olmalı. Çalıştırılmayan test geçti denmeyecek. Canlı Apps Script'e yüklenmediyse yüklenmedi denecek.
+
+## 10. CHATGPT KARARI
+
+Bu görev onaylıdır.
+
+En güçlü seçenek: `senkronizeDurumForOpen_(openId)` fonksiyonunu güvenli şekilde eklemek ve testle kanıtlamak.
+
+Bu görev bitmeden tahsilat modülüne veya resmi e-belge modülüne geçilmeyecek.
+
+## 11. CODEX SONUÇ ALANI
+
+Codex bu görevi yaptıktan sonra buraya kısa sonuç özeti eklemeli ve ayrıntılı raporu `08_KABUL_RAPORLARI` klasörüne yazmalıdır.
