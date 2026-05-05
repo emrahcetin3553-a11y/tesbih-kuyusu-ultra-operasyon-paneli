@@ -113,6 +113,55 @@ Ek kullanici talimati:
 
 Codex sohbet çıktısı / çalışma özeti şu dosyaya işlendi: `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md`
 
+## Duzeltme Notu 2026-05-05-05 - Aktif Gorevler Dosyasinin Kullanici Yapisi ile Yeniden Duzenlenmesi
+
+| Alan | Aciklama |
+| --- | --- |
+| Duzeltme ID | 2026-05-05-05 |
+| Neden duzenlendi | Kullanici `00_CODEX_TALIMATLARI/AKTIF_GOREVLER.md` dosyasinin iceriginin kendi verdigi yapida birebir olmasini istedi. |
+| Ne duzeltildi | Onceki detayli gorev takip sablonu kaldirildi ve dosya kullanicinin verdigi `AKTİF GÖREVLER` baslikli 7 bolumlu yapıyla yeniden yazildi. |
+| Etkilenen dosyalar | `00_CODEX_TALIMATLARI/AKTIF_GOREVLER.md`, `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md` |
+| Etkilenen fonksiyonlar | Yok. Kod fonksiyonu degistirilmedi. |
+| Apps Script durumu | Apps Script'e dosya yuklenmedi. |
+| Sheet durumu | Sheet dosyasi degistirilmedi. |
+| GitHub durumu | Dosya ve bu rapor GitHub'a commit/push yapilacak. |
+| Test ve kanit | Dosya icerigi kullanici tarafindan verilen yapiyla yazildi; `git diff --check` calistirilacak. |
+| Kalan risk | Bu dosya gorev yonetim iskeletidir; aktif gorev alanlari henuz doldurulmadi. |
+
+### Bu Islemde Degistirilen Dosyalar
+
+- `00_CODEX_TALIMATLARI/AKTIF_GOREVLER.md`
+- `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md`
+
+Codex sohbet çıktısı / çalışma özeti şu dosyaya işlendi: `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md`
+
+## Duzeltme Notu 2026-05-05-04 - Aktif Gorevler Takip Dosyasi
+
+| Alan | Aciklama |
+| --- | --- |
+| Duzeltme ID | 2026-05-05-04 |
+| Neden duzenlendi | Kullanici, ChatGPT'den gelen gorevlerin yazilacagi bir aktif gorev takip dosyasi istedi. |
+| Ne duzeltildi | `00_CODEX_TALIMATLARI/AKTIF_GOREVLER.md` dosyasi olusturuldu ve icine gorev kayit sablonu, durum listesi, test/rapor/GitHub takip alanlari eklendi. |
+| Etkilenen dosyalar | `00_CODEX_TALIMATLARI/AKTIF_GOREVLER.md`, `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md` |
+| Etkilenen fonksiyonlar | Yok. Kod fonksiyonu degistirilmedi. |
+| Apps Script durumu | Apps Script'e dosya yuklenmedi. |
+| Sheet durumu | Sheet dosyasi degistirilmedi. |
+| GitHub durumu | Yeni talimat dosyasi ve bu rapor GitHub'a islenecek dosyalar arasina alindi. |
+| Test ve kanit | Dosya varlik kontrolu ve `git diff --check` calistirilacak. |
+| Kalan risk | Bu dosya takip sablonudur; gercek gorev kayitlari yeni ChatGPT/kullanici gorevleri geldikce eklenecektir. |
+
+### Bu Islemde Incelenen Dosyalar
+
+- `00_CODEX_TALIMATLARI/`
+- `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md`
+
+### Bu Islemde Degistirilen Dosyalar
+
+- `00_CODEX_TALIMATLARI/AKTIF_GOREVLER.md`
+- `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md`
+
+Codex sohbet çıktısı / çalışma özeti şu dosyaya işlendi: `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md`
+
 ## Duzeltme Notu 2026-05-05-03 - ChatGPT Inceleme Erisim Talimati
 
 | Alan | Aciklama |
