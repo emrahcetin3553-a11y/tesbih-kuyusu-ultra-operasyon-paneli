@@ -383,3 +383,21 @@ Codex sohbet çıktısı / çalışma özeti şu dosyaya işlendi: `08_KABUL_RAP
 | Kalan risk | Apps Script Project Settings icinde standart Google Cloud Project baglantisi, `projectId`, Apps Script API enable durumu ve Desktop OAuth client ile yeniden `clasp login` adimi tamamlanmadan `normalizeTelefon` ve `senkronizeDurumForOpen` CLI uzerinden calismayacak. |
 
 Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/2026-05-05_apps_script_execution_api_izin_raporu.md`
+
+## Duzeltme Notu 2026-05-05-09 - Ana Google Hesabi Execution API Tekrar Kontrolu
+
+| Alan | Aciklama |
+| --- | --- |
+| Duzeltme ID | 2026-05-05-09 |
+| Neden duzenlendi | Kullanici Google hesabi duzeltildigini, ana hesabin `emrahcetin3553@gmail.com` oldugunu ve Apps Script/Sheet Execution API ile `clasp run` izin raporunun guncellenmesini istedi. |
+| Ne duzeltildi | Kod degistirilmedi. Clasp oturumu, Apps Script `scriptId`, manifest, `.clasp.json`, Sheet metadata, `clasp apis`, `clasp deployments`, `clasp run onOpen`, `clasp run normalizeTelefon` ve `--user emrahcetin3553@gmail.com` denemeleri rapora islendi. |
+| Etkilenen dosyalar | `08_KABUL_RAPORLARI/2026-05-05_apps_script_execution_api_izin_raporu.md`, `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md` |
+| Etkilenen fonksiyonlar | Kod degisikligi yok. Test edilen fonksiyonlar: `onOpen`, `normalizeTelefon`. |
+| Apps Script durumu | Kod push yapilmadi. Deployment yapilmadi. Sadece canli proje baglantisi ve Execution API izin durumu okundu. |
+| Sheet durumu | Google Sheets metadata readback yapildi; veri yazimi yapilmadi. |
+| GitHub durumu | Bu raporlar GitHub'a commit/push edilecek. |
+| Test ve kanit | `clasp show-authorized-user` ana hesabi `emrahcetin3553@gmail.com` olarak dogruladi; `.clasp.json scriptId` canli proje linkiyle eslesti; `executionApi.access = MYSELF` mevcut; `clasp apis` sonucu `GCP project ID is not set`; `clasp run onOpen` ve `clasp run normalizeTelefon` halen izin hatasinda. |
+| Canli POST | Yapilmadi. Parasut/Navlungo/e-belge POST calistirilmadi. |
+| Kalan risk | Sorun artik yanlis Google hesabi degil; standart Google Cloud Project `projectId`, Apps Script API enable durumu ve Desktop OAuth client ile yeniden `clasp login` adimi tamamlanmadan `clasp run` calismayacak. |
+
+Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/2026-05-05_apps_script_execution_api_izin_raporu.md`

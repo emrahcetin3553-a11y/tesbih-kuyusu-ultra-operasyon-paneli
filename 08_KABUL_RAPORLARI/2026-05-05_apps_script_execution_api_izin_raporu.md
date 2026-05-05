@@ -479,3 +479,182 @@ Kok neden:
 - Apps Script API executable icin gerekli Cloud Project / Desktop OAuth client zinciri tamamlanmadan `normalizeTelefon` ve `senkronizeDurumForOpen` CLI uzerinden calismayacak.
 
 Bu nedenle PR #6 readback testi hala tamamlandi sayilamaz.
+
+## 15. Ana Google Hesabi Tekrar Kontrolu - 2026-05-05
+
+Kullanici, Google hesabi duzeltildigini ve ana hesabin `emrahcetin3553@gmail.com` oldugunu bildirdi. Bu bilgi uzerine Apps Script, Sheet, Execution API ve `clasp run` izin durumu yeniden kontrol edildi.
+
+### 15.1 Clasp Oturum Kontrolu
+
+Komut:
+
+```powershell
+clasp show-authorized-user
+```
+
+Sonuc:
+
+```text
+You are logged in as emrahcetin3553@gmail.com.
+OAuth client ID: 1072944905499-vm2v2i5dvn0a0d2o4ca36i1vge8cvbn0.apps.googleusercontent.com (google-provided).
+```
+
+Degerlendirme:
+
+- Ana hesap dogru: `emrahcetin3553@gmail.com`.
+- Clasp halen Google-provided OAuth client ile calisiyor.
+- Bu oturum var; sorun artik yanlis Google hesabi degil.
+
+### 15.2 Apps Script Proje ve Manifest Kontrolu
+
+Kontrol edilen dosyalar:
+
+- `C:\Users\emrah\Desktop\clasp_v65_main_upload\.clasp.json`
+- `C:\Users\emrah\Desktop\clasp_v65_main_upload\appsscript.json`
+
+Sonuc:
+
+- `.clasp.json scriptId`: `1-lU86xNoxXkuiX8pz8P2MkkIdbbLvT0Ub9bOhrcDLgLQ3a2aio6vIg77`
+- Kullanici tarafindan verilen Apps Script proje linkiyle eslesiyor.
+- `appsscript.json` icinde `executionApi.access = MYSELF` mevcut.
+- `.clasp.json` icinde `projectId` halen yok.
+
+### 15.3 Ana Sheet Readback
+
+Google Sheets metadata tekrar okundu.
+
+Sonuc:
+
+- Spreadsheet ID: `1ebgYLgOEE3uET6NRYviGXnh1cziUIal84aJhjhcCY80`
+- `gid=1008771279`: `02_WHATSAPP_KUYRUGU`
+- Sheet sayfalari okunabildi.
+
+Not:
+
+- Bu islem sadece metadata readback'tir.
+- Sheet verisi degistirilmedi.
+
+### 15.4 Apps Script API / Cloud Project Kontrolu
+
+Komut:
+
+```powershell
+clasp apis
+```
+
+Sonuc:
+
+```text
+GCP project ID is not set, unable to continue.
+```
+
+Degerlendirme:
+
+- Google hesabi dogru olsa da `clasp apis` blokaji devam ediyor.
+- Lokal `.clasp.json` icinde `projectId` olmadigi icin `clasp` Apps Script API durumunu okuyamiyor.
+- Apps Script Project Settings icindeki standart Google Cloud Project baglantisi halen CLI tarafindan dogrulanabilir durumda degil.
+
+### 15.5 Clasp Run Tekrar Testleri
+
+Komut:
+
+```powershell
+clasp run onOpen
+```
+
+Sonuc:
+
+```text
+Unable to run script function. Please make sure you have permission to run the script function.
+```
+
+Komut:
+
+```powershell
+clasp run normalizeTelefon
+```
+
+Sonuc:
+
+```text
+Unable to run script function. Please make sure you have permission to run the script function.
+```
+
+Ek kontrol:
+
+```powershell
+clasp run onOpen --user emrahcetin3553@gmail.com
+clasp run normalizeTelefon --user emrahcetin3553@gmail.com
+```
+
+Sonuc:
+
+```text
+No credentials found.
+```
+
+Degerlendirme:
+
+- Varsayilan `clasp` oturumu ana hesaba bagli.
+- `--user emrahcetin3553@gmail.com` icin ayri adlandirilmis credential kaydi yok.
+- Fonksiyon calistirma hatasi hesap karisikligindan degil, Execution API / Cloud Project / OAuth client zincirinden kaynaklanmaya devam ediyor.
+
+### 15.6 Guncel Kok Neden
+
+Ana hesap duzeltmesi sonrasi guncel kok neden:
+
+1. Apps Script ve Sheet hedefleri dogru.
+2. `appsscript.json` Execution API ayari dogru.
+3. Clasp oturumu ana hesapla acik.
+4. `.clasp.json` icinde `projectId` yok.
+5. Clasp oturumu Google-provided OAuth client ile acik.
+6. Standart Google Cloud Project + Desktop OAuth client + `clasp login --use-project-scopes --creds ...` zinciri tamamlanmamis gorunuyor.
+
+### 15.7 Guncel Cozum Sirasi
+
+Kalici cozum icin halen gerekli adimlar:
+
+1. Apps Script Project Settings icinde standart Google Cloud Project baglantisi dogrulanacak veya kurulacak.
+2. Google Cloud Project Number Apps Script'e baglanacak.
+3. Ayni projenin `projectId` degeri lokal `.clasp.json` icine eklenecek.
+4. Google Cloud Console'da Apps Script API etkinlestirilecek.
+5. Ayni Cloud Project icinde Desktop OAuth Client olusturulacak.
+6. `client_secret.json` GitHub'a yazilmadan lokal tutulacak.
+7. Clasp yeniden yetkilendirilecek:
+
+```powershell
+clasp login --use-project-scopes --include-clasp-scopes --creds client_secret.json
+```
+
+8. Sonra tekrar test edilecek:
+
+```powershell
+clasp apis
+clasp run onOpen
+clasp run normalizeTelefon
+```
+
+### 15.8 Bu Turda Yapilmayanlar
+
+- Kod degistirilmedi.
+- Apps Script'e push yapilmadi.
+- Apps Script deployment yapilmadi.
+- Sheet verisi degistirilmedi.
+- Parasut POST yapilmadi.
+- Navlungo POST yapilmadi.
+- e-Belge POST yapilmadi.
+- Secret, token, API key, refresh token veya client secret rapora yazilmadi.
+
+### 15.9 Net Sonuc
+
+Google hesabi ana hesap olarak dogrulandi:
+
+- `emrahcetin3553@gmail.com`
+
+Ancak Execution API / `clasp run` blokaji devam ediyor.
+
+Bu turdaki net karar:
+
+**Sorun artik yanlis Google hesabi degil; eksik kalan kisim standart Google Cloud Project `projectId` ve uygun OAuth client yetkilendirmesi.**
+
+Bu tamamlanmadan `clasp run normalizeTelefon` ve `clasp run senkronizeDurumForOpen` calisir kabul edilemez.
