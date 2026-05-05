@@ -762,3 +762,45 @@ Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/202
 - `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md`
 
 Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/2026-05-05_ui_modal_dialog_scope_duzeltme_raporu.md`
+
+## Duzeltme Notu 2026-05-05-17 - GitHub Actions CI Final Kabul Duzeltmesi
+
+| Alan | Aciklama |
+| --- | --- |
+| Duzeltme ID | 2026-05-05-17 |
+| Neden duzenlendi | PR #6 son yorumu, run `25382694848` icin Node.js CI failure/cancelled durumunun kapatilmasini ve fake pass olmadan gercek kabul testleriyle CI hattinin duzeltilmesini istedi. |
+| Ne duzeltildi | Run `25382694848` ve `25384294291` job readbackleri incelendi. Joblar step logu olusmadan cancelled oldugu icin yeni durumun onceki `package-lock.json` eksikligi hatasindan farkli oldugu raporlandi. Proje icine `.github/workflows/node.js.yml` eklendi; workflow tek Node 20.x job ile `npm ci`, `npm audit`, `npm test` calistiracak sekilde sade ve gercek kabul testlerine baglandi. |
+| Etkilenen dosyalar | `.github/workflows/node.js.yml`, `08_KABUL_RAPORLARI/2026-05-05_github_actions_ci_final_kabul_raporu.md`, `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md` |
+| Etkilenen fonksiyonlar | Operasyon core/HTML fonksiyonu degismedi. Yalniz GitHub Actions workflow ve raporlar guncellendi. |
+| Apps Script durumu | Apps Script'e push yapilmadi. |
+| Sheet durumu | Canli Sheet verisi degistirilmedi. |
+| GitHub durumu | Bu degisiklikler GitHub'a commit/push edilecek; yeni GitHub Actions run'i beklenip PR yorumunda sonuc yazilacak. |
+| Test ve kanit | `npm ci` basarili; `npm audit` 0 vulnerability; `npm test` basarili. Testler core syntax, duplicate public function, yasak ifade, V6.5 Node test seti ve son Sheet referans sozlesmesini kapsiyor. |
+| Canli POST | Yapilmadi. Canli Apps Script, Sheet, Parasut, Navlungo ve e-belge POST calistirilmadi. |
+| Kalan risk | Bu not workflow duzeltmesi commit edilmeden once yazildi; yeni GitHub Actions run sonucu commit/push sonrasi ayrica beklenecek. |
+
+### Bu Islemde Incelenen Dosyalar
+
+- `.github/workflows/node.js.yml`
+- `package.json`
+- `package-lock.json`
+- `07_TEST_DOSYALARI/test_v6_5_ci_checks.js`
+- `07_TEST_DOSYALARI/test_v6_5_ultra_operasyon.js`
+- `07_TEST_DOSYALARI/test_v6_5_son_sheet_referans_sozlesmesi.js`
+- `03_APPS_SCRIPT_KOD/tesbih_kuyusu_v6_5_ultra_operasyon_core.gs`
+- `03_APPS_SCRIPT_KOD/ultraSiparisPaneli.html`
+- `03_APPS_SCRIPT_KOD/cariSecDialog.html`
+- `03_APPS_SCRIPT_KOD/urunEkleDialog.html`
+- `03_APPS_SCRIPT_KOD/odemeEkleDialog.html`
+- `03_APPS_SCRIPT_KOD/kargoBilgisiDialog.html`
+- `02_SHEET_SISTEM/TESBIH_KUYUSU_MASTER_SHEET (20).xlsx`
+- GitHub Actions run `25382694848`
+- GitHub Actions run `25384294291`
+
+### Bu Islemde Degistirilen Dosyalar
+
+- `.github/workflows/node.js.yml`
+- `08_KABUL_RAPORLARI/2026-05-05_github_actions_ci_final_kabul_raporu.md`
+- `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md`
+
+Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/2026-05-05_github_actions_ci_final_kabul_raporu.md`
