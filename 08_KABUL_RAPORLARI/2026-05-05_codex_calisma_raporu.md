@@ -296,3 +296,21 @@ Bundan sonraki raporlarda her teknik duzeltme icin su format kullanilacak:
 - Kaynak ve repo kopyasi SHA256 eslesme kontrolu
 
 Codex sohbet çıktısı / çalışma özeti şu dosyaya işlendi: `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md`
+
+## Duzeltme Notu 2026-05-05-03 - Statu / State Senkronizasyonu Uygulamasi
+
+| Alan | Aciklama |
+| --- | --- |
+| Duzeltme ID | 2026-05-05-03 |
+| Neden duzenlendi | 03/06/07/08/11/12 arasinda ayni Acik_Siparis_ID icin statu drift riski vardi; Parasut fatura ID/kilit bilgisi 06 ve 07 arasinda farkli kalabiliyordu. |
+| Ne duzeltildi | API cagirmayan `senkronizeDurumForOpen_(openId)` eklendi; 06/07 fatura ID-kilit uyumu, 08 kargo ozeti, 11 e-belge ozeti ve 03 ust ozet senkronizasyonu yapildi. |
+| Etkilenen dosyalar | `03_APPS_SCRIPT_KOD/tesbih_kuyusu_v6_5_ultra_operasyon_core.gs`, `07_TEST_DOSYALARI/test_v6_5_ultra_operasyon.js`, `00_CODEX_TALIMATLARI/AKTIF_GOREVLER.md`, `08_KABUL_RAPORLARI/2026-05-05_status_state_senkronizasyon_uygulama_raporu.md`, `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md` |
+| Etkilenen fonksiyonlar | `senkronizeDurumForOpen_`, `kaydetUltraSiparisHizli_`, `hafifErpGuncelle_`, `parasutFaturaTaslakGonder_`, `parasutTaslakPayloadTestEt_`, `operationInvoiceForOpen_`, `finalizeOperationResult_` |
+| Apps Script durumu | Yuklendi. `clasp push --force` ile 7 dosya ana Apps Script projesine gonderildi; `clasp pull --force` sonrasi core SHA256 GitHub ile eslesti. |
+| Sheet durumu | Canli Sheet verisi veya kolonlari degistirilmedi. |
+| GitHub durumu | Kod/test commit: `b9b2ee1`. Rapor ve gorev dosyasi ayrica commit/push edilecek. |
+| Test ve kanit | `SYNTAX_OK`; `DUPLICATE_FUNCTION_OK count=458`; `YASAK_IFADE_OK`; Node V6.5 test seti gecti; Apps Script core SHA256 eslesmesi: `062FA6202CE9856E852F4C80FE2F6957CFC6A6192D7806C2EF2CBBC447374ABE`. |
+| Canli POST | Yapilmadi. Testteki POST sayaclari local test harness kapsamindadir. |
+| Kalan risk | Canli Google Sheets UI readback testi bu turda yapilmadi; resmi e-belge ve tahsilat modulleri kapsam disinda kaldi. |
+
+Codex sohbet çıktısı / çalışma özeti şu dosyaya işlendi: `08_KABUL_RAPORLARI/2026-05-05_status_state_senkronizasyon_uygulama_raporu.md`

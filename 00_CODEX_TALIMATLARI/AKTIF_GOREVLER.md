@@ -155,3 +155,22 @@ Bu görev bitmeden tahsilat modülüne veya resmi e-belge modülüne geçilmeyec
 ## 11. CODEX SONUÇ ALANI
 
 Codex bu görevi yaptıktan sonra buraya kısa sonuç özeti eklemeli ve ayrıntılı raporu `08_KABUL_RAPORLARI` klasörüne yazmalıdır.
+
+## 12. CODEX UYGULAMA SONUCU - 2026-05-05
+
+- Durum: Uygulandi ve test edildi.
+- Eklenen ana fonksiyon: `senkronizeDurumForOpen_(openId)`
+- Public wrapper: `senkronizeDurumForOpen(acikSiparisId)`
+- Kod/test commit SHA: `b9b2ee1`
+- Apps Script yukleme: Yapildi.
+- Apps Script proje ID: `1-lU86xNoxXkuiX8pz8P2MkkIdbbLvT0Ub9bOhrcDLgLQ3a2aio6vIg77`
+- GitHub core SHA256 ile Apps Script pull core SHA256 eslesmesi: Evet.
+- Sheet degisikligi: Yapilmadi.
+- Canli API POST: Yapilmadi.
+- Calistirilan testler:
+  - Core syntax kontrolu: `SYNTAX_OK`
+  - Duplicate function kontrolu: `DUPLICATE_FUNCTION_OK count=458`
+  - Uretim core + panel yasak ifade taramasi: `YASAK_IFADE_OK`
+  - Node V6.5 test seti: Gecti
+- Detayli rapor: `08_KABUL_RAPORLARI/2026-05-05_status_state_senkronizasyon_uygulama_raporu.md`
+- Kalan risk: Canli Google Sheets UI readback testi bu turda yapilmadi; bir sonraki adimda kontrollu Acik_Siparis_ID ile `senkronizeDurumForOpen("AS-...")` calistirilip 03/06/07/08/11/12 okunmali.
