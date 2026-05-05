@@ -384,6 +384,46 @@ Codex sohbet çıktısı / çalışma özeti şu dosyaya işlendi: `08_KABUL_RAP
 
 Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/2026-05-05_apps_script_execution_api_izin_raporu.md`
 
+## Duzeltme Notu 2026-05-05-11 - Scope Deploy ve Readback Tekrari
+
+| Alan | Aciklama |
+| --- | --- |
+| Duzeltme ID | 2026-05-05-11 |
+| Neden duzenlendi | Kullanici Execution API baglantisi acildiktan sonra eksik SpreadsheetApp scope sorununun manifest scope listesiyle duzeltildigini, Apps Script'e push/deploy edilmesini, yeniden yetkilendirme yapilmasini ve `senkronizeDurumForOpen` readback testinin tekrar calistirilmesini istedi. |
+| Ne duzeltildi | `appsscript.json` icinde `https://www.googleapis.com/auth/spreadsheets` ve `https://www.googleapis.com/auth/script.external_request` scope'lari tekrar dogrulandi. Apps Script'e `clasp push --force` calistirildi, yeni deployment olusturuldu, Desktop OAuth JSON ile yeniden login yapildi ve `senkronizeDurumForOpen("AS-20260504-001")` tekrar calistirildi. |
+| Etkilenen dosyalar | `08_KABUL_RAPORLARI/2026-05-05_apps_script_execution_api_izin_raporu.md`, `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md` |
+| Etkilenen fonksiyonlar | Kod fonksiyonu degismedi. Test edilen fonksiyon: `senkronizeDurumForOpen(acikSiparisId)`. |
+| Apps Script durumu | `clasp push --force` sonucu proje zaten gunceldi; yeni deployment olusturuldu: `AKfycbw5CZ3ai1k2fhAFrwdaOZWicgSN7Er6gRFvOuUXCYjUN1ek3EBXi90czOQbbQoTwKuL @6`. |
+| Sheet durumu | `AS-20260504-001` icin canli Sheet readback tekrar alindi. 03/05/06/07/08/11/12 durumlari rapora islendi. |
+| GitHub durumu | Bu rapor guncellemesi GitHub'a commit/push edilecek. |
+| Test ve kanit | `clasp run senkronizeDurumForOpen --params '[\"AS-20260504-001\"]'` sonucu `ok: true`; `changed.invoiceGroups = false`, `changed.parasut = false`, `changed.open = false`; 12_KONTROL_MERKEZI readback `CTRL-OK / Kapalı / Blokaj_Mı = Hayır`. |
+| Canli POST | Yapilmadi. Parasut/Navlungo/e-belge POST fonksiyonlari calistirilmadi. |
+| Kalan risk | `clasp apis` icin `.clasp.json projectId` ihtiyaci devam edebilir; ancak istenen Execution API fonksiyon testi ve readback tekrar calisti. |
+
+### Bu Islemde Incelenen Dosyalar
+
+- `appsscript.json`
+- `C:\Users\emrah\Desktop\clasp_v65_main_upload\appsscript.json`
+- `08_KABUL_RAPORLARI/2026-05-05_apps_script_execution_api_izin_raporu.md`
+- `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md`
+- Canli Sheet readback araliklari: `03_ACIK_SIPARISLER`, `05_ODEMELER`, `06_FATURA_GRUPLARI`, `07_PARASUT_FATURA`, `08_KARGO_PAKETLERI`, `11_EBELGE_ISTISNA`, `12_KONTROL_MERKEZI`
+
+### Bu Islemde Degistirilen Dosyalar
+
+- `08_KABUL_RAPORLARI/2026-05-05_apps_script_execution_api_izin_raporu.md`
+- `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md`
+
+### Bu Islemde Calistirilan Komutlar
+
+- `clasp push --force`
+- `clasp deploy -d "V6.5 execution api scopes readback refresh"`
+- `clasp login --use-project-scopes --include-clasp-scopes --creds "C:\Users\emrah\Desktop\client_secret.json"`
+- `clasp show-authorized-user`
+- `clasp deployments`
+- `clasp run senkronizeDurumForOpen --params '[\"AS-20260504-001\"]'`
+
+Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/2026-05-05_apps_script_execution_api_izin_raporu.md`
+
 ## Duzeltme Notu 2026-05-05-10 - Desktop OAuth ile Clasp Run Blokajinin Acilmasi
 
 | Alan | Aciklama |

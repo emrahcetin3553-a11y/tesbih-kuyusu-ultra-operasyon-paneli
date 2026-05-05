@@ -951,3 +951,152 @@ Kalan not:
 
 - `.clasp.json projectId` halen eklenmedi; bu yuzden `clasp apis` komutu hala calismiyor.
 - Ancak istenen `clasp run` fonksiyon testi basariyla tamamlandi.
+
+## 17. Scope Push Deploy ve Tekrar Readback - 2026-05-05
+
+Kullanici, Execution API baglantisi acildiktan sonra rapordaki eksik `SpreadsheetApp` scope sorununun `appsscript.json oauthScopes` ile duzeltilmesini, Apps Script'e push/deploy edilmesini, yeniden yetkilendirme yapilmasini ve `senkronizeDurumForOpen` readback testinin tekrar calistirilmasini istedi.
+
+### 17.1 Manifest Scope Kontrolu
+
+Kontrol edilen dosyalar:
+
+- `appsscript.json`
+- `C:\Users\emrah\Desktop\clasp_v65_main_upload\appsscript.json`
+
+Manifestte su scope'lar mevcut olarak dogrulandi:
+
+```json
+"oauthScopes": [
+  "https://www.googleapis.com/auth/spreadsheets",
+  "https://www.googleapis.com/auth/script.external_request"
+]
+```
+
+Sonuc:
+
+- `SpreadsheetApp` icin gerekli `https://www.googleapis.com/auth/spreadsheets` scope mevcut.
+- V6.5 icindeki API fetch fonksiyonlari icin gerekli `https://www.googleapis.com/auth/script.external_request` scope mevcut.
+- Bu turda manifest iceriginde yeni diff olusmadi; mevcut scope duzeltmesi canli projeye tekrar push/deploy edildi.
+
+### 17.2 Apps Script Push ve Deploy
+
+Calistirilan komutlar:
+
+```powershell
+clasp push --force
+clasp deploy -d "V6.5 execution api scopes readback refresh"
+```
+
+Sonuc:
+
+```text
+Script is already up to date.
+Created version 6.
+Deployed AKfycbw5CZ3ai1k2fhAFrwdaOZWicgSN7Er6gRFvOuUXCYjUN1ek3EBXi90czOQbbQoTwKuL @6
+```
+
+Degerlendirme:
+
+- Apps Script projesi GitHub'daki aktif V6.5 dosyalariyla zaten eslesti.
+- Yeni deployment olusturuldu: `AKfycbw5CZ3ai1k2fhAFrwdaOZWicgSN7Er6gRFvOuUXCYjUN1ek3EBXi90czOQbbQoTwKuL @6`.
+
+### 17.3 Desktop OAuth ile Yeniden Yetkilendirme
+
+Calistirilan komut:
+
+```powershell
+clasp login --use-project-scopes --include-clasp-scopes --creds "C:\Users\emrah\Desktop\client_secret.json"
+```
+
+Gizli dosya guvenligi:
+
+- `client_secret.json` icerigi okunmadi ve rapora yazilmadi.
+- `.gitignore` icinde `client_secret.json` ve `client_secret*.json` korumalari mevcut.
+
+Yetkilendirme sonucu:
+
+- Oturum kullanicisi: `emrahcetin3553@gmail.com`
+- OAuth client tipi: user-provided
+- Yetki listesinde `https://www.googleapis.com/auth/spreadsheets` gorundu.
+- Yetki listesinde `https://www.googleapis.com/auth/script.external_request` gorundu.
+
+### 17.4 Clasp Run Testi
+
+Calistirilan komut:
+
+```powershell
+clasp run senkronizeDurumForOpen --params '[\"AS-20260504-001\"]'
+```
+
+Sonuc:
+
+```json
+{
+  "controlRowsRead": 0,
+  "messageCount": 0,
+  "cargoStatus": "Barkod Alındı",
+  "openId": "AS-20260504-001",
+  "ebelgeStatus": "Gönderime Hazır",
+  "invoiceStatus": "Gönderildi",
+  "ok": true,
+  "changed": {
+    "invoiceGroups": false,
+    "parasut": false,
+    "open": false
+  }
+}
+```
+
+Degerlendirme:
+
+- `senkronizeDurumForOpen("AS-20260504-001")` Execution API uzerinden basariyla calisti.
+- Sonuc `ok: true`.
+- `changed` alanlari `false`; bu tekrar calistirmada canli Sheet'te ek statu drift duzeltmesi gerekmemisti.
+- `parasut: false`; bu test Parasut fatura gonderimi yapmadi.
+
+### 17.5 Canli Sheet Readback Tekrari
+
+Canli Sheet ID:
+
+- `1ebgYLgOEE3uET6NRYviGXnh1cziUIal84aJhjhcCY80`
+
+Okunan sayfalar:
+
+- `03_ACIK_SIPARISLER`
+- `05_ODEMELER`
+- `06_FATURA_GRUPLARI`
+- `07_PARASUT_FATURA`
+- `08_KARGO_PAKETLERI`
+- `11_EBELGE_ISTISNA`
+- `12_KONTROL_MERKEZI`
+
+`AS-20260504-001` readback sonucu:
+
+| Sayfa | Readback sonucu |
+| --- | --- |
+| `03_ACIK_SIPARISLER` | `Kargo_Durumu = Barkod Alındı`, `Fatura_Durumu = Gönderildi`, `E_Belge_Durumu = Gönderime Hazır`, `Kontrol_Seviyesi = Hazır`, `ERP_Kapanış_Uygun_Mu = Evet` |
+| `05_ODEMELER` | `Teyit_Durumu = Bekliyor`, `Operatör_Teyidi = Hayır` |
+| `06_FATURA_GRUPLARI` | `Fatura_Durumu = Gönderildi`, `Paraşüt_Cari_ID = 1062372249`, `Paraşüt_Fatura_ID = 1084948327`, `Gönderim_Kilidi = Evet` |
+| `07_PARASUT_FATURA` | `Paraşüt_Durumu = Gönderildi`, `Gönderim_Kilidi = Evet`, `Taslak_Gönderime_Uygun_Mu = Hayır` |
+| `08_KARGO_PAKETLERI` | `Paket_Durumu = Barkod Hazır`, `Navlungo_Status = Barkod Hazır`, tracking URL var, barcode URL var, `Navlungo_Test_Mu = Evet`, `Kargo_Bekletilsin_Mi = Hayır` |
+| `11_EBELGE_ISTISNA` | `Gönderim_Durumu = Gönderime Hazır`, `Resmi_Gönderim_Onayı = Evet`, `Kontrol_Seviyesi = OK` |
+| `12_KONTROL_MERKEZI` | `CTRL-OK`, `Durum = Kapalı`, `Blokaj_Mı = Hayır` |
+
+### 17.6 Canli POST Durumu
+
+Bu turda calistirilmayan fonksiyonlar:
+
+- Parasut fatura gonderim fonksiyonu calistirilmadi.
+- Navlungo kargo olusturma veya barkod fonksiyonu calistirilmadi.
+- e-Belge canli gonderim fonksiyonu calistirilmadi.
+
+Sonuc:
+
+- Parasut POST: Yapilmadi.
+- Navlungo POST: Yapilmadi.
+- e-Belge POST: Yapilmadi.
+
+### 17.7 Kalan Not
+
+- `clasp apis` komutunun Cloud API yonetimi icin `.clasp.json projectId` ihtiyaci devam edebilir.
+- Ancak bu gorevin kabul hedefi olan `clasp run senkronizeDurumForOpen` testi calisti ve canli Sheet readback ile dogrulandi.
