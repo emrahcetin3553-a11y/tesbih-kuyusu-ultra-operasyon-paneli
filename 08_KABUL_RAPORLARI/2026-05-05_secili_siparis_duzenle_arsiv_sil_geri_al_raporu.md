@@ -81,6 +81,16 @@ SHA256 readback:
 
 Sonuç: Canlı Apps Script core ile GitHub çalışma dosyası eşleşiyor.
 
+GitHub:
+
+- Kod commit'i: `d012a357734f448df5d3513b16f2e6b83b0732fe`
+- GitHub Actions run: `25401722178`
+- Workflow: `Node.js CI`
+- Run number: `23`
+- Sonuç: `completed / success`
+- Job: `74502723263` / `V6.5 Apps Script test harness`
+- Job adımları: Checkout, Use Node.js 20.x, Install dependencies, Audit dependencies, Run V6.5 acceptance checks tamamı `success`.
+
 ## 6. Sheet Durumu
 
 - Canlı Sheet verisi bu turda değiştirilmedi.

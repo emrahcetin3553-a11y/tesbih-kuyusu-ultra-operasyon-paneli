@@ -817,6 +817,7 @@ Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/202
 | Apps Script durumu | `clasp push --force` ile 7 dosya yuklendi; `clasp pull --force` ile geri cekildi. Core SHA eslesti: `AD23C3A611F174389B4F54804404C7B710EC00A41B266AD306F864B96C5749A5`. Panel SHA eslesti: `2A89FB386FE9FC319B2C34CF1816FE1C00B361307AA56DF87110B99977EE38FF`. Manifest SHA eslesti: `EE111E1EA5BE30071E84DCDAE1570F3C1078B3814D463DA97367F71799EA267D`. |
 | Sheet durumu | Canli Sheet verisi degistirilmedi. Kod sozlesmesine `ARSIVLENENLER` ve `SILINENLER` sayfalari eklendi; canli Sheet'te olusmalari icin `sistemKolonlariniHazirla()` veya ilgili operasyon calismalidir. |
 | Test ve kanit | `npm ci` basarili; `npm audit --audit-level=high` 0 vulnerability; `npm test` basarili. Ek testler 02 secili payload, Kuyruk_ID fallback, arsiv tasima, silinenler tasima, geri alma ve duplicate engelini kapsiyor. |
+| GitHub Actions | Kod commit'i `d012a357734f448df5d3513b16f2e6b83b0732fe`. Run `25401722178` / `Node.js CI` run number `23` completed/success. Job `74502723263` / `V6.5 Apps Script test harness` success. |
 | Canli POST | Yapilmadi. Parasut, Navlungo ve e-belge POST calistirilmadi. |
 | Kalan risk | Gercek Google Sheets UI uzerinden kullanicinin secili 02 satiri panel acma, arsiv, sil ve geri al akisini tekrar denemesi gerekiyor. Bu turda canli UI kabul tamamlandi denmedi. |
 
