@@ -384,6 +384,48 @@ Codex sohbet çıktısı / çalışma özeti şu dosyaya işlendi: `08_KABUL_RAP
 
 Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/2026-05-05_apps_script_execution_api_izin_raporu.md`
 
+## Duzeltme Notu 2026-05-05-13 - Guncel Proje Derin Durum Analizi
+
+| Alan | Aciklama |
+| --- | --- |
+| Duzeltme ID | 2026-05-05-13 |
+| Neden duzenlendi | Kullanici guncel proje icin GitHub, canli Apps Script kodu ve canli Sheet tablosunun derin analiz edilmesini ve mevcut durumun eksiksiz raporlanmasini istedi. |
+| Ne duzeltildi | Kod, HTML, Apps Script ve Sheet degistirilmedi. Yeni analiz raporu olusturuldu. GitHub branch/PR durumu, canli Apps Script SHA eslesmesi, aktif core statik kontrolleri, canli Sheet ayarlari, 08 kargo kolon sozlesmesi ve veri sozlugu kapsam farklari raporlandi. |
+| Etkilenen dosyalar | `08_KABUL_RAPORLARI/2026-05-05_guncel_proje_derin_durum_analiz_raporu.md`, `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md` |
+| Etkilenen fonksiyonlar | Kod degisikligi yok. Incelenen onemli fonksiyonlar: `selectedOpenIds_`, `openIdFromRelatedRow_`, `kaydetVeErpGuncelle_`, `ultraSiparisKaydet_`, `kaydetUltraSiparisHizli_`, `hafifErpGuncelle_`, `parasutFaturaTaslakGonder_`, `navlungoKargoOlusturOnayli_`, `navlungoBarkodAl_`, `operationFromOpenId_`, `performOrderOperation_`. |
+| Apps Script durumu | `clasp pull --force` ile canli Apps Script cekildi. Aktif 7 dosyanin SHA degerleri GitHub aktif branch ile eslesti. Eski V6.4.x core dosyalari canli Apps Script icinde aktif degil. |
+| Sheet durumu | Canli Sheet 16 sayfa olarak okundu. `01_AYARLAR` canli kapilarinin acik oldugu, `08_KARGO_PAKETLERI` son kolon sirasi ile kod sozlesmesi arasinda fark oldugu, `13_VERI_SOZLUGU` icinde yeni 08 kolonlarinin eksik oldugu tespit edildi. |
+| GitHub durumu | Aktif branch `v6-5-production-candidate`; PR #6 acik. `main` aktif V6.5 durumunu temsil etmiyor. PR #6 son yorumu menu/kisayol guvenli duzeltme uygulamasini istiyor ve henuz uygulanmamis gorev olarak duruyor. |
+| Test ve kanit | Core syntax OK. V6.5 Node test seti `ok: true` dondu. Aktif core/HTML yasak ifade taramasi temiz. Duplicate public function yok. 12_KONTROL_MERKEZI yeni okuma denemesi Google Sheets API 429 quota nedeniyle tamamlanamadi; bu nedenle 12 icin yeni gecti iddiasi yazilmadi. |
+| Canli POST | Bu analiz turunda Parasut/Navlungo/e-belge canli POST calistirilmadi. |
+| Kalan risk | Canli kapilar su anda acik; menu/kisayol guvenli duzeltme uygulanmamis; 08 kolon sozlesmesi ve 13 veri sozlugu hizalanmali; ana repo dokumanlari V6.4.5 bilgisinde kalmis. |
+
+### Bu Islemde Incelenen Dosyalar
+
+- `README.md`
+- `CHANGELOG.md`
+- `CANLIYA_GECIS.md`
+- `PROJE_DURUM_RAPORU.md`
+- `appsscript.json`
+- `03_APPS_SCRIPT_KOD/tesbih_kuyusu_v6_5_ultra_operasyon_core.gs`
+- `03_APPS_SCRIPT_KOD/ultraSiparisPaneli.html`
+- `03_APPS_SCRIPT_KOD/cariSecDialog.html`
+- `03_APPS_SCRIPT_KOD/urunEkleDialog.html`
+- `03_APPS_SCRIPT_KOD/odemeEkleDialog.html`
+- `03_APPS_SCRIPT_KOD/kargoBilgisiDialog.html`
+- `07_TEST_DOSYALARI/test_v6_5_ultra_operasyon.js`
+- `08_KABUL_RAPORLARI/*`
+- Canli Apps Script pull klasoru: `C:\Users\emrah\Desktop\clasp_v65_main_upload`
+- Canli Sheet: `TESBIH_KUYUSU_MASTER_SHEET`
+- PR #6 yorum akisi
+
+### Bu Islemde Degistirilen Dosyalar
+
+- `08_KABUL_RAPORLARI/2026-05-05_guncel_proje_derin_durum_analiz_raporu.md`
+- `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md`
+
+Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/2026-05-05_guncel_proje_derin_durum_analiz_raporu.md`
+
 ## Duzeltme Notu 2026-05-05-11 - Scope Deploy ve Readback Tekrari
 
 | Alan | Aciklama |
