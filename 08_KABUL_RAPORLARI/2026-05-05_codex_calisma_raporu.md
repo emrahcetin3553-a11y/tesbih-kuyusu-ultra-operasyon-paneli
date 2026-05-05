@@ -129,3 +129,38 @@ Bundan sonraki raporlarda her teknik duzeltme icin su format kullanilacak:
 | GitHub durumu | Commit ve push bilgisi |
 | Test ve kanit | Calistirilan kontrol ve sonuc |
 | Kalan risk | Dogrulanmayan veya kullanici testi bekleyen konu |
+
+## Duzeltme Notu 2026-05-05-02 - Guncel Ana Sheet Dosyasinin GitHub'a Eklenmesi
+
+| Alan | Aciklama |
+| --- | --- |
+| Duzeltme ID | 2026-05-05-02 |
+| Neden duzenlendi | Kullanici guncel ana Sheet dosyasinin GitHub'a oldugu gibi yuklenmesini istedi. |
+| Ne duzeltildi | `C:\Users\emrah\Downloads\TESBIH_KUYUSU_MASTER_SHEET (17).xlsx` dosyasi icerigi degistirilmeden repo icindeki `02_SHEET_SISTEM` klasorune eklendi. |
+| Etkilenen dosyalar | `02_SHEET_SISTEM/TESBIH_KUYUSU_MASTER_SHEET (17).xlsx`, `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md` |
+| Etkilenen fonksiyonlar | Yok. Kod degisikligi yapilmadi. |
+| Apps Script durumu | Apps Script'e dosya yuklenmedi. |
+| Sheet durumu | Yeni Sheet dosyasi repo icine eklendi; dosya icerigi degistirilmedi. |
+| GitHub durumu | Sheet dosyasi ve bu rapor GitHub'a islenecek dosyalar arasina alindi. |
+| Test ve kanit | Kaynak dosya SHA256: `0779B06CCB0CFF31DE64FADE036879791F2EE226E42FF7B04811821B32BE145B`; repo kopyasi SHA256: `0779B06CCB0CFF31DE64FADE036879791F2EE226E42FF7B04811821B32BE145B`; eslesme: Evet. |
+| Kalan risk | Bu turda Sheet icerigi acilip kolon/veri dogrulamasi yapilmadi; kullanicinin istegi dosyayi oldugu gibi GitHub'a eklemekti. |
+
+### Bu Islemde Incelenen Dosyalar
+
+- `C:\Users\emrah\Downloads\TESBIH_KUYUSU_MASTER_SHEET (17).xlsx`
+- `02_SHEET_SISTEM/`
+- `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md`
+
+### Bu Islemde Degistirilen Dosyalar
+
+- `02_SHEET_SISTEM/TESBIH_KUYUSU_MASTER_SHEET (17).xlsx`
+- `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md`
+
+### Bu Islemde Calistirilan Kontroller
+
+- Kaynak Sheet dosyasi varlik kontrolu
+- Kaynak Sheet SHA256 kontrolu
+- Repo kopyasi SHA256 kontrolu
+- Kaynak ve repo kopyasi SHA256 eslesme kontrolu
+
+Codex sohbet çıktısı / çalışma özeti şu dosyaya işlendi: `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md`
