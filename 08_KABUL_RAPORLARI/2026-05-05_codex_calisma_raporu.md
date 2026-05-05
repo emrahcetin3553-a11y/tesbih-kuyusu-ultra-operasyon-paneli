@@ -113,6 +113,46 @@ Ek kullanici talimati:
 
 Codex sohbet çıktısı / çalışma özeti şu dosyaya işlendi: `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md`
 
+## Duzeltme Notu 2026-05-05-03 - ChatGPT Inceleme Erisim Talimati
+
+| Alan | Aciklama |
+| --- | --- |
+| Duzeltme ID | 2026-05-05-03 |
+| Neden duzenlendi | Kullanici, GitHub connector ile ChatGPT'nin tum proje dosyalarini eksiksiz okuyabilmesi icin repo icinde acik erisim talimati dosyasi istedi. |
+| Ne duzeltildi | `00_CODEX_TALIMATLARI/CHATGPT_INCELEME_ERISIM_TALIMATI.md` dosyasi olusturuldu. Dosyada aktif branch, repo/PR bilgisi, raw GitHub linkleri, Apps Script canli dosya SHA eslesmeleri, guncel Sheet dosya adi, rapor dosyalari ve inceleme sirasi yazildi. |
+| Etkilenen dosyalar | `00_CODEX_TALIMATLARI/CHATGPT_INCELEME_ERISIM_TALIMATI.md`, `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md` |
+| Etkilenen fonksiyonlar | Yok. Kod fonksiyonu degistirilmedi. |
+| Apps Script durumu | Apps Script'e dosya yuklenmedi. Canli dosyalar `clasp pull --force` ile okunup SHA eslesmesi rapora alindi. |
+| Sheet durumu | Sheet dosyasi degistirilmedi. Guncel ana Sheet snapshot adi talimat dosyasina eklendi. |
+| GitHub durumu | Talimat dosyasi ve bu rapor GitHub'a islenecek dosyalar arasina alindi. |
+| Test ve kanit | `git ls-files`, `git branch --show-current`, `clasp pull --force`, aktif Apps Script dosyalari SHA256 karsilastirmasi calistirildi. Tum aktif Apps Script dosyalari GitHub karsiliklariyla eslesiyor. |
+| Kalan risk | Bu turda GitHub connector ile ayri bir ChatGPT okuma testi calistirilmadi; dosya repo icinde erisim rehberi olarak hazirlandi. |
+
+### Bu Islemde Incelenen Dosyalar
+
+- `README.md`
+- `CANLIYA_GECIS.md`
+- `PROJE_DURUM_RAPORU.md`
+- `CHANGELOG.md`
+- `03_APPS_SCRIPT_KOD/tesbih_kuyusu_v6_5_ultra_operasyon_core.gs`
+- `03_APPS_SCRIPT_KOD/ultraSiparisPaneli.html`
+- `03_APPS_SCRIPT_KOD/cariSecDialog.html`
+- `03_APPS_SCRIPT_KOD/urunEkleDialog.html`
+- `03_APPS_SCRIPT_KOD/odemeEkleDialog.html`
+- `03_APPS_SCRIPT_KOD/kargoBilgisiDialog.html`
+- `02_SHEET_SISTEM/TESBIH_KUYUSU_MASTER_SHEET (17).xlsx`
+- `05_NAVLUNGO/`
+- `07_TEST_DOSYALARI/`
+- `08_KABUL_RAPORLARI/`
+- Canli Apps Script pull klasoru: `C:\Users\emrah\Desktop\clasp_v65_main_upload`
+
+### Bu Islemde Degistirilen Dosyalar
+
+- `00_CODEX_TALIMATLARI/CHATGPT_INCELEME_ERISIM_TALIMATI.md`
+- `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md`
+
+Codex sohbet çıktısı / çalışma özeti şu dosyaya işlendi: `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md`
+
 ## Duzeltme Notlari Formati
 
 Bundan sonraki raporlarda her teknik duzeltme icin su format kullanilacak:
