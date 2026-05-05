@@ -1,0 +1,12 @@
+{
+  "name": "tesbih-kuyusu-ultra-operasyon-paneli",
+  "version": "6.5.0",
+  "private": true,
+  "description": "Tesbih Kuyusu V6.5 Google Sheets ve Apps Script operasyon paneli test paketi.",
+  "scripts": {
+    "test": "node 07_TEST_DOSYALARI/test_v6_5_ci_checks.js && node 07_TEST_DOSYALARI/test_v6_5_ultra_operasyon.js && node 07_TEST_DOSYALARI/test_v6_5_son_sheet_referans_sozlesmesi.js"
+  },
+  "devDependencies": {
+    "adm-zip": "0.5.16"
+  }
+}

@@ -679,3 +679,47 @@ Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/202
 - `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md`
 
 Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/2026-05-05_son_sheet_referans_sozlesme_kod_uyum_raporu.md`
+
+## Duzeltme Notu 2026-05-05-15 - GitHub Actions Node CI Duzeltmesi
+
+| Alan | Aciklama |
+| --- | --- |
+| Duzeltme ID | 2026-05-05-15 |
+| Neden duzenlendi | PR #6 son yorumu, GitHub Actions `Node.js CI` kirmizi build sebebinin bulunmasini ve CI hattinin sahte pass yapmadan proje gercegine uygun hale getirilmesini istedi. |
+| Ne duzeltildi | Failed run `25377859149` ve job `74417735897` loglari incelendi. Gercek hata `actions/setup-node@v4` icinde `package-lock.json` bulunamamasiydi; `npm ci` ve `npm test` hic calismamisti. Temiz `package.json` ve `package-lock.json` eklendi; core syntax/duplicate/yasak ifade test dosyasi ve son Sheet referans sozlesme Node testi eklendi. |
+| Etkilenen dosyalar | `package.json`, `package-lock.json`, `07_TEST_DOSYALARI/test_v6_5_ci_checks.js`, `07_TEST_DOSYALARI/test_v6_5_son_sheet_referans_sozlesmesi.js`, `08_KABUL_RAPORLARI/2026-05-05_github_actions_node_ci_duzeltme_raporu.md`, `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md` |
+| Etkilenen fonksiyonlar | Operasyon core fonksiyonu degismedi. Yalniz CI/test/package hattina dosya eklendi. |
+| Apps Script durumu | Apps Script'e push yapilmadi; core ve HTML degismedi. |
+| Sheet durumu | Canli Sheet degistirilmedi. Referans XLSX read-only testte okundu. |
+| GitHub durumu | Bu degisiklikler GitHub'a commit/push edilecek ve post-push GitHub Actions sonucu okunacak. |
+| Test ve kanit | `npm ci` basarili; `npm audit` 0 vulnerability; `npm test` basarili. Testler core syntax, duplicate public function, aktif uretim dosyalarinda yasak ifade, V6.5 Node test seti ve son Sheet referans sozlesmesini kapsiyor. |
+| Canli POST | Yapilmadi. Canli Apps Script, Sheet, Parasut, Navlungo ve e-belge POST calistirilmadi. |
+| Kalan risk | Bu not ilk lokal test kanitiyla yazildi; GitHub Actions post-push run sonucu ayrica readback edilecek. |
+
+### Bu Islemde Incelenen Dosyalar
+
+- `origin/main:.github/workflows/node.js.yml`
+- `package.json`
+- `package-lock.json`
+- `07_TEST_DOSYALARI/test_v6_5_ultra_operasyon.js`
+- `07_TEST_DOSYALARI/test_v6_5_ci_checks.js`
+- `07_TEST_DOSYALARI/test_v6_5_son_sheet_referans_sozlesmesi.js`
+- `03_APPS_SCRIPT_KOD/tesbih_kuyusu_v6_5_ultra_operasyon_core.gs`
+- `03_APPS_SCRIPT_KOD/ultraSiparisPaneli.html`
+- `03_APPS_SCRIPT_KOD/cariSecDialog.html`
+- `03_APPS_SCRIPT_KOD/urunEkleDialog.html`
+- `03_APPS_SCRIPT_KOD/odemeEkleDialog.html`
+- `03_APPS_SCRIPT_KOD/kargoBilgisiDialog.html`
+- `02_SHEET_SISTEM/TESBIH_KUYUSU_MASTER_SHEET (20).xlsx`
+- GitHub Actions run `25377859149`, job `74417735897`
+
+### Bu Islemde Degistirilen Dosyalar
+
+- `package.json`
+- `package-lock.json`
+- `07_TEST_DOSYALARI/test_v6_5_ci_checks.js`
+- `07_TEST_DOSYALARI/test_v6_5_son_sheet_referans_sozlesmesi.js`
+- `08_KABUL_RAPORLARI/2026-05-05_github_actions_node_ci_duzeltme_raporu.md`
+- `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md`
+
+Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/2026-05-05_github_actions_node_ci_duzeltme_raporu.md`
