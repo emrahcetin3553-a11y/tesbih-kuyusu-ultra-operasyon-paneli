@@ -42,7 +42,9 @@ var TK6 = (function () {
       control: "12_KONTROL_MERKEZI",
       dictionary: "13_VERI_SOZLUGU",
       bank: "14_BANKA_HAREKETLERI",
-      addressMemory: "15_MUSTERI_ADRESLERI"
+      addressMemory: "15_MUSTERI_ADRESLERI",
+      archive: "ARSIVLENENLER",
+      deleted: "SILINENLER"
     }
   };
 
@@ -227,7 +229,15 @@ var TK6 = (function () {
     SUGGESTED_OPEN_ID: "Önerilen_Açık_Sipariş_ID",
     SUGGESTED_PAYMENT_ID: "Önerilen_Ödeme_ID",
     SUGGESTED_PAYER: "Önerilen_Ödeme_Yapan",
-    OPERATOR_APPROVAL: "Operatör_Onayı"
+    OPERATOR_APPROVAL: "Operatör_Onayı",
+    AUDIT_ID: "Audit_ID",
+    AUDIT_ACTION: "İşlem_Tipi",
+    SOURCE_ROW_NO: "Kaynak_Satır_No",
+    ROW_JSON: "Satır_JSON",
+    OPERATOR: "Operatör",
+    RESTORED: "Geri_Alındı_Mı",
+    RESTORE_DATE: "Geri_Alma_Tarihi",
+    RESTORE_STATUS: "Geri_Alma_Durumu"
   };
 
   var HEADERS = {
@@ -312,6 +322,16 @@ var TK6 = (function () {
       H.BANK_AMOUNT, H.BANK_NAME, H.IBAN, H.BANK_TX_TYPE, H.REF_NO, H.MATCH_STATUS,
       H.MATCH_SCORE, H.SUGGESTED_OPEN_ID, H.SUGGESTED_PAYMENT_ID, H.SUGGESTED_PAYER,
       H.OPERATOR_APPROVAL, H.WARN
+    ],
+    archive: [
+      H.AUDIT_ID, H.AUDIT_ACTION, H.DATE, H.SOURCE_SHEET, H.SOURCE_ROW_NO,
+      H.OPEN_ID, H.Q_ID, H.ITEM_ID, H.PAYMENT_ID, H.INVOICE_GROUP_ID, H.CARGO_PACKAGE_ID,
+      H.SOURCE_ID, H.ROW_JSON, H.OPERATOR, H.RESTORED, H.RESTORE_DATE, H.RESTORE_STATUS, H.WARN
+    ],
+    deleted: [
+      H.AUDIT_ID, H.AUDIT_ACTION, H.DATE, H.SOURCE_SHEET, H.SOURCE_ROW_NO,
+      H.OPEN_ID, H.Q_ID, H.ITEM_ID, H.PAYMENT_ID, H.INVOICE_GROUP_ID, H.CARGO_PACKAGE_ID,
+      H.SOURCE_ID, H.ROW_JSON, H.OPERATOR, H.RESTORED, H.RESTORE_DATE, H.RESTORE_STATUS, H.WARN
     ]
   };
 
@@ -414,6 +434,8 @@ var TK6 = (function () {
     ensureSheet_(ss, CFG.sheets.control, HEADERS.control);
     ensureSheet_(ss, CFG.sheets.bank, HEADERS.bank);
     ensureSheet_(ss, CFG.sheets.addressMemory, HEADERS.addressMemory);
+    ensureSheet_(ss, CFG.sheets.archive, HEADERS.archive);
+    ensureSheet_(ss, CFG.sheets.deleted, HEADERS.deleted);
     ensureSheet_(ss, CFG.sheets.settings, HEADERS.settings);
     ensureRequiredSettings_(ss);
     return true;
@@ -714,26 +736,29 @@ var TK6 = (function () {
   function ultraPanelPayloadForOpenId_(ss, openId) {
     var queueRows = objects_(sheet_(ss, CFG.sheets.queue)).filter(function (r) { return r[H.OPEN_ID] === openId; });
     var q = queueRows[queueRows.length - 1] || {};
+    var openRows = objects_(sheet_(ss, CFG.sheets.open)).filter(function (r) { return r[H.OPEN_ID] === openId; });
+    var open = openRows[openRows.length - 1] || {};
     var cargoRows = objects_(sheet_(ss, CFG.sheets.cargo)).filter(function (r) { return r[H.OPEN_ID] === openId; });
     var cargo = cargoRows[cargoRows.length - 1] || {};
     var itemRows = objects_(sheet_(ss, CFG.sheets.items)).filter(function (r) { return r[H.OPEN_ID] === openId && r[H.ITEM_STATUS] !== "İptal"; });
     var paymentRows = objects_(sheet_(ss, CFG.sheets.payments)).filter(function (r) { return r[H.OPEN_ID] === openId && r[H.CONFIRM_STATUS] !== "İptal"; });
     var invoiceRows = objects_(sheet_(ss, CFG.sheets.invoiceGroups)).filter(function (r) { return r[H.OPEN_ID] === openId && r[H.INVOICE_STATUS] !== "İptal"; });
-    if (!q[H.OPEN_ID] && !itemRows.length && !paymentRows.length && !invoiceRows.length && !cargo[H.OPEN_ID]) return null;
-    var phone = q[H.PHONE] || cargo[H.CARGO_TEL] || "";
+    if (!q[H.OPEN_ID] && !open[H.OPEN_ID] && !itemRows.length && !paymentRows.length && !invoiceRows.length && !cargo[H.OPEN_ID]) return null;
+    var phone = q[H.PHONE] || open[H.PHONE] || cargo[H.CARGO_TEL] || "";
+    var owner = q[H.OWNER] || open[H.OWNER] || "";
     return {
       openId: openId,
       cargoPackageId: cargo[H.CARGO_PACKAGE_ID] || "",
       kargoPaketId: cargo[H.CARGO_PACKAGE_ID] || "",
       whatsAppTel: phone,
-      siparisSahibi: q[H.OWNER] || "",
+      siparisSahibi: owner,
       hamWhatsappMesaji: q[H.RAW] || "",
       hizliUrunGirisi: q[H.FAST_PRODUCTS] || "",
       hizliOdemeGirisi: q[H.FAST_PAYMENTS] || "",
       hizliKargoGirisi: q[H.FAST_CARGO] || "",
       kargo: {
         kargoPaketId: cargo[H.CARGO_PACKAGE_ID] || "",
-        kargoAlicisi: cargo[H.CARGO_RECEIVER] || q[H.OWNER] || "",
+        kargoAlicisi: cargo[H.CARGO_RECEIVER] || owner,
         kargoTel: cargo[H.CARGO_TEL] || phone,
         il: cargo[H.CITY] || "",
         ilce: cargo[H.DISTRICT] || "",
@@ -1001,7 +1026,7 @@ var TK6 = (function () {
   }
 
   function selectedContextSheets_() {
-    return [CFG.sheets.queue, CFG.sheets.open, CFG.sheets.items, CFG.sheets.payments, CFG.sheets.invoiceGroups, CFG.sheets.parasut, CFG.sheets.cargo, CFG.sheets.memory, CFG.sheets.addressMemory];
+    return [CFG.sheets.queue, CFG.sheets.open, CFG.sheets.items, CFG.sheets.payments, CFG.sheets.invoiceGroups, CFG.sheets.parasut, CFG.sheets.cargo, CFG.sheets.memory, CFG.sheets.addressMemory, CFG.sheets.archive, CFG.sheets.deleted];
   }
 
   function selectedOrderContextSheets_() {
@@ -1146,29 +1171,9 @@ var TK6 = (function () {
   function applyOrderLifecycle_(ss, openId, mode) {
     openId = String(openId || "").trim();
     if (!openId) throw new Error("Açık_Sipariş_ID bulunamadı.");
-    var external = orderExternalState_(ss, openId);
-    if (mode === "cancel" && external.any) {
-      var reason = "Canlı fatura veya kargo kaydı var; iptal için manuel kontrol gerekli";
-      kontrolMerkezineTeknikBlokajYaz_(ss, CFG.sheets.open, openId, reason, "Paraşüt ve Navlungo kayıtlarını kontrol edip iptal sürecini ayrı yürütün.", "Operasyon");
-      return { ok: false, openId: openId, status: reason, external: external };
-    }
-    var status = mode === "restore" ? "Açık" : mode === "archive" ? "Arşiv" : "İptal";
-    var rowStatus = mode === "restore" ? "Staging" : status;
-    var itemStatus = mode === "restore" ? "Hazır" : status;
-    var paymentStatus = mode === "restore" ? "Bekliyor" : status;
-    var invoiceStatus = mode === "restore" ? "Hazır" : status;
-    var cargoStatus = mode === "restore" ? "Hazır" : status;
-    var parasutStatus = mode === "restore" ? "Taslak Hazır" : status;
-    var changed = 0;
-    changed += patchRowsForOpen_(ss, CFG.sheets.queue, HEADERS.queue, openId, { [H.ORDER_STATUS]: status, [H.ROW_STATUS]: rowStatus, [H.WARN]: "" });
-    changed += patchRowsForOpen_(ss, CFG.sheets.open, HEADERS.open, openId, { [H.ORDER_STATUS]: status, [H.WARN]: "", [H.BLOCK_REASON]: "", [H.CONTROL_LEVEL]: mode === "restore" ? "OK" : status });
-    changed += patchRowsForOpen_(ss, CFG.sheets.items, HEADERS.items, openId, { [H.ITEM_STATUS]: itemStatus, [H.WARN]: "" });
-    changed += patchRowsForOpen_(ss, CFG.sheets.payments, HEADERS.payments, openId, { [H.CONFIRM_STATUS]: paymentStatus, [H.CONFIRM_NOTE]: "", [H.WARN]: "" });
-    changed += patchRowsForOpen_(ss, CFG.sheets.invoiceGroups, HEADERS.invoiceGroups, openId, { [H.INVOICE_STATUS]: invoiceStatus, [H.WARN]: "" });
-    changed += patchRowsForOpen_(ss, CFG.sheets.parasut, HEADERS.parasut, openId, { [H.PARASUT_STATUS]: parasutStatus, [H.ERROR]: "", [H.DRAFT_BLOCK]: "", [H.WARN]: "" });
-    changed += patchRowsForOpen_(ss, CFG.sheets.cargo, HEADERS.cargo, openId, { [H.PACKAGE_STATUS]: cargoStatus, [H.WARN]: "" });
-    kontrolMerkeziniGuncelleForOpen_(ss, openId);
-    return { ok: true, openId: openId, mode: mode, status: status, changed: changed };
+    if (mode === "restore") return restoreLifecycleRows_(ss, openId);
+    if (mode === "archive") return moveLifecycleRows_(ss, openId, CFG.sheets.archive, "Arşivle");
+    return moveLifecycleRows_(ss, openId, CFG.sheets.deleted, "Sil");
   }
 
   function orderExternalState_(ss, openId) {
@@ -1182,6 +1187,258 @@ var TK6 = (function () {
       return row[H.OPEN_ID] === openId && (row[H.NAVLUNGO_POST_NUMBER] || row[H.NAVLUNGO_TRACKING_URL] || row[H.NAVLUNGO_BARCODE_URL]);
     });
     return { any: invoices.length + parasutRows.length + cargos.length > 0, invoices: invoices.length, parasutRows: parasutRows.length, cargos: cargos.length };
+  }
+
+  function lifecycleSourceConfigs_() {
+    return [
+      { sheetName: CFG.sheets.queue, headers: HEADERS.queue },
+      { sheetName: CFG.sheets.open, headers: HEADERS.open },
+      { sheetName: CFG.sheets.items, headers: HEADERS.items },
+      { sheetName: CFG.sheets.payments, headers: HEADERS.payments },
+      { sheetName: CFG.sheets.invoiceGroups, headers: HEADERS.invoiceGroups },
+      { sheetName: CFG.sheets.parasut, headers: HEADERS.parasut },
+      { sheetName: CFG.sheets.cargo, headers: HEADERS.cargo },
+      { sheetName: CFG.sheets.finance808, headers: HEADERS.finance808 },
+      { sheetName: CFG.sheets.ebelge, headers: HEADERS.ebelge },
+      { sheetName: CFG.sheets.control, headers: HEADERS.control },
+      { sheetName: CFG.sheets.addressMemory, headers: HEADERS.addressMemory }
+    ];
+  }
+
+  function lifecycleAuditSheetNames_() {
+    return [CFG.sheets.archive, CFG.sheets.deleted];
+  }
+
+  function lifecycleHeadersForSheet_(sheetName) {
+    var configs = lifecycleSourceConfigs_();
+    for (var i = 0; i < configs.length; i++) {
+      if (configs[i].sheetName === sheetName) return configs[i].headers;
+    }
+    if (sheetName === CFG.sheets.archive) return HEADERS.archive;
+    if (sheetName === CFG.sheets.deleted) return HEADERS.deleted;
+    return null;
+  }
+
+  function lifecycleObjectsWithRowNums_(sh) {
+    if (!sh || sh.getLastRow() < 2) return [];
+    var values = sh.getDataRange().getValues();
+    var headers = values.shift();
+    var out = [];
+    values.forEach(function (row, index) {
+      var obj = {};
+      headers.forEach(function (name, i) { if (name) obj[name] = row[i]; });
+      if (Object.keys(obj).some(function (k) { return obj[k] !== "" && obj[k] !== null && obj[k] !== undefined; })) {
+        out.push({ rowNum: index + 2, row: obj });
+      }
+    });
+    return out;
+  }
+
+  function lifecycleKeyBag_(openId) {
+    return { openId: String(openId || "").trim(), qIds: {}, itemIds: {}, paymentIds: {}, groupIds: {}, cargoIds: {}, financeIds: {}, ebelgeIds: {}, controlIds: {}, addressIds: {}, phones: {} };
+  }
+
+  function addLifecycleKey_(bag, name, value) {
+    value = String(value || "").trim();
+    if (value) bag[name][value] = true;
+  }
+
+  function collectLifecycleKeysFromRow_(bag, row) {
+    addLifecycleKey_(bag, "qIds", row[H.Q_ID]);
+    addLifecycleKey_(bag, "itemIds", row[H.ITEM_ID]);
+    addLifecycleKey_(bag, "paymentIds", row[H.PAYMENT_ID]);
+    addLifecycleKey_(bag, "groupIds", row[H.INVOICE_GROUP_ID]);
+    addLifecycleKey_(bag, "cargoIds", row[H.CARGO_PACKAGE_ID]);
+    addLifecycleKey_(bag, "financeIds", row[H.FIN_ID]);
+    addLifecycleKey_(bag, "ebelgeIds", row[H.EBELGE_ID]);
+    addLifecycleKey_(bag, "controlIds", row[H.CTRL_ID]);
+    addLifecycleKey_(bag, "addressIds", row[H.ADDRESS_ID]);
+    addLifecycleKey_(bag, "phones", normalizePhone_(row[H.PHONE] || row[H.CARGO_TEL] || row[H.INVOICE_TEL] || row[H.PAYER_TEL] || ""));
+  }
+
+  function collectLifecycleKeys_(ss, openId) {
+    var bag = lifecycleKeyBag_(openId);
+    var configs = lifecycleSourceConfigs_();
+    for (var pass = 0; pass < 2; pass++) {
+      configs.forEach(function (cfg) {
+        lifecycleObjectsWithRowNums_(sheet_(ss, cfg.sheetName)).forEach(function (entry) {
+          if (rowMatchesLifecycle_(cfg.sheetName, entry.row, bag)) collectLifecycleKeysFromRow_(bag, entry.row);
+        });
+      });
+    }
+    return bag;
+  }
+
+  function lifecycleBagHas_(bag, name, value) {
+    value = String(value || "").trim();
+    return !!(value && bag[name] && bag[name][value]);
+  }
+
+  function lifecyclePrimaryValues_(bag) {
+    var out = {};
+    if (bag.openId) out[bag.openId] = true;
+    ["qIds", "itemIds", "paymentIds", "groupIds", "cargoIds", "financeIds", "ebelgeIds", "controlIds", "addressIds"].forEach(function (name) {
+      Object.keys(bag[name] || {}).forEach(function (value) { out[value] = true; });
+    });
+    return Object.keys(out).filter(Boolean);
+  }
+
+  function rowMatchesLifecycle_(sheetName, row, bag) {
+    if (String(row[H.OPEN_ID] || "").trim() === bag.openId) return true;
+    if (lifecycleBagHas_(bag, "qIds", row[H.Q_ID])) return true;
+    if (lifecycleBagHas_(bag, "itemIds", row[H.ITEM_ID])) return true;
+    if (lifecycleBagHas_(bag, "paymentIds", row[H.PAYMENT_ID])) return true;
+    if (lifecycleBagHas_(bag, "groupIds", row[H.INVOICE_GROUP_ID])) return true;
+    if (lifecycleBagHas_(bag, "cargoIds", row[H.CARGO_PACKAGE_ID])) return true;
+    if (lifecycleBagHas_(bag, "financeIds", row[H.FIN_ID])) return true;
+    if (lifecycleBagHas_(bag, "ebelgeIds", row[H.EBELGE_ID])) return true;
+    if (lifecycleBagHas_(bag, "controlIds", row[H.CTRL_ID])) return true;
+    if (sheetName === CFG.sheets.addressMemory && lifecycleBagHas_(bag, "phones", normalizePhone_(row[H.PHONE] || row[H.CARGO_TEL] || ""))) return true;
+    if (sheetName === CFG.sheets.control) {
+      var text = [row[H.SOURCE_ID], row[H.WARN], row[H.SOLUTION]].join(" ");
+      return lifecyclePrimaryValues_(bag).some(function (value) { return value && text.indexOf(value) !== -1; });
+    }
+    return false;
+  }
+
+  function lifecycleAuditId_(targetSheet, openId, sourceSheet, rowNum, index) {
+    var prefix = targetSheet === CFG.sheets.archive ? "AR" : "SL";
+    return prefix + "-" + ymd_(new Date()) + "-" + pad_(index, 5) + "-" + sourceSheet.replace(/[^A-Z0-9]/gi, "") + "-" + rowNum + "-" + String(openId || "").replace(/[^A-Z0-9]/gi, "");
+  }
+
+  function lifecycleOperator_() {
+    try {
+      if (Session && Session.getActiveUser && Session.getActiveUser().getEmail) return Session.getActiveUser().getEmail() || "";
+    } catch (err) {}
+    return "";
+  }
+
+  function lifecycleAuditRow_(targetSheet, actionName, openId, sourceSheet, rowNum, row, index) {
+    return {
+      [H.AUDIT_ID]: lifecycleAuditId_(targetSheet, openId, sourceSheet, rowNum, index),
+      [H.AUDIT_ACTION]: actionName,
+      [H.DATE]: new Date(),
+      [H.SOURCE_SHEET]: sourceSheet,
+      [H.SOURCE_ROW_NO]: rowNum,
+      [H.OPEN_ID]: openId,
+      [H.Q_ID]: row[H.Q_ID] || "",
+      [H.ITEM_ID]: row[H.ITEM_ID] || "",
+      [H.PAYMENT_ID]: row[H.PAYMENT_ID] || "",
+      [H.INVOICE_GROUP_ID]: row[H.INVOICE_GROUP_ID] || "",
+      [H.CARGO_PACKAGE_ID]: row[H.CARGO_PACKAGE_ID] || "",
+      [H.SOURCE_ID]: row[H.SOURCE_ID] || row[H.OPEN_ID] || row[H.INVOICE_GROUP_ID] || row[H.CARGO_PACKAGE_ID] || row[H.ITEM_ID] || row[H.PAYMENT_ID] || row[H.Q_ID] || "",
+      [H.ROW_JSON]: JSON.stringify(row || {}),
+      [H.OPERATOR]: lifecycleOperator_(),
+      [H.RESTORED]: "Hayır",
+      [H.RESTORE_DATE]: "",
+      [H.RESTORE_STATUS]: "",
+      [H.WARN]: ""
+    };
+  }
+
+  function moveLifecycleRows_(ss, openId, targetSheetName, actionName) {
+    ensureSheet_(ss, targetSheetName, targetSheetName === CFG.sheets.archive ? HEADERS.archive : HEADERS.deleted);
+    var bag = collectLifecycleKeys_(ss, openId);
+    var targetSheet = sheet_(ss, targetSheetName);
+    var auditRows = objects_(targetSheet);
+    var moved = 0;
+    var details = [];
+    lifecycleSourceConfigs_().forEach(function (cfg) {
+      var sh = sheet_(ss, cfg.sheetName);
+      var entries = lifecycleObjectsWithRowNums_(sh);
+      var keep = [];
+      var selected = [];
+      entries.forEach(function (entry) {
+        if (rowMatchesLifecycle_(cfg.sheetName, entry.row, bag)) selected.push(entry);
+        else keep.push(entry.row);
+      });
+      if (!selected.length) return;
+      selected.forEach(function (entry) {
+        auditRows.push(lifecycleAuditRow_(targetSheetName, actionName, openId, cfg.sheetName, entry.rowNum, entry.row, auditRows.length + 1));
+      });
+      writeObjects_(sh, cfg.headers, keep);
+      moved += selected.length;
+      details.push(cfg.sheetName + ": " + selected.length);
+    });
+    if (moved) writeObjects_(targetSheet, targetSheetName === CFG.sheets.archive ? HEADERS.archive : HEADERS.deleted, auditRows);
+    return { ok: moved > 0, openId: openId, mode: actionName, status: moved ? actionName + " tamamlandı" : "Taşınacak aktif kayıt bulunamadı", moved: moved, details: details };
+  }
+
+  function restoreLifecycleRows_(ss, openId) {
+    var restored = 0;
+    var details = [];
+    lifecycleAuditSheetNames_().forEach(function (auditSheetName) {
+      var auditSheet = sheet_(ss, auditSheetName);
+      if (!auditSheet) return;
+      var auditRows = objects_(auditSheet);
+      var changedAudit = false;
+      var sourceJobs = {};
+      auditRows.forEach(function (auditRow) {
+        if (String(auditRow[H.OPEN_ID] || "").trim() !== openId) return;
+        if (yes_(auditRow[H.RESTORED])) return;
+        var sourceSheet = String(auditRow[H.SOURCE_SHEET] || "").trim();
+        var headers = lifecycleHeadersForSheet_(sourceSheet);
+        if (!headers) {
+          auditRow[H.RESTORE_STATUS] = "Kaynak sayfa sözleşmesi bulunamadı: " + sourceSheet;
+          changedAudit = true;
+          return;
+        }
+        var row = parseJsonObject_(auditRow[H.ROW_JSON]);
+        if (!sourceJobs[sourceSheet]) {
+          var source = ensureSheet_(ss, sourceSheet, headers);
+          sourceJobs[sourceSheet] = { headers: headers, rows: objects_(source), incoming: [] };
+        }
+        sourceJobs[sourceSheet].incoming.push({ auditRow: auditRow, row: row });
+      });
+      Object.keys(sourceJobs).forEach(function (sourceSheet) {
+        var job = sourceJobs[sourceSheet];
+        job.incoming.forEach(function (item) {
+          var identity = lifecycleRowIdentity_(sourceSheet, item.row);
+          if (!identity || !job.rows.some(function (row) { return lifecycleRowIdentity_(sourceSheet, row) === identity; })) {
+            job.rows.push(copyByHeaders_(item.row, job.headers, {}));
+            restored++;
+          }
+          item.auditRow[H.RESTORED] = "Evet";
+          item.auditRow[H.RESTORE_DATE] = new Date();
+          item.auditRow[H.RESTORE_STATUS] = "Geri alındı";
+          changedAudit = true;
+        });
+        writeObjects_(sheet_(ss, sourceSheet), job.headers, job.rows);
+        details.push(sourceSheet + ": " + job.incoming.length);
+      });
+      if (changedAudit) writeObjects_(auditSheet, auditSheetName === CFG.sheets.archive ? HEADERS.archive : HEADERS.deleted, auditRows);
+    });
+    if (restored) kontrolMerkeziniGuncelleForOpen_(ss, openId);
+    return { ok: restored > 0, openId: openId, mode: "Geri al", status: restored ? "Geri alma tamamlandı" : "Geri alınacak kayıt bulunamadı", restored: restored, details: details };
+  }
+
+  function parseJsonObject_(text) {
+    try {
+      var parsed = JSON.parse(String(text || "{}"));
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+    } catch (err) {
+      return {};
+    }
+  }
+
+  function lifecycleRowIdentity_(sheetName, row) {
+    var directKeys = {};
+    directKeys[CFG.sheets.queue] = H.Q_ID;
+    directKeys[CFG.sheets.open] = H.OPEN_ID;
+    directKeys[CFG.sheets.items] = H.ITEM_ID;
+    directKeys[CFG.sheets.payments] = H.PAYMENT_ID;
+    directKeys[CFG.sheets.invoiceGroups] = H.INVOICE_GROUP_ID;
+    directKeys[CFG.sheets.cargo] = H.CARGO_PACKAGE_ID;
+    directKeys[CFG.sheets.finance808] = H.FIN_ID;
+    directKeys[CFG.sheets.ebelge] = H.EBELGE_ID;
+    directKeys[CFG.sheets.control] = H.CTRL_ID;
+    directKeys[CFG.sheets.addressMemory] = H.ADDRESS_ID;
+    var key = directKeys[sheetName];
+    if (key && row[key]) return key + "=" + String(row[key]);
+    if (sheetName === CFG.sheets.parasut) {
+      return [row[H.INVOICE_GROUP_ID], row[H.ITEM_ID], row[H.PRODUCT], row[H.QTY], row[H.LINE_GROSS]].map(function (v) { return String(v || ""); }).join("|");
+    }
+    return JSON.stringify(row || {});
   }
 
   function patchRowsForOpen_(ss, sheetName, headers, openId, patch) {
@@ -1241,6 +1498,10 @@ var TK6 = (function () {
     mapBySheet[CFG.sheets.invoiceGroups] = H.INVOICE_GROUP_ID;
     mapBySheet[CFG.sheets.parasut] = H.INVOICE_GROUP_ID;
     mapBySheet[CFG.sheets.cargo] = H.CARGO_PACKAGE_ID;
+    mapBySheet[CFG.sheets.finance808] = H.FIN_ID;
+    mapBySheet[CFG.sheets.ebelge] = H.EBELGE_ID;
+    mapBySheet[CFG.sheets.control] = H.CTRL_ID;
+    mapBySheet[CFG.sheets.addressMemory] = H.ADDRESS_ID;
     var primaryKey = mapBySheet[sheetName];
     if (primaryKey) {
       var primaryValue = String(row[primaryKey] || "").trim();
@@ -1249,18 +1510,63 @@ var TK6 = (function () {
         if (direct && direct[H.OPEN_ID]) return String(direct[H.OPEN_ID] || "").trim();
       }
     }
+    var queueId = String(row[H.Q_ID] || "").trim();
+    if (queueId) {
+      var byQueue = findOpenIdByKeyAcrossSheets_(ss, H.Q_ID, queueId, [CFG.sheets.items, CFG.sheets.payments, CFG.sheets.queue]);
+      if (byQueue) return byQueue;
+    }
+    var sourceId = String(row[H.SOURCE_ID] || "").trim();
+    if (sourceId) {
+      var bySource = openIdFromSourceKey_(ss, sourceId);
+      if (bySource) return bySource;
+    }
     var maps = [
       [CFG.sheets.queue, H.Q_ID, row[H.Q_ID]],
       [CFG.sheets.items, H.ITEM_ID, row[H.ITEM_ID]],
       [CFG.sheets.payments, H.PAYMENT_ID, row[H.PAYMENT_ID]],
       [CFG.sheets.invoiceGroups, H.INVOICE_GROUP_ID, row[H.INVOICE_GROUP_ID]],
       [CFG.sheets.parasut, H.INVOICE_GROUP_ID, row[H.INVOICE_GROUP_ID]],
-      [CFG.sheets.cargo, H.CARGO_PACKAGE_ID, row[H.CARGO_PACKAGE_ID]]
+      [CFG.sheets.cargo, H.CARGO_PACKAGE_ID, row[H.CARGO_PACKAGE_ID]],
+      [CFG.sheets.finance808, H.FIN_ID, row[H.FIN_ID]],
+      [CFG.sheets.ebelge, H.EBELGE_ID, row[H.EBELGE_ID]],
+      [CFG.sheets.control, H.CTRL_ID, row[H.CTRL_ID]],
+      [CFG.sheets.addressMemory, H.ADDRESS_ID, row[H.ADDRESS_ID]]
     ];
     for (var i = 0; i < maps.length; i++) {
       var id = String(maps[i][2] || "").trim();
       if (!id) continue;
       var found = findObjectByKeyText_(sheet_(ss, maps[i][0]), maps[i][1], id);
+      if (found && found[H.OPEN_ID]) return String(found[H.OPEN_ID] || "").trim();
+    }
+    return "";
+  }
+
+  function findOpenIdByKeyAcrossSheets_(ss, keyName, keyValue, sheetNames) {
+    keyValue = String(keyValue || "").trim();
+    if (!keyValue) return "";
+    for (var i = 0; i < (sheetNames || []).length; i++) {
+      var found = findObjectByKeyText_(sheet_(ss, sheetNames[i]), keyName, keyValue);
+      if (found && found[H.OPEN_ID]) return String(found[H.OPEN_ID] || "").trim();
+    }
+    return "";
+  }
+
+  function openIdFromSourceKey_(ss, sourceId) {
+    sourceId = String(sourceId || "").trim();
+    if (!sourceId) return "";
+    if (sourceId.indexOf("AS-") === 0) return sourceId;
+    var pairs = [
+      [CFG.sheets.queue, H.Q_ID],
+      [CFG.sheets.items, H.ITEM_ID],
+      [CFG.sheets.payments, H.PAYMENT_ID],
+      [CFG.sheets.invoiceGroups, H.INVOICE_GROUP_ID],
+      [CFG.sheets.parasut, H.INVOICE_GROUP_ID],
+      [CFG.sheets.cargo, H.CARGO_PACKAGE_ID],
+      [CFG.sheets.finance808, H.FIN_ID],
+      [CFG.sheets.ebelge, H.EBELGE_ID]
+    ];
+    for (var i = 0; i < pairs.length; i++) {
+      var found = findObjectByKeyText_(sheet_(ss, pairs[i][0]), pairs[i][1], sourceId);
       if (found && found[H.OPEN_ID]) return String(found[H.OPEN_ID] || "").trim();
     }
     return "";

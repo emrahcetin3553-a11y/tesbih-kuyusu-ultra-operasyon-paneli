@@ -805,6 +805,39 @@ Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/202
 
 Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/2026-05-05_github_actions_ci_final_kabul_raporu.md`
 
+## Duzeltme Notu 2026-05-05-20 - Secili Siparis Duzenleme, Arsiv, Sil, Geri Al
+
+| Alan | Aciklama |
+| --- | --- |
+| Duzeltme ID | 2026-05-05-20 |
+| Neden duzenlendi | PR #6 son yorumunda 02_WHATSAPP_KUYRUGU satirindan `Seçili siparişi düzenle` acilinca panelin bos gelmesi ve `Sil` / `Arşivle` / `Geri al` islemlerinin sadece 02 durum alanini degistirmesi saha hatasi olarak bildirildi. |
+| Ne duzeltildi | `openIdFromRelatedRow_` 02 satirinda `Açık_Sipariş_ID` bosken `Kuyruk_ID` uzerinden iliskili siparisi bulacak sekilde genisletildi. `ultraPanelPayloadForOpenId_` 03/04/05/06/08 kaynaklarindan panel payload'ini dolduracak sekilde guclendirildi. `applyOrderLifecycle_` status patch davranisindan cikarildi; `ARSIVLENENLER` ve `SILINENLER` audit sayfalarina geri alinabilir tasima ve geri alma modeli eklendi. |
+| Etkilenen dosyalar | `03_APPS_SCRIPT_KOD/tesbih_kuyusu_v6_5_ultra_operasyon_core.gs`, `07_TEST_DOSYALARI/test_v6_5_ultra_operasyon.js`, `08_KABUL_RAPORLARI/2026-05-05_secili_siparis_duzenle_arsiv_sil_geri_al_raporu.md`, `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md` |
+| Etkilenen fonksiyonlar | `ultraPanelPayloadForOpenId_`, `selectedContextSheets_`, `openIdFromRelatedRow_`, yeni `findOpenIdByKeyAcrossSheets_`, yeni `openIdFromSourceKey_`, `applyOrderLifecycle_`, yeni `moveLifecycleRows_`, yeni `restoreLifecycleRows_` ve lifecycle audit yardimcilari |
+| Apps Script durumu | `clasp push --force` ile 7 dosya yuklendi; `clasp pull --force` ile geri cekildi. Core SHA eslesti: `AD23C3A611F174389B4F54804404C7B710EC00A41B266AD306F864B96C5749A5`. Panel SHA eslesti: `2A89FB386FE9FC319B2C34CF1816FE1C00B361307AA56DF87110B99977EE38FF`. Manifest SHA eslesti: `EE111E1EA5BE30071E84DCDAE1570F3C1078B3814D463DA97367F71799EA267D`. |
+| Sheet durumu | Canli Sheet verisi degistirilmedi. Kod sozlesmesine `ARSIVLENENLER` ve `SILINENLER` sayfalari eklendi; canli Sheet'te olusmalari icin `sistemKolonlariniHazirla()` veya ilgili operasyon calismalidir. |
+| Test ve kanit | `npm ci` basarili; `npm audit --audit-level=high` 0 vulnerability; `npm test` basarili. Ek testler 02 secili payload, Kuyruk_ID fallback, arsiv tasima, silinenler tasima, geri alma ve duplicate engelini kapsiyor. |
+| Canli POST | Yapilmadi. Parasut, Navlungo ve e-belge POST calistirilmadi. |
+| Kalan risk | Gercek Google Sheets UI uzerinden kullanicinin secili 02 satiri panel acma, arsiv, sil ve geri al akisini tekrar denemesi gerekiyor. Bu turda canli UI kabul tamamlandi denmedi. |
+
+### Bu Islemde Incelenen Dosyalar
+
+- `03_APPS_SCRIPT_KOD/tesbih_kuyusu_v6_5_ultra_operasyon_core.gs`
+- `03_APPS_SCRIPT_KOD/ultraSiparisPaneli.html`
+- `07_TEST_DOSYALARI/test_v6_5_ultra_operasyon.js`
+- `07_TEST_DOSYALARI/test_v6_5_ci_checks.js`
+- `07_TEST_DOSYALARI/test_v6_5_son_sheet_referans_sozlesmesi.js`
+- PR #6 yorum `4382796414`
+
+### Bu Islemde Degistirilen Dosyalar
+
+- `03_APPS_SCRIPT_KOD/tesbih_kuyusu_v6_5_ultra_operasyon_core.gs`
+- `07_TEST_DOSYALARI/test_v6_5_ultra_operasyon.js`
+- `08_KABUL_RAPORLARI/2026-05-05_secili_siparis_duzenle_arsiv_sil_geri_al_raporu.md`
+- `08_KABUL_RAPORLARI/2026-05-05_codex_calisma_raporu.md`
+
+Codex sohbet ciktisi / calisma ozeti su dosyaya islendi: `08_KABUL_RAPORLARI/2026-05-05_secili_siparis_duzenle_arsiv_sil_geri_al_raporu.md`
+
 ## Duzeltme Notu 2026-05-05-20 - Panel Kaydet ID Koruma ve Status Normalize
 
 | Alan | Aciklama |

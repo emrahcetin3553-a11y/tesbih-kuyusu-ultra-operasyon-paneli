@@ -266,6 +266,35 @@ function patchRows(sheetName, key, value, patch) {
     if (row[k] === value) Object.entries(patch).forEach(([name, val]) => { row[headers.indexOf(name)] = val; });
   });
 }
+function rowNumByKey(sheetName, key, value) {
+  const sh = ss.getSheetByName(sheetName);
+  const headers = sh.data[0];
+  const k = headers.indexOf(key);
+  for (let i = 1; i < sh.data.length; i++) {
+    if (sh.data[i][k] === value) return i + 1;
+  }
+  return 0;
+}
+function phonesForOpen(openId) {
+  const out = new Set();
+  [CFG.sheets.queue, CFG.sheets.open, CFG.sheets.cargo, CFG.sheets.payments, CFG.sheets.invoiceGroups].forEach(sheetName => {
+    rows(sheetName).filter(r => r[H.OPEN_ID] === openId).forEach(r => {
+      [H.PHONE, H.CARGO_TEL, H.PAYER_TEL, H.INVOICE_TEL].forEach(k => { if (r[k]) out.add(String(r[k])); });
+    });
+  });
+  return [...out];
+}
+function activeRelatedCount(openId) {
+  const directSheets = [CFG.sheets.queue, CFG.sheets.open, CFG.sheets.items, CFG.sheets.payments, CFG.sheets.invoiceGroups, CFG.sheets.parasut, CFG.sheets.cargo, CFG.sheets.finance808, CFG.sheets.ebelge];
+  let total = directSheets.reduce((sum, sheetName) => sum + rows(sheetName).filter(r => r[H.OPEN_ID] === openId).length, 0);
+  total += rows(CFG.sheets.control).filter(r => String(r[H.SOURCE_ID] || "").includes(openId) || String(r[H.WARN] || "").includes(openId)).length;
+  const phones = phonesForOpen(openId);
+  total += rows(CFG.sheets.addressMemory).filter(r => phones.includes(String(r[H.PHONE] || "")) || phones.includes(String(r[H.CARGO_TEL] || ""))).length;
+  return total;
+}
+function auditOpenRows(sheetName, openId) {
+  return rows(sheetName).filter(r => r[H.OPEN_ID] === openId);
+}
 
 sandbox.sistemKolonlariniHazirla();
 sandbox.onOpen();
@@ -407,6 +436,17 @@ assert(menuRefresh.openId === saved.openId, "Kaydet ve ERP guncelle secili sipar
 sandbox.seciliSiparisiDuzenle();
 const dialogData = sandbox.getDialogData();
 assert(dialogData.editOrders[0].kargo && dialogData.editOrders[0].kargo.kargoPaketId, "Selected edit payload must include Kargo_Paket_ID");
+assert(dialogData.editOrders[0].openId === saved.openId, "02 secili satir panel payload openId degerini tasimali");
+assert(dialogData.editOrders[0].whatsAppTel && dialogData.editOrders[0].siparisSahibi, "02 secili satir panel payload musteri bilgilerini doldurmali");
+assert(dialogData.editOrders[0].urunler.length && dialogData.editOrders[0].odemeler.length && dialogData.editOrders[0].faturalar.length, "02 secili satir panel payload urun, odeme ve fatura bloklarini doldurmali");
+const selectedQueueRow = rows(CFG.sheets.queue).find(r => r[H.OPEN_ID] === saved.openId);
+const selectedQueueId = selectedQueueRow[H.Q_ID];
+patchRows(CFG.sheets.queue, H.Q_ID, selectedQueueId, { [H.OPEN_ID]: "" });
+ss.setActiveRange(queue.getRange(rowNumByKey(CFG.sheets.queue, H.Q_ID, selectedQueueId), 1, 1, queue.getLastColumn()));
+sandbox.seciliSiparisiDuzenle();
+const queueFallbackDialogData = sandbox.getDialogData();
+assert(queueFallbackDialogData.editOrders[0] && queueFallbackDialogData.editOrders[0].openId === saved.openId, "02 Kuyruk_ID iliskisinden secili siparis panel payload dolu gelmeli");
+patchRows(CFG.sheets.queue, H.Q_ID, selectedQueueId, { [H.OPEN_ID]: saved.openId });
 const editPayload = JSON.parse(JSON.stringify(dialogData.editOrders[0]));
 const editOpenId = editPayload.openId;
 const editCargoPackageId = editPayload.kargo.kargoPaketId || editPayload.cargoPackageId;
@@ -449,6 +489,60 @@ assert(rows(CFG.sheets.payments).filter(r => r[H.PAYMENT_ID] === editPaymentId)[
 assert(rows(CFG.sheets.cargo).filter(r => r[H.CARGO_PACKAGE_ID] === editCargoPackageId)[0][H.DISTRICT] === "Gaziemir", "Edit save must update the existing cargo row by Kargo_Paket_ID");
 assertThrows(() => sandbox.ultraSiparisKaydet(Object.assign({}, editPayload, { openId: "AS-BULUNAMADI-999" })), "Düzenleme için mevcut Açık_Sipariş_ID bulunamadı", "Missing edit open id must not create a new order");
 assert(dialogData.editOrders.length === 1 && dialogData.editOrders[0].openId === saved.openId, "Seçili sipariş düzenleme panel payload üretmeli");
+
+const archivePayload = JSON.parse(JSON.stringify(payload));
+archivePayload.whatsAppTel = "05559990001";
+archivePayload.siparisSahibi = "arsiv deneme cetin";
+archivePayload.kargo.kargoTel = "+905559990001";
+archivePayload.kargo.adres = "Arsiv deneme adresi";
+archivePayload.odemeler[0].odemeYapan = "arsiv deneme cetin";
+archivePayload.odemeler[0].odemeYapanTel = "+905559990001";
+archivePayload.odemeler[0].odemeYapanAdres = "Arsiv deneme adresi";
+archivePayload.faturalar = [];
+const archiveOrder = sandbox.ultraSiparisKaydet(archivePayload);
+const beforeArchiveRelated = activeRelatedCount(archiveOrder.openId);
+assert(beforeArchiveRelated > 0, "Arsiv testi icin aktif bagli satirlar olusmali");
+ss.setActiveRange(queue.getRange(rowNumByKey(CFG.sheets.queue, H.OPEN_ID, archiveOrder.openId), 1, 1, queue.getLastColumn()));
+const archiveResult = sandbox.seciliKaydiArsivle();
+assert(archiveResult.results[0].moved >= beforeArchiveRelated, "Arsivle tum bagli satirlari audit sayfasina tasimali");
+assert(activeRelatedCount(archiveOrder.openId) === 0, "Arsivlenen siparis aktif operasyon sayfalarindan kalkmali");
+assert(auditOpenRows(CFG.sheets.archive, archiveOrder.openId).filter(r => r[H.RESTORED] !== "Evet").length >= beforeArchiveRelated, "Arsivlenen satirlar ARSIVLENENLER sayfasinda geri alinabilir olmali");
+const archiveSheet = ss.getSheetByName(CFG.sheets.archive);
+ss.setActiveRange(archiveSheet.getRange(rowNumByKey(CFG.sheets.archive, H.OPEN_ID, archiveOrder.openId), 1, 1, archiveSheet.getLastColumn()));
+const archiveRestore = sandbox.seciliKaydiGeriAl();
+assert(archiveRestore.results[0].restored >= beforeArchiveRelated, "Geri al arsivden satirlari aktif sayfalara dondurmeli");
+const afterArchiveRestoreRelated = activeRelatedCount(archiveOrder.openId);
+assert(afterArchiveRestoreRelated >= beforeArchiveRelated, "Arsivden geri alinan siparis aktif satirlari geri gelmeli");
+ss.setActiveRange(archiveSheet.getRange(rowNumByKey(CFG.sheets.archive, H.OPEN_ID, archiveOrder.openId), 1, 1, archiveSheet.getLastColumn()));
+sandbox.seciliKaydiGeriAl();
+assert(activeRelatedCount(archiveOrder.openId) === afterArchiveRestoreRelated, "Arsiv geri al ikinci kez duplicate uretmemeli");
+
+const deletePayload = JSON.parse(JSON.stringify(payload));
+deletePayload.whatsAppTel = "05559990002";
+deletePayload.siparisSahibi = "sil deneme cetin";
+deletePayload.kargo.kargoTel = "+905559990002";
+deletePayload.kargo.adres = "Sil deneme adresi";
+deletePayload.odemeler[0].odemeYapan = "sil deneme cetin";
+deletePayload.odemeler[0].odemeYapanTel = "+905559990002";
+deletePayload.odemeler[0].odemeYapanAdres = "Sil deneme adresi";
+deletePayload.faturalar = [];
+const deleteOrder = sandbox.ultraSiparisKaydet(deletePayload);
+const beforeDeleteRelated = activeRelatedCount(deleteOrder.openId);
+assert(beforeDeleteRelated > 0, "Sil testi icin aktif bagli satirlar olusmali");
+ss.setActiveRange(queue.getRange(rowNumByKey(CFG.sheets.queue, H.OPEN_ID, deleteOrder.openId), 1, 1, queue.getLastColumn()));
+const deleteResult = sandbox.seciliKaydiSil();
+assert(deleteResult.results[0].moved >= beforeDeleteRelated, "Sil tum bagli satirlari SILINENLER sayfasina tasimali");
+assert(activeRelatedCount(deleteOrder.openId) === 0, "Silinen siparis aktif operasyon sayfalarindan kalkmali");
+assert(auditOpenRows(CFG.sheets.deleted, deleteOrder.openId).filter(r => r[H.RESTORED] !== "Evet").length >= beforeDeleteRelated, "Silinen satirlar SILINENLER sayfasinda geri alinabilir olmali");
+const deletedSheet = ss.getSheetByName(CFG.sheets.deleted);
+ss.setActiveRange(deletedSheet.getRange(rowNumByKey(CFG.sheets.deleted, H.OPEN_ID, deleteOrder.openId), 1, 1, deletedSheet.getLastColumn()));
+const deleteRestore = sandbox.seciliKaydiGeriAl();
+assert(deleteRestore.results[0].restored >= beforeDeleteRelated, "Geri al silinenlerden satirlari aktif sayfalara dondurmeli");
+const afterDeleteRestoreRelated = activeRelatedCount(deleteOrder.openId);
+assert(afterDeleteRestoreRelated >= beforeDeleteRelated, "Silinenlerden geri alinan siparis aktif satirlari geri gelmeli");
+ss.setActiveRange(deletedSheet.getRange(rowNumByKey(CFG.sheets.deleted, H.OPEN_ID, deleteOrder.openId), 1, 1, deletedSheet.getLastColumn()));
+sandbox.seciliKaydiGeriAl();
+assert(activeRelatedCount(deleteOrder.openId) === afterDeleteRestoreRelated, "Silinenlerden geri al ikinci kez duplicate uretmemeli");
 
 const settingsSheetForMenu = ss.getSheetByName(CFG.sheets.settings);
 ss.setActiveRange(settingsSheetForMenu.getRange(2, 1, 1, settingsSheetForMenu.getLastColumn()));
