@@ -190,7 +190,7 @@ var TK6 = (function () {
     DEFAULT_ADDRESS: "Varsayılan_Mı",
     ADDRESS_STATUS: "Adres_Durumu",
     LAST_USED: "Son_Kullanım",
-    FIN_ID: "808_Kayıt_ID",
+    FIN_ID: "1. sütun",
     MODEL_TYPE: "Model_Tipi",
     NET_GAIN: "Net_Ticari_Kazanç",
     OFFICIAL_NOTE: "Resmi_Fatura_Notu",
@@ -235,12 +235,15 @@ var TK6 = (function () {
     OPERATOR_APPROVAL: "Operatör_Onayı",
     AUDIT_ID: "Audit_ID",
     AUDIT_ACTION: "İşlem_Tipi",
+    AUDIT_DATE: "İşlem_Tarihi",
     SOURCE_ROW_NO: "Kaynak_Satır_No",
+    SOURCE_HEADER_JSON: "Kaynak_Header_JSON",
     ROW_JSON: "Satır_JSON",
     OPERATOR: "Operatör",
     RESTORED: "Geri_Alındı_Mı",
     RESTORE_DATE: "Geri_Alma_Tarihi",
-    RESTORE_STATUS: "Geri_Alma_Durumu"
+    RESTORE_STATUS: "Geri_Alma_Durumu",
+    AUDIT_WARN: "Audit_Kontrol_Uyarısı"
   };
 
   var HEADERS = {
@@ -326,17 +329,12 @@ var TK6 = (function () {
       H.MATCH_SCORE, H.SUGGESTED_OPEN_ID, H.SUGGESTED_PAYMENT_ID, H.SUGGESTED_PAYER,
       H.OPERATOR_APPROVAL, H.WARN
     ],
-    archive: [
-      H.AUDIT_ID, H.AUDIT_ACTION, H.DATE, H.SOURCE_SHEET, H.SOURCE_ROW_NO,
-      H.OPEN_ID, H.Q_ID, H.ITEM_ID, H.PAYMENT_ID, H.INVOICE_GROUP_ID, H.CARGO_PACKAGE_ID,
-      H.SOURCE_ID, H.ROW_JSON, H.OPERATOR, H.RESTORED, H.RESTORE_DATE, H.RESTORE_STATUS, H.WARN
-    ],
-    deleted: [
-      H.AUDIT_ID, H.AUDIT_ACTION, H.DATE, H.SOURCE_SHEET, H.SOURCE_ROW_NO,
-      H.OPEN_ID, H.Q_ID, H.ITEM_ID, H.PAYMENT_ID, H.INVOICE_GROUP_ID, H.CARGO_PACKAGE_ID,
-      H.SOURCE_ID, H.ROW_JSON, H.OPERATOR, H.RESTORED, H.RESTORE_DATE, H.RESTORE_STATUS, H.WARN
-    ]
+    archive: [],
+    deleted: []
   };
+
+  HEADERS.archive = lifecycleAuditHeaders_();
+  HEADERS.deleted = lifecycleAuditHeaders_();
 
   function onOpen_() {
     var ui = SpreadsheetApp.getUi();
@@ -1209,6 +1207,38 @@ var TK6 = (function () {
     ];
   }
 
+  function lifecycleAuditBaseHeaders_() {
+    return [
+      H.AUDIT_ID,
+      H.AUDIT_ACTION,
+      H.AUDIT_DATE,
+      H.SOURCE_SHEET,
+      H.SOURCE_ROW_NO,
+      H.SOURCE_ID,
+      H.SOURCE_HEADER_JSON,
+      H.ROW_JSON,
+      H.RESTORED,
+      H.RESTORE_DATE,
+      H.RESTORE_STATUS,
+      H.OPERATOR,
+      H.AUDIT_WARN
+    ];
+  }
+
+  function lifecycleAuditHeaders_() {
+    var out = lifecycleAuditBaseHeaders_();
+    var seen = {};
+    out.forEach(function (name) { seen[name] = true; });
+    lifecycleSourceConfigs_().forEach(function (cfg) {
+      (cfg.headers || []).forEach(function (name) {
+        if (!name || seen[name]) return;
+        seen[name] = true;
+        out.push(name);
+      });
+    });
+    return out;
+  }
+
   function lifecycleAuditSheetNames_() {
     return [CFG.sheets.archive, CFG.sheets.deleted];
   }
@@ -1318,26 +1348,26 @@ var TK6 = (function () {
   }
 
   function lifecycleAuditRow_(targetSheet, actionName, openId, sourceSheet, rowNum, row, index) {
-    return {
-      [H.AUDIT_ID]: lifecycleAuditId_(targetSheet, openId, sourceSheet, rowNum, index),
-      [H.AUDIT_ACTION]: actionName,
-      [H.DATE]: new Date(),
-      [H.SOURCE_SHEET]: sourceSheet,
-      [H.SOURCE_ROW_NO]: rowNum,
-      [H.OPEN_ID]: openId,
-      [H.Q_ID]: row[H.Q_ID] || "",
-      [H.ITEM_ID]: row[H.ITEM_ID] || "",
-      [H.PAYMENT_ID]: row[H.PAYMENT_ID] || "",
-      [H.INVOICE_GROUP_ID]: row[H.INVOICE_GROUP_ID] || "",
-      [H.CARGO_PACKAGE_ID]: row[H.CARGO_PACKAGE_ID] || "",
-      [H.SOURCE_ID]: row[H.SOURCE_ID] || row[H.OPEN_ID] || row[H.INVOICE_GROUP_ID] || row[H.CARGO_PACKAGE_ID] || row[H.ITEM_ID] || row[H.PAYMENT_ID] || row[H.Q_ID] || "",
-      [H.ROW_JSON]: JSON.stringify(row || {}),
-      [H.OPERATOR]: lifecycleOperator_(),
-      [H.RESTORED]: "Hayır",
-      [H.RESTORE_DATE]: "",
-      [H.RESTORE_STATUS]: "",
-      [H.WARN]: ""
-    };
+    var sourceHeaders = lifecycleHeadersForSheet_(sourceSheet) || Object.keys(row || {});
+    var audit = {};
+    sourceHeaders.forEach(function (header) {
+      audit[header] = row && row[header] !== undefined ? row[header] : "";
+    });
+    audit[H.AUDIT_ID] = lifecycleAuditId_(targetSheet, openId, sourceSheet, rowNum, index);
+    audit[H.AUDIT_ACTION] = actionName;
+    audit[H.AUDIT_DATE] = new Date();
+    audit[H.SOURCE_SHEET] = sourceSheet;
+    audit[H.SOURCE_ROW_NO] = rowNum;
+    audit[H.OPEN_ID] = audit[H.OPEN_ID] || openId;
+    audit[H.SOURCE_ID] = row[H.SOURCE_ID] || row[H.OPEN_ID] || row[H.INVOICE_GROUP_ID] || row[H.CARGO_PACKAGE_ID] || row[H.ITEM_ID] || row[H.PAYMENT_ID] || row[H.Q_ID] || "";
+    audit[H.SOURCE_HEADER_JSON] = JSON.stringify(sourceHeaders || []);
+    audit[H.ROW_JSON] = JSON.stringify(copyByHeaders_(row || {}, sourceHeaders || [], {}));
+    audit[H.OPERATOR] = lifecycleOperator_();
+    audit[H.RESTORED] = "Hayır";
+    audit[H.RESTORE_DATE] = "";
+    audit[H.RESTORE_STATUS] = "";
+    audit[H.AUDIT_WARN] = "";
+    return audit;
   }
 
   function moveLifecycleRows_(ss, openId, targetSheetName, actionName) {

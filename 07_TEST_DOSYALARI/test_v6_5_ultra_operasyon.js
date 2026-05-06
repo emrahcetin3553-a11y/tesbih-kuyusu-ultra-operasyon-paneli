@@ -329,6 +329,26 @@ const liveCargoHeaderContract = [
 ];
 assert(JSON.stringify(HEADERS.cargo) === JSON.stringify(liveCargoHeaderContract), "08_KARGO_PAKETLERI kod başlık sözleşmesi canlı Sheet sırasıyla eşleşmeli");
 assert(JSON.stringify(HEADERS.dictionary) === JSON.stringify(["Sayfa", "Kolon", "Kaynak", "Amaç", "Zorunlu_Mu", "Not"]), "13_VERI_SOZLUGU başlık sözleşmesi korunmalı");
+const lifecycleAuditPrefix = [
+  H.AUDIT_ID,
+  H.AUDIT_ACTION,
+  H.AUDIT_DATE,
+  H.SOURCE_SHEET,
+  H.SOURCE_ROW_NO,
+  H.SOURCE_ID,
+  H.SOURCE_HEADER_JSON,
+  H.ROW_JSON,
+  H.RESTORED,
+  H.RESTORE_DATE,
+  H.RESTORE_STATUS,
+  H.OPERATOR,
+  H.AUDIT_WARN
+];
+assert(HEADERS.archive.length === 176 && HEADERS.deleted.length === 176, "ARSIVLENENLER/SILINENLER 176 kolon sözleşmesini taşımalı");
+assert(JSON.stringify(HEADERS.archive.slice(0, lifecycleAuditPrefix.length)) === JSON.stringify(lifecycleAuditPrefix), "ARSIVLENENLER audit prefix sırasını korumalı");
+assert(JSON.stringify(HEADERS.deleted.slice(0, lifecycleAuditPrefix.length)) === JSON.stringify(lifecycleAuditPrefix), "SILINENLER audit prefix sırasını korumalı");
+assert(HEADERS.archive[175] === H.ADDRESS_STATUS && HEADERS.deleted[175] === H.ADDRESS_STATUS, "Audit sayfalarının son kolonu FT/Adres_Durumu olmalı");
+assert(HEADERS.archive.includes(H.Q_ID) && HEADERS.archive.includes(H.CARGO_PACKAGE_ID) && HEADERS.archive.includes(H.SOURCE_HEADER_JSON) && HEADERS.archive.includes(H.ROW_JSON), "Audit sözleşmesi kaynak ID ve JSON alanlarını içermeli");
 
 assert(menuItems.some(item => item.fn === "seciliParasutCariAdaylariniGetir"), "Secili Paraşüt cari aday wrapper menude olmali");
 assert(menuItems.some(item => item.fn === "seciliParasutTaslakPayloadTestEt"), "Secili Paraşüt payload wrapper menude olmali");
@@ -545,12 +565,18 @@ const archiveResult = sandbox.seciliKaydiArsivle();
 assert(archiveResult.results[0].moved >= beforeArchiveRelated, "Arsivle tum bagli satirlari audit sayfasina tasimali");
 assert(activeRelatedCount(archiveOrder.openId) === 0, "Arsivlenen siparis aktif operasyon sayfalarindan kalkmali");
 assert(auditOpenRows(CFG.sheets.archive, archiveOrder.openId).filter(r => r[H.RESTORED] !== "Evet").length >= beforeArchiveRelated, "Arsivlenen satirlar ARSIVLENENLER sayfasinda geri alinabilir olmali");
+const archivedAuditRows = auditOpenRows(CFG.sheets.archive, archiveOrder.openId).filter(r => r[H.RESTORED] !== "Evet");
+assert(archivedAuditRows.every(r => r[H.SOURCE_SHEET] && r[H.SOURCE_HEADER_JSON] && r[H.ROW_JSON]), "Arsiv audit satirlari kaynak sheet, header JSON ve satir JSON tasimali");
+const archivedQueueAudit = archivedAuditRows.find(r => r[H.SOURCE_SHEET] === CFG.sheets.queue);
+assert(archivedQueueAudit && archivedQueueAudit[H.Q_ID] && archivedQueueAudit[H.OPEN_ID] === archiveOrder.openId, "Arsiv audit satiri queue ID ve openId kolonlarini header-name bazli tasimali");
 const archiveSheet = ss.getSheetByName(CFG.sheets.archive);
 ss.setActiveRange(archiveSheet.getRange(rowNumByKey(CFG.sheets.archive, H.OPEN_ID, archiveOrder.openId), 1, 1, archiveSheet.getLastColumn()));
 const archiveRestore = sandbox.seciliKaydiGeriAl();
 assert(archiveRestore.results[0].restored >= beforeArchiveRelated, "Geri al arsivden satirlari aktif sayfalara dondurmeli");
 const afterArchiveRestoreRelated = activeRelatedCount(archiveOrder.openId);
 assert(afterArchiveRestoreRelated >= beforeArchiveRelated, "Arsivden geri alinan siparis aktif satirlari geri gelmeli");
+const restoredArchiveQueue = rows(CFG.sheets.queue).find(r => r[H.OPEN_ID] === archiveOrder.openId);
+assert(restoredArchiveQueue && restoredArchiveQueue[H.Q_ID] && restoredArchiveQueue[H.OWNER], "Arsiv geri al queue satirini kolon kaymasiz dondurmeli");
 ss.setActiveRange(archiveSheet.getRange(rowNumByKey(CFG.sheets.archive, H.OPEN_ID, archiveOrder.openId), 1, 1, archiveSheet.getLastColumn()));
 sandbox.seciliKaydiGeriAl();
 assert(activeRelatedCount(archiveOrder.openId) === afterArchiveRestoreRelated, "Arsiv geri al ikinci kez duplicate uretmemeli");
@@ -572,12 +598,18 @@ const deleteResult = sandbox.seciliKaydiSil();
 assert(deleteResult.results[0].moved >= beforeDeleteRelated, "Sil tum bagli satirlari SILINENLER sayfasina tasimali");
 assert(activeRelatedCount(deleteOrder.openId) === 0, "Silinen siparis aktif operasyon sayfalarindan kalkmali");
 assert(auditOpenRows(CFG.sheets.deleted, deleteOrder.openId).filter(r => r[H.RESTORED] !== "Evet").length >= beforeDeleteRelated, "Silinen satirlar SILINENLER sayfasinda geri alinabilir olmali");
+const deletedAuditRows = auditOpenRows(CFG.sheets.deleted, deleteOrder.openId).filter(r => r[H.RESTORED] !== "Evet");
+assert(deletedAuditRows.every(r => r[H.SOURCE_SHEET] && r[H.SOURCE_HEADER_JSON] && r[H.ROW_JSON]), "Sil audit satirlari kaynak sheet, header JSON ve satir JSON tasimali");
+const deletedQueueAudit = deletedAuditRows.find(r => r[H.SOURCE_SHEET] === CFG.sheets.queue);
+assert(deletedQueueAudit && deletedQueueAudit[H.Q_ID] && deletedQueueAudit[H.OPEN_ID] === deleteOrder.openId, "Sil audit satiri queue ID ve openId kolonlarini header-name bazli tasimali");
 const deletedSheet = ss.getSheetByName(CFG.sheets.deleted);
 ss.setActiveRange(deletedSheet.getRange(rowNumByKey(CFG.sheets.deleted, H.OPEN_ID, deleteOrder.openId), 1, 1, deletedSheet.getLastColumn()));
 const deleteRestore = sandbox.seciliKaydiGeriAl();
 assert(deleteRestore.results[0].restored >= beforeDeleteRelated, "Geri al silinenlerden satirlari aktif sayfalara dondurmeli");
 const afterDeleteRestoreRelated = activeRelatedCount(deleteOrder.openId);
 assert(afterDeleteRestoreRelated >= beforeDeleteRelated, "Silinenlerden geri alinan siparis aktif satirlari geri gelmeli");
+const restoredDeletedQueue = rows(CFG.sheets.queue).find(r => r[H.OPEN_ID] === deleteOrder.openId);
+assert(restoredDeletedQueue && restoredDeletedQueue[H.Q_ID] && restoredDeletedQueue[H.OWNER], "Sil geri al queue satirini kolon kaymasiz dondurmeli");
 ss.setActiveRange(deletedSheet.getRange(rowNumByKey(CFG.sheets.deleted, H.OPEN_ID, deleteOrder.openId), 1, 1, deletedSheet.getLastColumn()));
 sandbox.seciliKaydiGeriAl();
 assert(activeRelatedCount(deleteOrder.openId) === afterDeleteRestoreRelated, "Silinenlerden geri al ikinci kez duplicate uretmemeli");

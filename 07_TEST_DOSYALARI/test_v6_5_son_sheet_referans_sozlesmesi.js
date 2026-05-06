@@ -6,7 +6,7 @@ const AdmZip = require("adm-zip");
 const root = path.resolve(__dirname, "..");
 const corePath = path.join(root, "03_APPS_SCRIPT_KOD", "tesbih_kuyusu_v6_5_ultra_operasyon_core.gs");
 const workbookPath = process.env.TESBIH_REFERENCE_XLSX ||
-  path.join(root, "02_SHEET_SISTEM", "TESBIH_KUYUSU_MASTER_SHEET (20).xlsx");
+  path.join(root, "02_SHEET_SISTEM", "TESBIH_KUYUSU_MASTER_SHEET (22).xlsx");
 
 function normalize(value) {
   return String(value || "")
@@ -181,6 +181,7 @@ async function main() {
   const codeHeaders = loadCodeHeaders();
   const required = {
     settings: "01_AYARLAR",
+    queue: "02_WHATSAPP_KUYRUGU",
     open: "03_ACIK_SIPARISLER",
     items: "04_URUN_KALEMLERI",
     payments: "05_ODEMELER",
@@ -192,7 +193,9 @@ async function main() {
     control: "12_KONTROL_MERKEZI",
     dictionary: "13_VERI_SOZLUGU",
     bank: "14_BANKA_HAREKETLERI",
-    addressMemory: "15_MUSTERI_ADRESLERI"
+    addressMemory: "15_MUSTERI_ADRESLERI",
+    deleted: "SILINENLER",
+    archive: "ARSIVLENENLER"
   };
 
   const missingSheets = Object.values(required).filter(sheetName => !workbook.sheetNames.includes(sheetName));
@@ -242,11 +245,15 @@ async function main() {
   const dictionaryPairs = new Set(records(workbook, "13_VERI_SOZLUGU")
     .filter(row => row.sayfa && row.kolon)
     .map(row => `${row.sayfa}::${row.kolon}`));
+  const dictionaryAliases = {
+    "10_808_FINANS_ONIZLEME::1. sütun": "10_808_FINANS_ONIZLEME::808_Kayıt_ID"
+  };
   const dictionaryMissing = [];
   Object.values(required).forEach(sheetName => {
-    if (sheetName === "13_VERI_SOZLUGU") return;
+    if (sheetName === "13_VERI_SOZLUGU" || sheetName === "SILINENLER" || sheetName === "ARSIVLENENLER") return;
     headers(workbook, sheetName).forEach(header => {
-      if (!dictionaryPairs.has(`${sheetName}::${header}`)) dictionaryMissing.push({ Sayfa: sheetName, Kolon: header });
+      const pair = `${sheetName}::${header}`;
+      if (!dictionaryPairs.has(pair) && !dictionaryPairs.has(dictionaryAliases[pair])) dictionaryMissing.push({ Sayfa: sheetName, Kolon: header });
     });
   });
   assert(dictionaryMissing.length === 0, "13_VERI_SOZLUGU gerçek kolonları kapsamıyor", dictionaryMissing);
@@ -276,6 +283,34 @@ async function main() {
   }
   assert(Object.keys(missingRequiredColumns).length === 0, "Zorunlu referans kolonları eksik", missingRequiredColumns);
 
+  const archiveHeaders = headers(workbook, "ARSIVLENENLER");
+  const deletedHeaders = headers(workbook, "SILINENLER");
+  const auditPrefix = [
+    "Audit_ID",
+    "İşlem_Tipi",
+    "İşlem_Tarihi",
+    "Kaynak_Sayfa",
+    "Kaynak_Satır_No",
+    "Kaynak_ID",
+    "Kaynak_Header_JSON",
+    "Satır_JSON",
+    "Geri_Alındı_Mı",
+    "Geri_Alma_Tarihi",
+    "Geri_Alma_Durumu",
+    "Operatör",
+    "Audit_Kontrol_Uyarısı"
+  ];
+  assert(archiveHeaders.length === 176 && deletedHeaders.length === 176, "SILINENLER/ARSIVLENENLER 176 kolon sözleşmesini taşımıyor", {
+    ARSIVLENENLER: archiveHeaders.length,
+    SILINENLER: deletedHeaders.length
+  });
+  assert(JSON.stringify(archiveHeaders.slice(0, auditPrefix.length)) === JSON.stringify(auditPrefix), "ARSIVLENENLER audit prefix sözleşmesi bozuk", archiveHeaders.slice(0, auditPrefix.length));
+  assert(JSON.stringify(deletedHeaders.slice(0, auditPrefix.length)) === JSON.stringify(auditPrefix), "SILINENLER audit prefix sözleşmesi bozuk", deletedHeaders.slice(0, auditPrefix.length));
+  assert(archiveHeaders[175] === "Adres_Durumu" && deletedHeaders[175] === "Adres_Durumu", "Audit sayfalarının son kolonu FT/Adres_Durumu olmalı", {
+    ARSIVLENENLER: archiveHeaders[175],
+    SILINENLER: deletedHeaders[175]
+  });
+
   const paymentStatus = records(workbook, "05_ODEMELER")
     .reduce((acc, row) => {
       acc[row.teyit_durumu || ""] = (acc[row.teyit_durumu || ""] || 0) + 1;
@@ -294,7 +329,8 @@ async function main() {
       "ID link integrity",
       "13_VERI_SOZLUGU coverage",
       "10_808 Fark zero",
-      "07/08 required columns"
+      "07/08 required columns",
+      "SILINENLER/ARSIVLENENLER 176 column lifecycle contract"
     ]
   }, null, 2));
 }
