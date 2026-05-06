@@ -439,6 +439,7 @@ var TK6 = (function () {
     ensureSheet_(ss, CFG.sheets.deleted, HEADERS.deleted);
     ensureSheet_(ss, CFG.sheets.settings, HEADERS.settings);
     ensureRequiredSettings_(ss);
+    markCoreSchemaReady_();
     return true;
   }
 
@@ -674,11 +675,25 @@ var TK6 = (function () {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var props = documentProperties_();
     var editIds = parseJsonArray_(props.getProperty("ULTRA_PANEL_EDIT_OPEN_IDS"));
+    var editQueueIds = parseJsonArray_(props.getProperty("ULTRA_PANEL_EDIT_QUEUE_IDS"));
     if (props.deleteProperty) props.deleteProperty("ULTRA_PANEL_EDIT_OPEN_IDS");
+    if (props.deleteProperty) props.deleteProperty("ULTRA_PANEL_EDIT_QUEUE_IDS");
     var editOrders = editIds.length ? ultraPanelPayloadsForOpenIds_(editIds) : [];
     var loaded = {};
+    var loadedQueue = {};
     editOrders.forEach(function (order) { if (order && order.openId) loaded[order.openId] = true; });
+    editOrders.forEach(function (order) { if (order && order.queueId) loadedQueue[order.queueId] = true; });
+    editQueueIds.forEach(function (qid) {
+      if (!qid || loadedQueue[qid]) return;
+      var payload = ultraPanelPayloadForQueueId_(ss, qid);
+      if (payload) {
+        editOrders.push(payload);
+        if (payload.openId) loaded[payload.openId] = true;
+        if (payload.queueId) loadedQueue[payload.queueId] = true;
+      }
+    });
     var missing = editIds.filter(function (id) { return id && !loaded[id]; });
+    var missingQueue = editQueueIds.filter(function (id) { return id && !loadedQueue[id]; });
     return {
       openOrders: openOrderOptions_(),
       products: productOptions_(),
@@ -691,7 +706,7 @@ var TK6 = (function () {
       qzAutoPrint: qzAutoPrintAfterBarcode_(ss) ? "Evet" : "Hayır",
       qzPrintCopies: qzPrintCopies_(ss),
       qzPrintMode: qzPrintMode_(ss),
-      panelError: missing.length ? "Seçili satırdan sipariş verisi bulunamadı: " + missing.join(", ") : ""
+      panelError: missing.concat(missingQueue).length ? "Seçili satırdan sipariş verisi bulunamadı: " + missing.concat(missingQueue).join(", ") : ""
     };
   }
 
@@ -750,6 +765,7 @@ var TK6 = (function () {
     var owner = q[H.OWNER] || open[H.OWNER] || "";
     return {
       openId: openId,
+      queueId: q[H.Q_ID] || "",
       cargoPackageId: cargo[H.CARGO_PACKAGE_ID] || "",
       kargoPaketId: cargo[H.CARGO_PACKAGE_ID] || "",
       whatsAppTel: phone,
@@ -834,6 +850,47 @@ var TK6 = (function () {
         };
       }),
       addresses: addressHistoryForPhone_(ss, phone)
+    };
+  }
+
+  function ultraPanelPayloadForQueueId_(ss, queueId) {
+    queueId = String(queueId || "").trim();
+    if (!queueId) return null;
+    var q = findObjectByKeyText_(sheet_(ss, CFG.sheets.queue), H.Q_ID, queueId);
+    if (!q) return null;
+    var openId = String(q[H.OPEN_ID] || openIdFromRelatedRow_(ss, CFG.sheets.queue, q) || "").trim();
+    if (openId) {
+      var payload = ultraPanelPayloadForOpenId_(ss, openId);
+      if (payload) {
+        payload.queueId = queueId;
+        return payload;
+      }
+    }
+    return {
+      openId: "",
+      queueId: queueId,
+      cargoPackageId: "",
+      kargoPaketId: "",
+      whatsAppTel: q[H.PHONE] || "",
+      siparisSahibi: q[H.OWNER] || "",
+      hamWhatsappMesaji: q[H.RAW] || "",
+      hizliUrunGirisi: q[H.FAST_PRODUCTS] || "",
+      hizliOdemeGirisi: q[H.FAST_PAYMENTS] || "",
+      hizliKargoGirisi: q[H.FAST_CARGO] || "",
+      kargo: {
+        kargoPaketId: "",
+        kargoAlicisi: q[H.OWNER] || "",
+        kargoTel: q[H.PHONE] || "",
+        il: "",
+        ilce: "",
+        adres: "",
+        kargoFirmasi: CFG.defaultCargoCompany,
+        paketNotu: ""
+      },
+      urunler: [],
+      odemeler: [],
+      faturalar: [],
+      addresses: addressHistoryForPhone_(ss, q[H.PHONE] || "")
     };
   }
 
@@ -928,15 +985,15 @@ var TK6 = (function () {
   }
 
   function seciliSiparisiDuzenle_() {
-    var ids = selectedOpenIds_();
-    if (!ids.length) return userNotice_("Lütfen işlem yapılacak siparişi seçin.");
-    openUltraPanelForEdit_(ids.slice(0, 1));
+    var refs = selectedEditRefs_();
+    if (!refs.openIds.length && !refs.queueIds.length) return userNotice_("Lütfen işlem yapılacak siparişi seçin.");
+    openUltraPanelForEdit_(refs.openIds.slice(0, 1), refs.openIds.length ? [] : refs.queueIds.slice(0, 1));
   }
 
   function seciliSiparisleriDuzenle_() {
-    var ids = selectedOpenIds_();
-    if (!ids.length) return userNotice_("Lütfen işlem yapılacak siparişleri seçin.");
-    openUltraPanelForEdit_(ids);
+    var refs = selectedEditRefs_();
+    if (!refs.openIds.length && !refs.queueIds.length) return userNotice_("Lütfen işlem yapılacak siparişleri seçin.");
+    openUltraPanelForEdit_(refs.openIds, refs.queueIds);
   }
 
   function seciliKaydiSil_() {
@@ -995,16 +1052,32 @@ var TK6 = (function () {
     return { ok: true, sheet: CFG.sheets.control };
   }
 
-  function openUltraPanelForEdit_(openIds) {
+  function openUltraPanelForEdit_(openIds, queueIds) {
     var ids = uniqueArray_((openIds || []).map(function (id) { return String(id || "").trim(); }).filter(Boolean));
-    if (!ids.length) throw new Error("Düzenlenecek Açık_Sipariş_ID bulunamadı.");
+    var qids = uniqueArray_((queueIds || []).map(function (id) { return String(id || "").trim(); }).filter(Boolean));
+    if (!ids.length && !qids.length) throw new Error("Düzenlenecek sipariş bulunamadı.");
     documentProperties_().setProperty("ULTRA_PANEL_EDIT_OPEN_IDS", JSON.stringify(ids));
+    documentProperties_().setProperty("ULTRA_PANEL_EDIT_QUEUE_IDS", JSON.stringify(qids));
     ultraSiparisPaneli_();
-    return { ok: true, openIds: ids };
+    return { ok: true, openIds: ids, queueIds: qids };
   }
 
   function selectedOpenIds_() {
     return uniqueArray_(selectedContexts_({ quiet: true }).map(function (ctx) { return ctx.openId; }).filter(Boolean));
+  }
+
+  function selectedEditRefs_() {
+    var contexts = selectedContexts_({ quiet: true, allowedSheets: selectedOrderContextSheets_() });
+    var openIds = [];
+    var queueIds = [];
+    contexts.forEach(function (ctx) {
+      if (ctx.openId) {
+        openIds.push(ctx.openId);
+      } else if (ctx.queueId) {
+        queueIds.push(ctx.queueId);
+      }
+    });
+    return { openIds: uniqueArray_(openIds), queueIds: uniqueArray_(queueIds) };
   }
 
   function selectedPhone_() {
@@ -1243,6 +1316,24 @@ var TK6 = (function () {
     return [CFG.sheets.archive, CFG.sheets.deleted];
   }
 
+  function assertSheetHeaderContract_(sh, expectedHeaders, label) {
+    if (!sh) throw new Error(label + " sayfası bulunamadı.");
+    var actual = sh.getRange(1, 1, 1, Math.max(1, sh.getLastColumn())).getValues()[0] || [];
+    var expected = expectedHeaders || [];
+    var bad = [];
+    for (var i = 0; i < expected.length; i++) {
+      if (String(actual[i] || "") !== String(expected[i] || "")) bad.push((i + 1) + ":" + expected[i]);
+      if (bad.length >= 5) break;
+    }
+    if (actual.length < expected.length || bad.length) {
+      throw new Error(label + " kolon sözleşmesi uyuşmuyor. Beklenen ilk hatalı kolonlar: " + bad.join(", "));
+    }
+  }
+
+  function assertLifecycleTargetContract_(sh, targetSheetName) {
+    assertSheetHeaderContract_(sh, targetSheetName === CFG.sheets.archive ? HEADERS.archive : HEADERS.deleted, targetSheetName);
+  }
+
   function lifecycleHeadersForSheet_(sheetName) {
     var configs = lifecycleSourceConfigs_();
     for (var i = 0; i < configs.length; i++) {
@@ -1374,11 +1465,13 @@ var TK6 = (function () {
     ensureSheet_(ss, targetSheetName, targetSheetName === CFG.sheets.archive ? HEADERS.archive : HEADERS.deleted);
     var bag = collectLifecycleKeys_(ss, openId);
     var targetSheet = sheet_(ss, targetSheetName);
+    assertLifecycleTargetContract_(targetSheet, targetSheetName);
     var auditRows = objects_(targetSheet);
     var moved = 0;
     var details = [];
     lifecycleSourceConfigs_().forEach(function (cfg) {
       var sh = sheet_(ss, cfg.sheetName);
+      assertSheetHeaderContract_(sh, cfg.headers, cfg.sheetName);
       var entries = lifecycleObjectsWithRowNums_(sh);
       var keep = [];
       var selected = [];
@@ -1404,6 +1497,7 @@ var TK6 = (function () {
     lifecycleAuditSheetNames_().forEach(function (auditSheetName) {
       var auditSheet = sheet_(ss, auditSheetName);
       if (!auditSheet) return;
+      assertLifecycleTargetContract_(auditSheet, auditSheetName);
       var auditRows = objects_(auditSheet);
       var changedAudit = false;
       var sourceJobs = {};
@@ -1420,6 +1514,7 @@ var TK6 = (function () {
         var row = parseJsonObject_(auditRow[H.ROW_JSON]);
         if (!sourceJobs[sourceSheet]) {
           var source = ensureSheet_(ss, sourceSheet, headers);
+          assertSheetHeaderContract_(source, headers, sourceSheet);
           sourceJobs[sourceSheet] = { headers: headers, rows: objects_(source), incoming: [] };
         }
         sourceJobs[sourceSheet].incoming.push({ auditRow: auditRow, row: row });
@@ -1507,6 +1602,80 @@ var TK6 = (function () {
       }
     }
     return { rowNum: 0, qid: "" };
+  }
+
+  function findQueueRowForQueueId_(ss, queueId) {
+    var sh = sheet_(ss, CFG.sheets.queue);
+    var h = headers_(sh);
+    if (h[H.Q_ID] === undefined) return { rowNum: 0, qid: "", openId: "" };
+    var data = sh.getDataRange().getValues();
+    var key = String(queueId || "").trim();
+    for (var i = data.length - 1; i >= 1; i--) {
+      if (String(data[i][h[H.Q_ID]] || "").trim() === key) {
+        return {
+          rowNum: i + 1,
+          qid: key,
+          openId: h[H.OPEN_ID] !== undefined ? String(data[i][h[H.OPEN_ID]] || "").trim() : ""
+        };
+      }
+    }
+    return { rowNum: 0, qid: "", openId: "" };
+  }
+
+  function latestOpenIdForPhoneDay_(ss, phone, opDay) {
+    var normalized = normalizePhone_(phone || "");
+    if (!normalized || !opDay) return "";
+    var queueRows = objects_(sheet_(ss, CFG.sheets.queue));
+    for (var i = queueRows.length - 1; i >= 0; i--) {
+      if (normalizePhone_(queueRows[i][H.PHONE]) !== normalized) continue;
+      if (String(queueRows[i][H.OP_DAY] || "") !== String(opDay || "")) continue;
+      if (!queueRows[i][H.OPEN_ID] || isClosedText_(queueRows[i][H.ORDER_STATUS])) continue;
+      return String(queueRows[i][H.OPEN_ID] || "").trim();
+    }
+    var openRows = objects_(sheet_(ss, CFG.sheets.open));
+    for (var j = openRows.length - 1; j >= 0; j--) {
+      if (normalizePhone_(openRows[j][H.PHONE]) !== normalized) continue;
+      if (String(openRows[j][H.OP_DAY] || "") !== String(opDay || "")) continue;
+      if (!openRows[j][H.OPEN_ID] || isClosedText_(openRows[j][H.ORDER_STATUS])) continue;
+      return String(openRows[j][H.OPEN_ID] || "").trim();
+    }
+    return "";
+  }
+
+  function nextOpenIdForDayFast_(ss, opDay) {
+    var dayKey = String(opDay || todayIso_()).replace(/-/g, "");
+    var maxSeq = 0;
+    function scan(row) {
+      var id = String(row && row[H.OPEN_ID] || "").trim();
+      var match = id.match(new RegExp("^AS-" + dayKey + "-(\\d{3,})$"));
+      if (match) maxSeq = Math.max(maxSeq, Number(match[1]) || 0);
+    }
+    objects_(sheet_(ss, CFG.sheets.queue)).forEach(scan);
+    objects_(sheet_(ss, CFG.sheets.open)).forEach(scan);
+    return "AS-" + dayKey + "-" + pad_(maxSeq + 1, 3);
+  }
+
+  function assignOpenIdToQueueRowFast_(ss, queue, rowNum) {
+    var h = headers_(queue);
+    var width = Math.max(1, queue.getLastColumn());
+    var range = queue.getRange(rowNum, 1, 1, width);
+    var row = range.getValues()[0] || [];
+    normalizeQueueRowArray_(row, h, rowNum);
+    var openId = String(val_(row, h, H.OPEN_ID) || "").trim();
+    var qid = String(val_(row, h, H.Q_ID) || "").trim();
+    var msgDate = toDate_(val_(row, h, H.MSG_DT)) || new Date();
+    var opDay = val_(row, h, H.OP_DAY) || operationDate_(msgDate);
+    if (!openId) {
+      var phone = normalizePhone_(val_(row, h, H.PHONE));
+      var canMerge = isBeforeCutoff_(msgDate, setting_(ss, "SISTEM_OPERASYON_SAATI_KAPANIS", CFG.cutoff));
+      openId = canMerge ? latestOpenIdForPhoneDay_(ss, phone, opDay) : "";
+      openId = openId || nextOpenIdForDayFast_(ss, opDay);
+      setIf_(row, h, H.OPEN_ID, openId);
+      setIf_(row, h, H.OP_DAY, opDay);
+    }
+    range.setValues([row]);
+    invalidateSheetCache_(queue.getName());
+    return { openId: openId, qid: qid };
   }
 
   function patchObjectRow_(sh, rowNum, headers, obj, keepExisting) {
@@ -1689,33 +1858,32 @@ var TK6 = (function () {
         throw new Error("Düzenleme için mevcut Açık_Sipariş_ID bulunamadı.");
       }
       normalizeQueueSheetRow_(ss, queueRow);
+    } else if (form.queueId) {
+      var existingQueue = findQueueRowForQueueId_(ss, form.queueId);
+      if (!existingQueue.rowNum) throw new Error("Düzenleme için mevcut Kuyruk_ID bulunamadı.");
+      queueRow = existingQueue.rowNum;
+      qid = existingQueue.qid || form.queueId;
+      openId = existingQueue.openId || "";
+      queueObj[H.Q_ID] = qid;
+      if (openId) queueObj[H.OPEN_ID] = openId;
+      delete queueObj[H.CREATED];
+      delete queueObj[H.MSG_DT];
+      delete queueObj[H.OP_DAY];
+      delete queueObj[H.ORDER_STATUS];
+      delete queueObj[H.ROW_STATUS];
+      patchObjectRow_(queue, queueRow, HEADERS.queue, queueObj, true);
+      var assignedExisting = performanceMeasure_("assignOpenIdToQueueRowFast_:queueEdit", function () { return assignOpenIdToQueueRowFast_(ss, queue, queueRow); });
+      openId = assignedExisting.openId;
+      qid = assignedExisting.qid || qid;
     } else {
       appendObject_(queue, HEADERS.queue, queueObj);
       queueRow = queue.getLastRow();
-      normalizeQueueSheetRow_(ss, queueRow);
-      acikSiparisleriGrupla_();
-      openId = rowOpenId_(queue, queueRow);
-      qid = queue.getRange(queueRow, headers_(queue)[H.Q_ID] + 1).getValue();
+      var assigned = performanceMeasure_("assignOpenIdToQueueRowFast_:new", function () { return assignOpenIdToQueueRowFast_(ss, queue, queueRow); });
+      openId = assigned.openId;
+      qid = assigned.qid;
     }
-    var submittedItemIds = [];
-    (form && form.urunler || []).forEach(function (item, index) {
-      if (!item || !item.urunAdi) return;
-      var itemId = appendProductRowFromParsed_(ss, openId, qid, mergeObjects_(item, {
-        product: item.urunAdi,
-        qty: item.miktar,
-        unitGross: item.birimFiyatKdvDahil,
-        vatRate: item.kdvOrani,
-        payer: item.odemeYapan,
-        invoiceCariLinkId: item.faturaCariBaglantiId,
-        silverGram: item.gumusGram,
-        silverCostUnit: item.gumusAlisBirim,
-        silverSaleUnit: item.gumusSatisBirim,
-        silverAmountType: item.gumusTutarTipi,
-        sourceKey: "ULTRA-U-" + (index + 1)
-      }));
-      if (itemId) submittedItemIds.push(itemId);
-    });
     var submittedPaymentIds = [];
+    var paymentIdByPayer = {};
     (form && form.odemeler || []).forEach(function (payment, index) {
       if (!payment || (!payment.odemeYapan && !payment.odemeTutari)) return;
       var paymentId = appendPaymentRowFromParsed_(ss, openId, qid, mergeObjects_(payment, {
@@ -1729,14 +1897,41 @@ var TK6 = (function () {
         payerCity: payment.odemeYapanIl,
         payerDistrict: payment.odemeYapanIlce,
         invoiceCariLinkId: payment.faturaCariBaglantiId,
-        sourceKey: "ULTRA-O-" + (index + 1)
+        sourceKey: "ULTRA-O-" + (index + 1),
+        skipRowNormalize: true
       }));
-      if (paymentId) submittedPaymentIds.push(paymentId);
+      if (paymentId) {
+        submittedPaymentIds.push(paymentId);
+        paymentIdByPayer[normalizePersonName_(payment.odemeYapan || "")] = paymentId;
+      }
+    });
+    var submittedItemIds = [];
+    (form && form.urunler || []).forEach(function (item, index) {
+      if (!item || !item.urunAdi) return;
+      var itemPayer = normalizePersonName_(item.odemeYapan || "");
+      var itemId = appendProductRowFromParsed_(ss, openId, qid, mergeObjects_(item, {
+        product: item.urunAdi,
+        qty: item.miktar,
+        unitGross: item.birimFiyatKdvDahil,
+        vatRate: item.kdvOrani,
+        payer: item.odemeYapan,
+        paymentId: paymentIdByPayer[itemPayer] || item.paymentId || item.odemeId || "",
+        invoiceCariLinkId: item.faturaCariBaglantiId,
+        silverGram: item.gumusGram,
+        silverCostUnit: item.gumusAlisBirim,
+        silverSaleUnit: item.gumusSatisBirim,
+        silverAmountType: item.gumusTutarTipi,
+        seq: index + 1,
+        sourceKey: "ULTRA-U-" + (index + 1),
+        skipRowNormalize: true
+      }));
+      if (itemId) submittedItemIds.push(itemId);
     });
     if (editingOpenId) markMissingPanelRowsInactive_(ss, openId, submittedItemIds, submittedPaymentIds);
-    performanceMeasure_("linkProductRowsToPaymentsForSave_", function () { linkProductRowsToPaymentsForSave_(ss, openId); });
+    performanceCounter_("linkProductRowsSkippedForPlainSave");
     var cargoPackageId = "";
     if (form && form.kargo && form.cargoPackageId && !form.kargo.kargoPaketId) form.kargo.kargoPaketId = form.cargoPackageId;
+    if (form && form.kargo) form.kargo.skipRowNormalize = true;
     if (form && form.kargo) cargoPackageId = upsertQuickCargo_(ss, openId, qid, form.kargo);
     if (queueObj[H.FAST_PRODUCTS] || queueObj[H.FAST_PAYMENTS] || queueObj[H.FAST_CARGO]) processQueueQuickInputs_(ss, queueRow);
     cargoPackageId = cargoPackageId || cargoPackageIdForOpen_(ss, openId);
@@ -1744,7 +1939,7 @@ var TK6 = (function () {
       return finishSaveResult_({ ok: true, openId: openId, cargoPackageId: cargoPackageId, kargoPaketId: cargoPackageId, queueId: qid, elapsedMs: Date.now() - started, status: "Kaydedildi; toplu ERP güncelleme bekliyor", deferred: true, form: form }, ownsProfile);
     }
     var invoiceRows = performanceMeasure_("upsertInvoiceGroupsFromPanelSave_", function () { return upsertInvoiceGroupsFromPanelSave_(ss, openId, form || {}); });
-    var cariResult = performanceMeasure_("autoCariBaglaForOpen_:save", function () { return autoCariBaglaForOpen_(ss, openId, false, { allowCreate: true, source: "save" }); });
+    var cariResult = performanceMeasure_("panelCariDurumForSave_", function () { return panelCariDurumForSave_(ss, openId, invoiceRows); });
     performanceMeasure_("patchOpenSummaryForSave_", function () { patchOpenSummaryForSave_(ss, openId, qid, form || {}, cargoPackageId, invoiceRows, cariResult); });
     var control = performanceMeasure_("panelKontrolOzetiForSave_", function () { return panelKontrolOzetiForSave_(ss, openId, form || {}, invoiceRows, cariResult); });
     performanceCounter_("plainSaveFastPath");
@@ -2060,6 +2255,7 @@ var TK6 = (function () {
     var warnings = [];
     if (!product) warnings.push("Ürün seçimi net değil");
     if (!unitGross && !gross) warnings.push("Ürün fiyatı girilmeli");
+    if (!parsed.paymentId) warnings.push("Ödeme ID eksik");
     if (productType_(product) === "Gümüş" && parsed.silverAmountType && !silverType) warnings.push("Gümüş_Tutar_Tipi Birim veya Toplam olmalı");
     var itemSheet = sheet_(ss, CFG.sheets.items);
     var existingRowNum = findRowByKeyText_(itemSheet, H.ITEM_ID, itemId);
@@ -2072,7 +2268,9 @@ var TK6 = (function () {
       [H.Q_ID]: qid,
       [H.INVOICE_CARI_LINK_ID]: linkId,
       [H.PAYER]: payer,
+      [H.PAYMENT_ID]: parsed.paymentId || "",
       [H.INVOICE_GROUP_ID]: linkId,
+      [H.SEQ]: parsed.seq || "",
       [H.PRODUCT]: product || parsed.product || "",
       [H.PRODUCT_TYPE]: config ? config.type : "",
       [H.UNIT]: parsed.unit || parsed.birim || (config && config.unit) || "Adet",
@@ -2092,7 +2290,7 @@ var TK6 = (function () {
       [H.ITEM_STATUS]: nextStatus,
       [H.WARN]: warnings.join(" | ")
     });
-    normalizeItemSheetRow_(ss, findRowByKey_(sheet_(ss, CFG.sheets.items), H.ITEM_ID, itemId));
+    if (!parsed.skipRowNormalize) normalizeItemSheetRow_(ss, findRowByKey_(sheet_(ss, CFG.sheets.items), H.ITEM_ID, itemId));
     return itemId;
   }
 
@@ -2190,15 +2388,16 @@ var TK6 = (function () {
       [H.CONFIRM_STATUS]: existing[H.CONFIRM_STATUS] || "Bekliyor",
       [H.OPERATOR_CONFIRM]: parsed.operatorConfirm || existing[H.OPERATOR_CONFIRM] || "Hayır"
     });
-    normalizePaymentSheetRow_(ss, findRowByKey_(sheet_(ss, CFG.sheets.payments), H.PAYMENT_ID, paymentId));
+    if (!parsed.skipRowNormalize) normalizePaymentSheetRow_(ss, findRowByKey_(sheet_(ss, CFG.sheets.payments), H.PAYMENT_ID, paymentId));
     return paymentId;
   }
 
   function upsertQuickCargo_(ss, openId, qid, cargo) {
-    var summary = openSummaryById_(ss, openId);
-    var packageId = navlungoIdText_(cargo && (cargo.kargoPaketId || cargo.cargoPackageId)) || cargoPackageIdForOpen_(ss, openId) || ("KP-" + openId);
+    var needsSummary = !(cargo && (cargo.receiver || cargo.kargoAlicisi) && (cargo.phone || cargo.kargoTel));
+    var summary = needsSummary ? openSummaryById_(ss, openId) : { owner: "", phone: "" };
+    var packageId = navlungoIdText_(cargo && (cargo.kargoPaketId || cargo.cargoPackageId)) || ("KP-" + openId);
     var cargoSheet = sheet_(ss, CFG.sheets.cargo);
-    var existingRowNum = findRowByKeyText_(cargoSheet, H.CARGO_PACKAGE_ID, packageId) || findRowByKeyText_(cargoSheet, H.OPEN_ID, openId);
+    var existingRowNum = findRowByKeyText_(cargoSheet, H.OPEN_ID, openId);
     var existing = existingRowNum ? rowObjectFromSheetRow_(cargoSheet, existingRowNum) : {};
     upsertObjectByKey_(cargoSheet, HEADERS.cargo, H.OPEN_ID, openId, {
       [H.CARGO_PACKAGE_ID]: packageId,
@@ -2216,7 +2415,7 @@ var TK6 = (function () {
       [H.CARGO_EXIT_DATE]: cargo.kargoCikisTarihi || cargo.cargoExitDate || existing[H.CARGO_EXIT_DATE] || "",
       [H.WARN]: cargo.warning || ""
     });
-    normalizeCargoSheetRow_(ss, findRowByKey_(sheet_(ss, CFG.sheets.cargo), H.OPEN_ID, openId));
+    if (!cargo.skipRowNormalize) normalizeCargoSheetRow_(ss, findRowByKey_(sheet_(ss, CFG.sheets.cargo), H.OPEN_ID, openId));
     return packageId;
   }
 
@@ -2340,7 +2539,7 @@ var TK6 = (function () {
         [H.PARASUT_CONTACT_ID]: contactId,
         [H.CARI_MATCH_SCORE]: saved[H.CARI_MATCH_SCORE] || "",
         [H.CARI_MATCH_STATUS]: contactId ? "Bağlı" : (saved[H.CARI_MATCH_STATUS] || "Cari çözümü gerekli"),
-        [H.CARI_ACTION]: contactId ? "Cari bağlı" : (saved[H.CARI_ACTION] || "Kaydet sırasında otomatik cari kontrolü"),
+        [H.CARI_ACTION]: contactId ? "Cari bağlı" : (saved[H.CARI_ACTION] || "Panelden cari seçin veya cari oluşturma onayı verin"),
         [H.PARASUT_INVOICE_ID]: saved[H.PARASUT_INVOICE_ID] || "",
         [H.SEND_LOCK]: saved[H.PARASUT_INVOICE_ID] ? "Evet" : (saved[H.SEND_LOCK] || "Hayır"),
         [H.WARN]: warnings.join(" | ")
@@ -2416,6 +2615,32 @@ var TK6 = (function () {
       issues: issues,
       summary: issues.length ? issues.map(function (x) { return x.sheet + " / " + x.id + ": " + x.message + " -> " + x.action; }) : ["Hızlı panel kontrolü temiz"]
     };
+  }
+
+  function panelCariDurumForSave_(ss, openId, invoiceRows) {
+    var result = { ok: true, bound: 0, pending: 0, created: 0, blocks: [], changed: false };
+    (invoiceRows || []).forEach(function (row) {
+      if (row[H.PARASUT_CONTACT_ID]) {
+        result.bound += 1;
+        return;
+      }
+      var candidates = mapCariAdaylari_(cariCriteriaFromGroup_(row), false).filter(function (candidate) { return Number(candidate.score || 0) >= 90; });
+      if (candidates.length === 1) {
+        row[H.PARASUT_CONTACT_ID] = candidates[0].id;
+        row[H.CARI_MATCH_SCORE] = candidates[0].score;
+        row[H.CARI_MATCH_STATUS] = "Güçlü eşleşme";
+        row[H.CARI_ACTION] = "Otomatik bağlandı";
+        row[H.WARN] = "";
+        patchOrAppendObjectByKey_(sheet_(ss, CFG.sheets.invoiceGroups), HEADERS.invoiceGroups, H.INVOICE_GROUP_ID, row[H.INVOICE_GROUP_ID], row);
+        result.bound += 1;
+        result.changed = true;
+        return;
+      }
+      result.pending += 1;
+      result.ok = false;
+      result.blocks.push((row[H.INVOICE_PERSON] || row[H.PAYER] || row[H.INVOICE_GROUP_ID] || "Fatura grubu") + ": Paraşüt cari ID yok");
+    });
+    return result;
   }
 
   function patchOrAppendObjectByKey_(sh, headers, keyName, keyValue, obj) {
@@ -4907,6 +5132,11 @@ var TK6 = (function () {
       performanceCounter_("schemaCacheHit");
       return;
     }
+    if (coreSchemaReady_()) {
+      if (REQUEST_CACHE) REQUEST_CACHE.schemaReady = true;
+      performanceCounter_("schemaPropertyHit");
+      return;
+    }
     var missing = [];
     ["settings", "queue", "open", "items", "payments", "invoiceGroups", "parasut", "cargo", "memory", "finance808", "ebelge", "control", "addressMemory"].forEach(function (key) {
       var sheetName = CFG.sheets[key];
@@ -4921,8 +5151,23 @@ var TK6 = (function () {
       sistemKolonlariniHazirla_();
     } else {
       performanceCounter_("schemaFastPass");
+      markCoreSchemaReady_();
     }
     if (REQUEST_CACHE) REQUEST_CACHE.schemaReady = true;
+  }
+
+  function coreSchemaReady_() {
+    try {
+      return documentProperties_().getProperty("TK6_CORE_SCHEMA_READY") === "V6.5";
+    } catch (err) {
+      return false;
+    }
+  }
+
+  function markCoreSchemaReady_() {
+    try {
+      documentProperties_().setProperty("TK6_CORE_SCHEMA_READY", "V6.5");
+    } catch (err) {}
   }
 
   function markCargoLateAdd_(ss, openId) {
@@ -6485,6 +6730,7 @@ var TK6 = (function () {
     options = options || {};
     ss = ss || SpreadsheetApp.getActiveSpreadsheet();
     form.openId = String(form.openId || "").trim();
+    form.queueId = String(form.queueId || form.kuyrukId || form.qid || "").trim();
     form.cargoPackageId = navlungoIdText_(form.cargoPackageId || form.kargoPaketId || (form.kargo && form.kargo.kargoPaketId));
     form.whatsAppTel = normalizePhone_(form.whatsAppTel || "");
     form.siparisSahibi = normalizePersonName_(form.siparisSahibi || "");

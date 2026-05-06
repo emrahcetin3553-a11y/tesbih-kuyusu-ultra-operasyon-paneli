@@ -372,7 +372,7 @@ assert(saved.performanceProfile && saved.performanceProfile.totalMs >= 0, "Kayde
 assert(!(saved.performanceProfile.topSteps || []).some(s => s.name.indexOf("hafifErpGuncelle_") !== -1), "Plain Kaydet hafifErpGuncelle yoluna girmemeli");
 assert(!JSON.stringify(saved.performanceProfile).includes("Mehmet") && !JSON.stringify(saved.performanceProfile).includes("+905"), "Kaydet profili müşteri verisi içermemeli");
 assert(saved.performanceProfile.counters.plainSaveFastPath >= 1, "Plain Kaydet hızlı kayıt yolunu kullanmalı");
-assert(saved.performanceProfile.counters.schemaFastPass >= 1, "Kaydet şema hazırlığı hafif geçiş yapmalı");
+assert((saved.performanceProfile.counters.schemaFastPass || 0) + (saved.performanceProfile.counters.schemaPropertyHit || 0) >= 1, "Kaydet şema hazırlığı hafif geçiş yapmalı");
 assert(rows(CFG.sheets.queue)[0][H.OWNER] === "Mehmet Nuri Çetin", "Birleşik isim doğru normalize edilmeli");
 assert(rows(CFG.sheets.cargo)[0][H.CARGO_RECEIVER] === "Mehmet Nuri Çetin", "Kargo alıcısı tam ad-soyad akmalı");
 assert(rows(CFG.sheets.payments)[0][H.PAYER] === "Mehmet Nuri Çetin", "Ödeme yapan tam ad-soyad akmalı");
