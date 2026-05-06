@@ -765,6 +765,7 @@ console.log(JSON.stringify({
   tokenRefreshCalls,
   navlungoAuthCalls,
   navlungoPostCalls,
+  saveProfileTotalMs: saved.performanceProfile.totalMs,
   saveProfileTopSteps: saved.performanceProfile.topSteps.slice(0, 5),
   saveProfileCounters: saved.performanceProfile.counters
 }, null, 2));

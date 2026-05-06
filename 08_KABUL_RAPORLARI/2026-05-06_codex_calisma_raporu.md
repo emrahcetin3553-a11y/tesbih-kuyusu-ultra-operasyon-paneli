@@ -180,3 +180,64 @@ GitHub kanıtı:
 - GitHub Actions run ID: `25407492086`
 - GitHub Actions job: `V6.5 Apps Script test harness`
 - GitHub Actions sonucu: `success`
+
+## 16. PR #6 Tek Seferlik Kritik Kabul: Performans, Panel ve 176 Kolon Audit
+
+PR #6 son kritik kabul yorumunda Kaydet performansı, seçili sipariş düzenleme/duplicate kayıt ve `SILINENLER` / `ARSIVLENENLER` yeni 176 kolon sözleşmesi birlikte istendi.
+
+İncelenen dosyalar:
+
+- `03_APPS_SCRIPT_KOD/tesbih_kuyusu_v6_5_ultra_operasyon_core.gs`
+- `03_APPS_SCRIPT_KOD/ultraSiparisPaneli.html`
+- `07_TEST_DOSYALARI/test_v6_5_ci_checks.js`
+- `07_TEST_DOSYALARI/test_v6_5_ultra_operasyon.js`
+- `07_TEST_DOSYALARI/test_v6_5_son_sheet_referans_sozlesmesi.js`
+- `02_SHEET_SISTEM/TESBIH_KUYUSU_MASTER_SHEET (22).xlsx`
+
+Değiştirilen dosyalar:
+
+- `03_APPS_SCRIPT_KOD/tesbih_kuyusu_v6_5_ultra_operasyon_core.gs`
+- `07_TEST_DOSYALARI/test_v6_5_ultra_operasyon.js`
+- `07_TEST_DOSYALARI/test_v6_5_son_sheet_referans_sozlesmesi.js`
+- `02_SHEET_SISTEM/TESBIH_KUYUSU_MASTER_SHEET (22).xlsx`
+- `08_KABUL_RAPORLARI/2026-05-06_tek_seferlik_kritik_kabul_performans_panel_arsiv_raporu.md`
+
+Yapılan düzeltmeler:
+
+- `HEADERS.archive` ve `HEADERS.deleted` eski 18 kolon varsayımından çıkarıldı.
+- `lifecycleAuditBaseHeaders_()` ve `lifecycleAuditHeaders_()` ile 176 kolon geniş audit sözleşmesi üretildi.
+- `lifecycleAuditRow_()` kaynak satırı hem `Satır_JSON` hem de header-name kolonlarla yazacak şekilde düzeltildi.
+- `H.FIN_ID` yüklenen Sheet (22) gerçek header'ı olan `1. sütun` değerine uyarlandı.
+- Test harness arşiv/sil/geri al akışında `Kaynak_Header_JSON`, `Satır_JSON`, kaynak kolon dolumu ve kolon kaymasız queue restore kontrolü eklendi.
+- Sheet referans testi varsayılan dosyası `TESBIH_KUYUSU_MASTER_SHEET (22).xlsx` olarak güncellendi.
+
+Çalıştırılan testler:
+
+- `node 07_TEST_DOSYALARI/test_v6_5_ci_checks.js`: geçti.
+- `node 07_TEST_DOSYALARI/test_v6_5_ultra_operasyon.js`: geçti.
+- `node 07_TEST_DOSYALARI/test_v6_5_son_sheet_referans_sozlesmesi.js`: geçti.
+- `npm ci`: geçti, 0 vulnerability.
+- `npm audit --audit-level=high`: geçti, 0 vulnerability.
+- `npm test`: geçti.
+- `git diff --check`: geçti; yalnız CRLF çalışma kopyası uyarısı var.
+
+Apps Script:
+
+- `clasp push --force`: yapıldı.
+- `clasp pull --force`: yapıldı.
+- Core SHA eşleşti: `0AE343449DBDCD7766C90458BCF64F8DCB535D766EA454A8FECB8C26FF7B7397`.
+- Panel HTML SHA eşleşti: `2679CF594937BA852CE4648EBA420B6480E34B0585A64A341AEE1752A51E1A68`.
+
+Sheet tarafı:
+
+- Kullanıcının yüklediği `TESBIH_KUYUSU_MASTER_SHEET (22).xlsx` repo içine olduğu gibi eklendi.
+- `SILINENLER`: 176 header, 14 veri satırı.
+- `ARSIVLENENLER`: 176 header, 0 veri satırı.
+- Operasyon verileri silinmedi.
+
+Kalan risk:
+
+- Canlı Google Sheets UI üzerinden yeni Kaydet süre kanıtı alınmadı. Yerel harness plain Kaydet profili `15 ms`; canlı UI için 1-5 saniye geçti denmedi.
+- `13_VERI_SOZLUGU` içinde `10_808_FINANS_ONIZLEME` için eski `808_Kayıt_ID` adı duruyor; gerçek header `1. sütun`. Kod gerçek header'a uyarlandı, veri sözlüğü sonraki temizlikte düzeltilmeli.
+
+Codex sohbet çıktısı / çalışma özeti şu dosyaya işlendi: `08_KABUL_RAPORLARI/2026-05-06_tek_seferlik_kritik_kabul_performans_panel_arsiv_raporu.md`
