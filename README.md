@@ -1,72 +1,61 @@
 # Tesbih Kuyusu Ultra Operasyon Paneli
 
-Tesbih Kuyusu V6.4.1 Ultra Operasyon Paneli, Google Sheets ve Apps Script üzerinde sipariş girişini, ürün kalemlerini, ödeme teyidini, fatura gruplarını, Paraşüt satış faturası taslak hazırlığını, kargo paketini, müşteri hafızasını ve kontrol merkezini tek operasyon akışında yönetmek için hazırlanmıştır.
+Bu repo, Tesbih Kuyusu V6.5 Ultra Operasyon sisteminin Google Sheets + Apps Script + Parasut + Navlungo + QZ Tray barkod yazdirma kaynaklarini tutar.
 
-## Güncel Sürüm
+## Guncel Durum
 
-- Aktif üretim adayı: V6.4.1 Ultra Operasyon
-- Ana Apps Script core: `03_APPS_SCRIPT_KOD/tesbih_kuyusu_v6_4_1_ultra_operasyon_core.gs`
-- Aktif Sheet dosyası: `02_SHEET_SISTEM/Tesbih_Kuyusu_V6_4_1_Ultra_Operasyon_Sheet.xlsx`
-- Canlı gönderim kapıları varsayılan: kapalı
+- Aktif calisma dali: `v6-5-production-candidate`
+- Aktif PR: `#6`
+- `main` dali guncel canli kodu temsil etmiyor; canli aday bu dal uzerindedir.
+- Canli Apps Script proje ID: `1-lU86xNoxXkuiX8pz8P2MkkIdbbLvT0Ub9bOhrcDLgLQ3a2aio6vIg77`
+- Ana Sheet: `TESBIH_KUYUSU_MASTER_SHEET`
+- Ana Sheet ID: `1ebgYLgOEE3uET6NRYviGXnh1cziUIal84aJhjhcCY80`
+- Aktif core: `03_APPS_SCRIPT_KOD/tesbih_kuyusu_v6_5_ultra_operasyon_core.gs`
+- Aktif panel: `03_APPS_SCRIPT_KOD/ultraSiparisPaneli.html`
 
-## İş Mantığı
+## Is Mantigi
 
-- Sipariş sahibi, WhatsApp üzerinden siparişi yazan kişidir.
-- Ödeme yapan kişi, fatura kişisidir.
-- Kargo alıcısı, sipariş sahibi ve fatura kişisinden farklı olabilir.
-- Aynı açık siparişte birden fazla ödeme yapan varsa, her ödeme yapan için ayrı fatura grubu oluşur.
-- Varsayılan olarak bir açık sipariş tek kargo paketine bağlanır.
-- Aynı WhatsApp müşterisi ve aynı operasyon günü içinde, 16:00 öncesi sipariş aynı açık sipariş altında büyür.
-- 16:00 sonrası yeni açık sipariş açılır; mevcut siparişe geç ekleme operatör onayı gerektirir.
-- Kargo adresi veya alıcı değişirse sipariş bölünmez; `08_KARGO_PAKETLERI` son geçerli bilgiyi taşır.
+- Siparis sahibi, WhatsApp uzerinden yazan kisidir.
+- Odeme yapan kisi, fatura kisisidir.
+- Kargo alicisi siparis sahibi ve fatura kisisinden farkli olabilir.
+- Ayni acik sipariste birden fazla odeme yapan varsa her odeme yapan icin ayri fatura grubu olusur.
+- Varsayilan olarak tek acik siparis tek kargo paketine baglanir.
+- 16:00 oncesi ayni WhatsApp musterisi ayni acik siparis altinda buyur; sonrasi yeni siparis veya operator onayli gec ekleme akisi gerektirir.
+- Parasut satis faturasi ve e-belge karari ayridir; `07_PARASUT_FATURA` taslak/satis faturasi katmanidir, resmi e-belge karari `11_EBELGE_ISTISNA` tarafindadir.
+- `10_808_FINANS_ONIZLEME` resmi fatura motoru degildir.
 
 ## Katmanlar
 
-- `02_WHATSAPP_KUYRUGU`: staging ve hızlı giriş alanı.
-- `03_ACIK_SIPARISLER`: açık sipariş özeti.
-- `04_URUN_KALEMLERI`: gerçek ürün kaynağı.
-- `05_ODEMELER`: ödeme teyit kaynağı.
-- `06_FATURA_GRUPLARI`: ödeme yapan kişi bazlı fatura grupları.
-- `07_PARASUT_FATURA`: Paraşüt satış faturası taslak katmanı.
-- `08_KARGO_PAKETLERI`: kargo paketi katmanı.
-- `09_MUSTERI_HAFIZA`: güvenli öneri katmanı.
-- `10_808_FINANS_ONIZLEME`: finans ve marj önizleme; resmi fatura üretmez.
-- `11_EBELGE_ISTISNA`: e-belge, e-Arşiv, e-Fatura ve istisna hazırlık katmanı.
+- `01_AYARLAR`: sistem ayarlari ve canli kapi degerleri.
+- `02_WHATSAPP_KUYRUGU`: staging ve hizli giris.
+- `03_ACIK_SIPARISLER`: acik siparis ozetleri.
+- `04_URUN_KALEMLERI`: urun satirlari.
+- `05_ODEMELER`: odeme satirlari.
+- `06_FATURA_GRUPLARI`: odeme yapan bazli fatura gruplari.
+- `07_PARASUT_FATURA`: Parasut satis faturasi payload ve gonderim sonucu.
+- `08_KARGO_PAKETLERI`: kargo, Navlungo ve barkod yazdirma sonucu.
+- `09_MUSTERI_HAFIZA`: musteri hafizasi.
+- `11_EBELGE_ISTISNA`: e-belge/e-Arsiv/e-Fatura karar hazirligi.
 - `12_KONTROL_MERKEZI`: blokaj ve aksiyon merkezi.
-- `14_BANKA_HAREKETLERI`: banka hareketi ödeme teyit yardımcısı.
+- `13_VERI_SOZLUGU`: kolon sozlesmesi.
 
-## Paraşüt Ayrımı
+## Canli Kapi Durumu
 
-Paraşüt tarafında `07_PARASUT_FATURA` sadece satış faturası taslak hazırlığıdır. Resmi e-belge/e-Arşiv/e-Fatura kararı `11_EBELGE_ISTISNA` katmanında tutulur. Canlı Paraşüt POST sadece `PARASUT_CANLI_GONDERIM = Evet` olduğunda ve kontrol merkezi temizken yapılmalıdır.
+Canli Sheet uzerinde Parasut ve Navlungo kapilari kontrollu sekilde acik olabilir. Bu nedenle gelistirme ve test sirasinda rastgele API gonderimi calistirilmaz. Her canli islem secili kayit, acik ayar, temiz kontrol ve kullanici onayi ile yapilir.
 
-## Navlungo Durumu
+## Aktif Dosya PolitikasÄ±
 
-Navlungo canlı gönderim kapısı varsayılan kapalıdır. `08_KARGO_PAKETLERI` ve payload hazırlığı mevcuttur; canlı gönderim sadece `NAVLUNGO_CANLI_GONDERIM = Evet` ile açılır.
+V6.4.x core dosyalari aktif canli akisin kaynagi degildir; referans/arsiv niteligindedir. Aktif Apps Script projesine yuklenecek core yalniz V6.5 dosyasidir.
 
-## Banka / Rehber / WhatsApp Ham Veri Durumu
+## Kurulum Sirasi
 
-- Banka hareketleri fatura kaynağı değildir; sadece ödeme teyit yardımcısıdır.
-- Rehber ve müşteri hafızası öneri üretir; ödeme yapan/fatura kişisini otomatik ezmez.
-- WhatsApp ham mesajı korunur; normalize edilmiş yardımcı metin ayrıca üretilebilir.
+1. `v6-5-production-candidate` dalini ac.
+2. Apps Script projesine `appsscript.json`, aktif V6.5 core ve gerekli HTML dosyalarini yukle.
+3. `onOpen()` ile menuyu yenile.
+4. `sistemKolonlariniHazirla()` ve `otomatikGorunumuDuzenle()` calistir.
+5. Ultra panelden secili siparis duzenleme ve yeni siparis kayit testlerini yap.
+6. Parasut ve Navlungo testlerini sadece gerekli secili kayitlarla calistir.
 
-## Kurulum Sırası
+## Canli Kabul Notu
 
-1. Sheet dosyasını Google Sheets olarak aç veya mevcut ana Sheet yapısına dikkatli taşı.
-2. Apps Script projesine `03_APPS_SCRIPT_KOD` altındaki core ve HTML dosyalarını yükle.
-3. Sheet'i yenile ve `TESBİH KUYUSU PANEL` menüsünü kontrol et.
-4. `sistemKolonlariniHazirla()` ve `otomatikGorunumuDuzenle()` çalıştır.
-5. Ultra sipariş panelinden test siparişi gir.
-6. `parasutApiBaglantiTestiTam()` ile canlı GET güvenli testini çalıştır.
-7. Canlı kapılar `Hayır` kalmadan canlı fatura veya kargo gönderimi deneme.
-
-## Canlıya Geçiş Öncesi Kontrol Listesi
-
-- Sheet kolon uyumu geçti.
-- Veri sözlüğü tüm gerçek kolonları kapsıyor.
-- `PARASUT_CANLI_GONDERIM = Hayır`.
-- `EBELGE_CANLI_GONDERIM = Hayır`.
-- `NAVLUNGO_CANLI_GONDERIM = Hayır`.
-- Mock test sonucu geçerli.
-- Gerçek Apps Script UI kabul testi çalıştırıldı.
-- Paraşüt GET testi logları temiz.
-- `12_KONTROL_MERKEZI` canlıya geçiş öncesi temiz.
+Bu repo V6.5 uretim adayi kaynaklarini tasir. Gercek UI uzerinden 10 siparislik kabul kaniti ve kullanici onayi olmadan nihai canli kabul tamamlandi denmez.

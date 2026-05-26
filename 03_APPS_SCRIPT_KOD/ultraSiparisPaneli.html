@@ -3,101 +3,288 @@
 <head>
   <base target="_top">
   <meta charset="utf-8">
+  <script src="https://cdn.jsdelivr.net/npm/qz-tray@2.2.4/qz-tray.js"></script>
   <style>
-    :root { --line:#d8e2ef; --ink:#10233f; --soft:#f6f9fc; --brand:#0f766e; --warn:#b45309; --bad:#b91c1c; }
+    :root {
+      --line:#d7e2ee;
+      --ink:#0f233f;
+      --muted:#526478;
+      --soft:#f3f7fb;
+      --panel:#ffffff;
+      --brand:#0f766e;
+      --bad:#b91c1c;
+      --warn:#b45309;
+    }
     * { box-sizing:border-box; }
-    body { margin:0; font-family:Arial, sans-serif; color:var(--ink); background:#f3f6fa; }
-    .shell { padding:18px; max-width:1380px; margin:0 auto; }
-    h2 { margin:0 0 14px; font-size:24px; }
-    h3 { margin:0 0 12px; font-size:17px; color:#0f766e; }
-    section { background:#fff; border:1px solid var(--line); border-radius:8px; padding:16px; margin-bottom:14px; }
-    label { display:block; font-weight:700; font-size:12px; margin:0 0 6px; }
-    input, select, textarea { width:100%; border:1px solid #c8d4e3; border-radius:6px; padding:10px; font-size:14px; background:#fff; }
-    textarea { min-height:74px; resize:vertical; }
-    .grid { display:grid; grid-template-columns:repeat(12, 1fr); gap:12px; align-items:end; }
-    .c2 { grid-column:span 2; } .c3 { grid-column:span 3; } .c4 { grid-column:span 4; }
-    .c5 { grid-column:span 5; } .c6 { grid-column:span 6; } .c8 { grid-column:span 8; }
-    .c12 { grid-column:span 12; }
-    .row { border:1px solid #e5edf6; border-radius:8px; padding:12px; margin:8px 0; background:#fbfdff; }
-    .inline { display:flex; gap:10px; align-items:center; justify-content:flex-end; }
-    button { border:0; border-radius:7px; padding:11px 14px; font-weight:700; cursor:pointer; }
-    .primary { background:#0f766e; color:#fff; }
-    .secondary { background:#e8eef6; color:#0f1d35; }
+    html, body { margin:0; width:100%; height:100%; font-family:Arial, sans-serif; color:var(--ink); background:#eef3f8; overflow:hidden; }
+    .shell { width:100vw; height:100vh; padding:10px 12px 76px; display:flex; flex-direction:column; gap:8px; overflow:hidden; }
+    .topbar { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    h2 { margin:0; font-size:23px; }
+    .orders { flex:1; overflow:auto; padding-right:4px; }
+    .order-card { background:var(--panel); border:1px solid var(--line); border-radius:8px; margin:0 0 10px; padding:10px; }
+    .order-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; }
+    .order-title { font-weight:800; color:var(--brand); font-size:17px; }
+    section { border:1px solid #e3edf7; border-radius:8px; padding:9px; margin:7px 0; background:#fbfdff; }
+    h3 { margin:0 0 8px; color:var(--brand); font-size:15px; }
+    label { display:block; font-weight:700; font-size:11px; margin:0 0 4px; }
+    input, select, textarea { width:100%; border:1px solid #c8d4e3; border-radius:6px; padding:7px; font-size:13px; background:#fff; }
+    input[type="checkbox"] { width:auto; padding:0; vertical-align:middle; }
+    textarea { min-height:48px; resize:vertical; }
+    .grid { display:grid; grid-template-columns:repeat(12, minmax(0, 1fr)); gap:8px; align-items:end; }
+    .c1 { grid-column:span 1; } .c2 { grid-column:span 2; } .c3 { grid-column:span 3; } .c4 { grid-column:span 4; }
+    .c5 { grid-column:span 5; } .c6 { grid-column:span 6; } .c7 { grid-column:span 7; } .c8 { grid-column:span 8; } .c12 { grid-column:span 12; }
+    .line { border:1px solid #dde8f4; border-radius:8px; padding:8px; margin:6px 0; background:#fff; }
+    .footer { position:fixed; left:0; right:0; bottom:0; background:#f8fafc; border-top:1px solid var(--line); padding:9px 12px; display:flex; flex-wrap:wrap; justify-content:flex-end; gap:8px; z-index:20; }
+    button { border:0; border-radius:7px; padding:9px 11px; font-weight:700; cursor:pointer; }
+    button:disabled { opacity:.65; cursor:wait; }
+    .primary { background:var(--brand); color:#fff; }
+    .secondary { background:#e8eef6; color:#10233f; }
     .danger { background:#fee2e2; color:#991b1b; }
-    .status { white-space:pre-wrap; border:1px solid var(--line); border-radius:8px; padding:12px; background:#fff; min-height:88px; }
-    .badge { display:inline-block; padding:4px 8px; border-radius:999px; background:#e8eef6; margin-right:6px; font-size:12px; }
-    .silver { display:none; }
-    .row.is-silver .silver { display:block; }
+    .status { white-space:pre-wrap; border:1px solid var(--line); border-radius:8px; padding:8px; background:#fff; min-height:54px; }
+    .status.info { border-color:#bfdbfe; background:#eff6ff; }
+    .status.warn { border-color:#fed7aa; background:#fff7ed; }
+    .status.error { border-color:#fecaca; background:#fef2f2; }
+    .badge { display:inline-block; padding:3px 7px; border-radius:999px; background:#e8eef6; margin-right:6px; font-size:12px; }
+    .muted { color:var(--muted); font-size:12px; }
+    .actions-inline { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+    .actions-inline button { padding:7px 9px; }
+    details.technical { grid-column:span 12; border:1px dashed #cbd5e1; border-radius:8px; padding:8px; background:#f8fafc; }
+    details.technical summary { cursor:pointer; font-weight:800; color:#334155; }
     .readonly { background:#f4f7fb; }
-    @media (max-width:900px) { .grid { grid-template-columns:repeat(6, 1fr); } .c8,.c6,.c5,.c4,.c3,.c2 { grid-column:span 6; } }
+    .silver { display:none; }
+    .line.is-silver .silver { display:block; }
+    @media (max-width:920px) {
+      .grid { grid-template-columns:repeat(6, minmax(0, 1fr)); }
+      .c8,.c7,.c6,.c5,.c4,.c3,.c2,.c1 { grid-column:span 6; }
+    }
   </style>
 </head>
 <body>
 <div class="shell">
-  <h2>Ultra sipariş paneli</h2>
-
-  <section>
-    <h3>Müşteri</h3>
-    <div class="grid">
-      <div class="c3"><label>WhatsApp_Tel</label><input id="whatsAppTel" onblur="normalizeAndLoad()"></div>
-      <div class="c4"><label>Sipariş_Sahibi</label><input id="siparisSahibi" onblur="titleCaseInput(this); normalizeAndLoad()"></div>
-      <div class="c5"><label>Ham_WhatsApp_Mesajı</label><input id="hamWhatsappMesaji"></div>
-      <div class="c4"><label>Hızlı_Ürün_Girişi</label><input id="hizliUrunGirisi"></div>
-      <div class="c4"><label>Hızlı_Ödeme_Girişi</label><input id="hizliOdemeGirisi"></div>
-      <div class="c4"><label>Hızlı_Kargo_Girişi</label><input id="hizliKargoGirisi"></div>
-    </div>
-  </section>
-
-  <section>
-    <h3>Kargo</h3>
-    <div class="grid">
-      <div class="c3"><label>Kargo_Alıcısı</label><input id="kargoAlicisi" onblur="titleCaseInput(this)"></div>
-      <div class="c3"><label>Kargo_Tel</label><input id="kargoTel" onblur="phoneInput(this)"></div>
-      <div class="c3"><label>Kargo_Firması</label><select id="kargoFirmasi"></select></div>
-      <div class="c3"><label>Paket_Notu</label><input id="paketNotu"></div>
-      <div class="c3"><label>İl</label><input id="il" onblur="cityInput(this)"></div>
-      <div class="c3"><label>İlçe</label><input id="ilce" onblur="cityInput(this)"></div>
-      <div class="c6"><label>Adres</label><input id="adres"></div>
-    </div>
-  </section>
-
-  <section>
-    <h3>Ürünler</h3>
-    <div id="products"></div>
-    <button class="secondary" onclick="addProduct()">Ürün satırı ekle</button>
-  </section>
-
-  <section>
-    <h3>Ödemeler</h3>
-    <div id="payments"></div>
-    <button class="secondary" onclick="addPayment()">Ödeme satırı ekle</button>
-  </section>
-
-  <section>
-    <h3>Fatura / Cari</h3>
-    <div id="invoiceBlocks"></div>
-  </section>
-
-  <section>
-    <h3>Kontrol Özeti</h3>
-    <div id="status" class="status">Kontrol bekleniyor.</div>
-  </section>
-
-  <section>
-    <h3>Aksiyonlar</h3>
-    <div class="inline">
-      <button class="secondary" onclick="check()">Kontrol et</button>
-      <button class="secondary" onclick="invoiceCargo()">Fatura ve Kargo oluştur</button>
-      <button class="secondary" onclick="google.script.host.close()">Kapat</button>
-      <button class="primary" onclick="save()">Kaydet ve ERP güncelle</button>
-    </div>
-  </section>
+  <div class="topbar">
+    <h2>Ultra sipariş paneli</h2>
+    <button class="secondary" onclick="addOrder()">Yeni sipariş ekle</button>
+  </div>
+  <div id="orders" class="orders"></div>
+</div>
+<div class="footer">
+  <button class="secondary" onclick="checkAll()">Kontrol et</button>
+  <button class="secondary" onclick="runOperation('sadeceFatura', 'Sadece fatura oluştur')">Sadece fatura oluştur</button>
+  <button class="secondary" onclick="runOperation('sadeceKargo', 'Sadece kargo hazırla')">Sadece kargo hazırla</button>
+  <button class="secondary" onclick="runOperation('faturaKargo', 'Fatura ve kargo oluştur')">Fatura ve kargo oluştur</button>
+  <button class="secondary" onclick="runOperation('kargoBeklet', 'Kargo beklet')">Kargo beklet</button>
+  <button class="secondary" onclick="runOperation('bekleyenKargo', 'Bekleyen kargoyu çıkar')">Bekleyen kargoyu çıkar</button>
+  <button class="secondary" onclick="printBarcodeForActive()">Barkodu yazdır</button>
+  <button class="secondary" onclick="runOperation('siparisiKapat', 'Siparişi kapat')">Siparişi kapat</button>
+  <button class="secondary" onclick="runOperation('arsivle', 'Arşivle')">Arşivle</button>
+  <button class="danger" onclick="runOperation('iptal', 'İptal et')">İptal et</button>
+  <button class="secondary" onclick="google.script.host.close()">Kapat</button>
+  <button class="primary" onclick="saveAll()">Kaydet</button>
 </div>
 
+<template id="orderTemplate">
+  <div class="order-card">
+    <div class="order-head">
+      <div class="order-title"></div>
+      <button class="danger remove-order" onclick="removeOrder(this)">Siparişi kaldır</button>
+    </div>
+    <section>
+      <h3>Müşteri</h3>
+      <div class="grid">
+        <div class="c3"><label>WhatsApp_Tel</label><input data-field="whatsAppTel" data-role="phone"></div>
+        <div class="c3"><label>Sipariş_Sahibi</label><input data-field="siparisSahibi" data-role="person"></div>
+        <div class="c6"><label>Ham_WhatsApp_Mesajı</label><textarea data-field="hamWhatsappMesaji"></textarea></div>
+        <div class="c4"><label>Hızlı_Ürün_Girişi</label><input data-field="hizliUrunGirisi"></div>
+        <div class="c4"><label>Hızlı_Ödeme_Girişi</label><input data-field="hizliOdemeGirisi"></div>
+        <div class="c4"><label>Hızlı_Kargo_Girişi</label><input data-field="hizliKargoGirisi"></div>
+      </div>
+    </section>
+    <section>
+      <h3>Kargo</h3>
+      <div class="grid">
+        <div class="c3"><label>Kargo_Alıcısı</label><input data-field="kargoAlicisi" data-role="person"></div>
+        <div class="c3"><label>Kargo_Tel</label><input data-field="kargoTel" data-role="phone"></div>
+        <div class="c2"><label>İl</label><input data-field="il" data-role="city"></div>
+        <div class="c2"><label>İlçe</label><input data-field="ilce" data-role="city"></div>
+        <div class="c2"><label>Kargo_Firması</label><select data-field="kargoFirmasi" class="cargo-company"></select></div>
+        <div class="c8"><label>Adres</label><input data-field="adres"></div>
+        <div class="c4"><label>Paket_Notu</label><input data-field="paketNotu"></div>
+        <div class="c3"><label><input type="checkbox" data-field="kargoBekletilsinMi"> Müşteri kargom beklesin dedi</label></div>
+        <div class="c9"><label>Kargo_Bekletme_Nedeni</label><input data-field="kargoBekletmeNedeni"></div>
+        <div class="c12">
+          <label>Navlungo durumu</label>
+          <input type="hidden" data-field="kargoPaketId">
+          <div class="status cargo-status">Kargo kaydedildikten sonra durum burada görünür.</div>
+          <details class="technical">
+            <summary>Gelişmiş / Teknik</summary>
+            <div class="actions-inline">
+              <button type="button" class="secondary" onclick="navlungoAction(this.closest('.order-card'), 'dry')">Payload hazırla</button>
+              <button type="button" class="secondary" onclick="navlungoAction(this.closest('.order-card'), 'create')">Kargo oluştur</button>
+              <button type="button" class="secondary" onclick="navlungoAction(this.closest('.order-card'), 'barcode')">Barkod oluştur</button>
+              <button type="button" class="secondary" onclick="navlungoAction(this.closest('.order-card'), 'check')">Kargo sorgula</button>
+              <button type="button" class="secondary" onclick="navlungoAction(this.closest('.order-card'), 'cancel')">Kargo iptal et</button>
+            </div>
+          </details>
+        </div>
+      </div>
+    </section>
+    <section>
+      <h3>Ürünler</h3>
+      <div class="products"></div>
+      <button class="secondary" onclick="addProductLine(cardOf(this))">Ürün satırı ekle</button>
+    </section>
+    <section>
+      <h3>Ödemeler</h3>
+      <div class="payments"></div>
+      <button class="secondary" onclick="addPaymentLine(cardOf(this))">Ödeme satırı ekle</button>
+    </section>
+    <section>
+      <h3>Fatura / Cari</h3>
+      <div class="invoice-blocks"></div>
+    </section>
+    <section>
+      <h3>Adres geçmişi</h3>
+      <div class="grid">
+        <div class="c8"><label>Kayıtlı adresler</label><select class="address-history"></select></div>
+        <div class="c2"><button type="button" class="secondary" onclick="applySelectedAddress(cardOf(this))">Adresi uygula</button></div>
+        <div class="c2"><span class="muted">Yeni adres kayıtta geçmişe eklenir.</span></div>
+      </div>
+    </section>
+    <section>
+      <h3>Müşteri hafızası</h3>
+      <div class="status memory-status">Telefon girildiğinde müşteri hafızası aranır.</div>
+    </section>
+    <section>
+      <h3>Kontrol özeti</h3>
+      <div class="status control-status">Kontrol bekleniyor.</div>
+    </section>
+  </div>
+</template>
+
 <script>
-  let meta = { products: [], paymentSources: [], cargoCompanies: [], today: "" };
+  let meta = { products: [], paymentSources: [], cargoCompanies: [], today: "", editOrders: [], qzPrinterName: "RP4xx Series 200DPI TSC", qzAutoPrint: "Evet", qzPrintCopies: 1, qzPrintMode: "pdf" };
+  let orderSeq = 0;
+  let saveInProgress = false;
 
   function esc(v) { return String(v == null ? "" : v).replace(/[&<>"']/g, s => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[s])); }
+  function cardOf(el) { return el.closest(".order-card"); }
+  function field(card, name) { return card.querySelector(`[data-field="${name}"]`); }
+  function value(card, name) {
+    const el = field(card, name);
+    if (!el) return "";
+    if (el.type === "checkbox") return el.checked ? "Evet" : "Hayır";
+    return el.value;
+  }
+  function setValue(card, name, val, force) {
+    const el = field(card, name);
+    if (!el) return;
+    const next = String(val || "");
+    const current = String(el.value || "");
+    if (el.type === "checkbox") {
+      el.checked = ["evet", "e", "true", "1", "on"].includes(String(val || "").toLocaleLowerCase("tr-TR"));
+      return;
+    }
+    if (!force && el.dataset.touched === "1" && el.dataset.auto !== "1") return;
+    if (!force && current && el.dataset.auto !== "1" && !shouldReplacePartial_(current, next)) return;
+    el.value = next;
+    if (force) {
+      delete el.dataset.auto;
+      return;
+    }
+    if (next) el.dataset.auto = "1";
+  }
+
+  function mirrorOwnerToCargo(card, force) {
+    const ownerRaw = value(card, "siparisSahibi");
+    const owner = titleCaseTR(ownerRaw);
+    const cargoEl = field(card, "kargoAlicisi");
+    if (!cargoEl) return;
+
+    const current = String(cargoEl.value || "").trim();
+    const lastMirror = card.dataset.lastOwnerCargoMirror || "";
+    const currentKey = asciiKey(current);
+    const lastKey = asciiKey(lastMirror);
+    const ownerKey = asciiKey(owner);
+
+    const canOverwrite =
+      force ||
+      !current ||
+      cargoEl.dataset.auto === "1" ||
+      currentKey === lastKey ||
+      (lastKey && currentKey && (lastKey.indexOf(currentKey) === 0 || currentKey.indexOf(lastKey) === 0)) ||
+      (ownerKey && currentKey && (ownerKey.indexOf(currentKey) === 0 || currentKey.indexOf(ownerKey) === 0));
+
+    if (!ownerRaw.trim()) {
+      if (canOverwrite) {
+        cargoEl.value = "";
+        cargoEl.dataset.auto = "1";
+        card.dataset.lastOwnerCargoMirror = "";
+        delete cargoEl.dataset.manualCargoOverride;
+      }
+      return;
+    }
+
+    if (canOverwrite) {
+      cargoEl.value = owner;
+      cargoEl.dataset.auto = "1";
+      card.dataset.lastOwnerCargoMirror = owner;
+      delete cargoEl.dataset.manualCargoOverride;
+    }
+  }
+
+  function mirrorPhoneToCargo(card, force) {
+    const phone = completePhoneTR(value(card, "whatsAppTel"));
+    const el = field(card, "kargoTel");
+    if (!el || !phone) return;
+    const canOverwrite = force || !el.value || el.dataset.auto === "1" || asciiKey(el.value) === asciiKey(card.dataset.lastPhoneCargoMirror || "");
+    if (canOverwrite) {
+      el.value = phone;
+      el.dataset.auto = "1";
+      card.dataset.lastPhoneCargoMirror = phone;
+      delete el.dataset.manualCargoOverride;
+    }
+  }
+
+  function smartMirrorValue(card, name, val) {
+    if (name === "kargoAlicisi") {
+      const el = field(card, name);
+      if (!el) return;
+      const next = titleCaseTR(val || "");
+      if (!next) return;
+      const currentKey = asciiKey(el.value);
+      const nextKey = asciiKey(next);
+      const lastKey = asciiKey(card.dataset.lastOwnerCargoMirror || "");
+      const canOverwrite = !el.value || el.dataset.auto === "1" || currentKey === lastKey || (currentKey && nextKey.indexOf(currentKey) === 0);
+      if (canOverwrite) {
+        el.value = next;
+        el.dataset.auto = "1";
+        card.dataset.lastOwnerCargoMirror = next;
+        delete el.dataset.manualCargoOverride;
+      }
+      return;
+    }
+    if (name === "kargoTel") {
+      mirrorPhoneToCargo(card, false);
+      return;
+    }
+    const el = field(card, name);
+    if (!el) return;
+    const next = val || "";
+    if (!next) return;
+    const cur = String(el.value || "").trim();
+    const curKey = asciiKey(cur);
+    const nextKey = asciiKey(next);
+    const canOverwrite = !cur || el.dataset.auto === "1" || curKey === nextKey || (curKey && nextKey.indexOf(curKey) === 0);
+    if (canOverwrite) {
+      el.value = next;
+      el.dataset.auto = "1";
+    }
+  }
+
+  function syncOwnerToCargo(card) {
+    mirrorOwnerToCargo(card, false);
+    mirrorPhoneToCargo(card, false);
+  }
   function optionList(rows, valueKey, labelKey) {
     return (rows || []).map(r => {
       const value = typeof r === "string" ? r : r[valueKey];
@@ -105,250 +292,971 @@
       return `<option value="${esc(value)}">${esc(label)}</option>`;
     }).join("");
   }
+  function asciiKey(v) {
+    return String(v || "").toLocaleLowerCase("tr-TR")
+      .replace(/ı/g, "i").replace(/ğ/g, "g").replace(/ü/g, "u")
+      .replace(/ş/g, "s").replace(/ö/g, "o").replace(/ç/g, "c")
+      .replace(/[^a-z0-9]+/g, "");
+  }
+  function expandJoinedPersonNameTR(v) {
+    const raw = String(v || "").trim().replace(/\s+/g, " ");
+    if (!raw || raw.includes(" ")) return raw;
+    const direct = {
+      mehmetnuricetin: "mehmet nuri çetin",
+      nimecetin: "nimet çetin",
+      nimetcetin: "nimet çetin",
+      bedihacetin: "bediha çetin",
+      yasarcetin: "yaşar çetin",
+      emrahcagri: "emrah çağrı",
+      hasanalbayrak: "hasan albayrak"
+    };
+    const key = asciiKey(raw);
+    if (direct[key]) return direct[key];
+    const surnames = ["çetin", "albayrak", "yılmaz", "demir", "kaya", "şahin", "arslan", "aydin", "aydın", "öztürk", "kılıç", "koç"];
+    const names = ["mehmet", "nuri", "nimet", "bediha", "yaşar", "yasar", "emrah", "çağrı", "cagri", "hasan", "ali", "ayşe", "ayse", "zeynep", "fatma", "murat", "ahmet", "mustafa"];
+    for (const surname of surnames) {
+      const sk = asciiKey(surname);
+      if (key.endsWith(sk) && key.length > sk.length) {
+        const prefix = key.slice(0, -sk.length);
+        const given = splitJoinedGivenNamesTR(prefix, names);
+        if (given.length) return [...given, surname].join(" ");
+      }
+    }
+    return raw;
+  }
+  function splitJoinedGivenNamesTR(key, names) {
+    let rest = key;
+    const out = [];
+    while (rest) {
+      let hit = "";
+      for (const name of names) {
+        const nk = asciiKey(name);
+        if (rest.indexOf(nk) === 0 && nk.length > hit.length) hit = nk;
+      }
+      if (!hit) return [];
+      const original = names.find(n => asciiKey(n) === hit) || hit;
+      out.push(original === "yasar" ? "yaşar" : original === "ayse" ? "ayşe" : original === "cagri" ? "çağrı" : original);
+      rest = rest.slice(hit.length);
+    }
+    return out;
+  }
   function titleCaseTR(v) {
-    return String(v || "").trim().replace(/\s+/g, " ").split(" ").filter(Boolean)
+    const expanded = expandJoinedPersonNameTR(String(v || "").trim());
+    return expanded.replace(/\s+/g, " ").split(" ").filter(Boolean)
       .map(x => x.charAt(0).toLocaleUpperCase("tr-TR") + x.slice(1).toLocaleLowerCase("tr-TR")).join(" ");
   }
-  function titleCaseInput(el) { el.value = titleCaseTR(el.value); rebuildInvoiceBlocks(); refreshPayerOptions(); }
-  function cityInput(el) { el.value = titleCaseTR(el.value); }
-  function phoneTR(v) {
-    const d = String(v || "").replace(/\D/g, "");
+  function personReadyTR(v) { return titleCaseTR(v).split(/\s+/).filter(Boolean).length >= 2; }
+  function phoneDigits(v) { return String(v || "").replace(/\D/g, ""); }
+  function completePhoneTR(v) {
+    const d = phoneDigits(v);
     if (!d) return "";
     if (d.length === 10 && d[0] === "5") return "+90" + d;
-    if (d.length === 11 && d[0] === "0") return "+90" + d.slice(1);
-    if (d.length === 12 && d.startsWith("90")) return "+" + d;
-    return d.startsWith("+") ? d : "+" + d;
+    if (d.length === 11 && d[0] === "0" && d[1] === "5") return "+90" + d.slice(1);
+    if (d.length === 12 && d.startsWith("90") && d[2] === "5") return "+" + d;
+    return "";
   }
-  function phoneInput(el) { el.value = phoneTR(el.value); }
+  function phoneTR(v) { return completePhoneTR(v) || String(v || "").trim(); }
+  function cityTR(v) { return titleCaseTR(v); }
+  function num(v) { return Number(String(v || "").replace(/\./g, "").replace(",", ".")) || 0; }
+  function fmt(v) { return v || v === 0 ? Number(v).toFixed(2) : ""; }
   function productByName(name) { return (meta.products || []).find(p => p.name === name) || {}; }
-  function payerNames() {
-    return [...new Set([...document.querySelectorAll(".odemeYapan")].map(x => titleCaseTR(x.value)).filter(Boolean))];
-  }
-  function payerOptions(selected) {
-    const names = payerNames();
-    const opts = names.length ? names : [""];
-    return opts.map(n => `<option ${n === selected ? "selected" : ""} value="${esc(n)}">${esc(n || "Ödeme bekliyor")}</option>`).join("");
-  }
-  function refreshPayerOptions() {
-    document.querySelectorAll(".productPayer").forEach(sel => {
-      const current = sel.value;
-      sel.innerHTML = payerOptions(current);
-    });
+
+  function addOrder(data = {}) {
+    const tpl = document.getElementById("orderTemplate").content.cloneNode(true);
+    const card = tpl.querySelector(".order-card");
+    card.dataset.orderNo = String(++orderSeq);
+    if (data.queueId) card.dataset.queueId = data.queueId;
+    if (data.openId) {
+      card.dataset.openId = data.openId;
+      card.dataset.editOpenId = data.openId;
+      card.dataset.lockOpenId = "1";
+    }
+    const kargoPaketId = data.kargoPaketId || data.cargoPackageId || (data.kargo && (data.kargo.kargoPaketId || data.kargo.cargoPackageId)) || "";
+    if (kargoPaketId) card.dataset.kargoPaketId = kargoPaketId;
+    card.querySelector(".cargo-company").innerHTML = optionList(meta.cargoCompanies || []);
+    card.querySelector(".cargo-company").value = "Aras Kargo";
+    document.getElementById("orders").appendChild(card);
+    bindCard(card);
+    setValue(card, "kargoPaketId", card.dataset.kargoPaketId || "", true);
+    setValue(card, "whatsAppTel", data.whatsAppTel || "", true);
+    setValue(card, "siparisSahibi", data.siparisSahibi || "", true);
+    setValue(card, "hamWhatsappMesaji", data.hamWhatsappMesaji || "", true);
+    setValue(card, "hizliUrunGirisi", data.hizliUrunGirisi || "", true);
+    setValue(card, "hizliOdemeGirisi", data.hizliOdemeGirisi || "", true);
+    setValue(card, "hizliKargoGirisi", data.hizliKargoGirisi || "", true);
+    if (data.kargo) {
+      setValue(card, "kargoAlicisi", data.kargo.kargoAlicisi || "", true);
+      setValue(card, "kargoTel", data.kargo.kargoTel || "", true);
+      setValue(card, "il", data.kargo.il || "", true);
+      setValue(card, "ilce", data.kargo.ilce || "", true);
+      setValue(card, "adres", data.kargo.adres || "", true);
+      setValue(card, "paketNotu", data.kargo.paketNotu || "", true);
+      setValue(card, "kargoBekletilsinMi", data.kargo.kargoBekletilsinMi || "Hayır", true);
+      setValue(card, "kargoBekletmeNedeni", data.kargo.kargoBekletmeNedeni || "", true);
+      const cargoStatus = [
+        data.kargo.navlungoStatus,
+        data.kargo.navlungoPostNumber ? "Post: " + data.kargo.navlungoPostNumber : "",
+        data.kargo.navlungoTrackingUrl ? "Takip: " + data.kargo.navlungoTrackingUrl : "",
+        data.kargo.navlungoBarcodeUrl ? "Barkod: " + data.kargo.navlungoBarcodeUrl : "",
+        data.kargo.navlungoLastError ? "Hata: " + data.kargo.navlungoLastError : ""
+      ].filter(Boolean).join("\n");
+      card.querySelector(".cargo-status").textContent = cargoStatus || "Kargo durumu bekleniyor.";
+      if (data.kargo.kargoFirmasi) field(card, "kargoFirmasi").value = data.kargo.kargoFirmasi;
+    }
+    const payments = data.odemeler && data.odemeler.length ? data.odemeler : [{}];
+    payments.forEach(row => addPaymentLine(card, row));
+    const products = data.urunler && data.urunler.length ? data.urunler : [{}];
+    products.forEach(row => addProductLine(card, row));
+    renderAddressHistory(card, data.addresses || []);
+    applyCustomerDefaults(card);
+    rebuildInvoiceBlocks(card, data.faturalar || []);
+    refreshOrderTitles();
+    return card;
   }
 
-  function addProduct(data = {}) {
+  function removeOrder(btn) {
+    const card = cardOf(btn);
+    if (document.querySelectorAll(".order-card").length > 1) card.remove();
+    refreshOrderTitles();
+  }
+  function refreshOrderTitles() {
+    [...document.querySelectorAll(".order-card")].forEach((card, i) => {
+      card.querySelector(".order-title").textContent = `${i + 1}. Müşteri Siparişi${card.dataset.openId ? " | " + card.dataset.openId : ""}`;
+      card.querySelector(".remove-order").style.display = document.querySelectorAll(".order-card").length > 1 ? "" : "none";
+    });
+  }
+  function bindCard(card) {
+    card.querySelectorAll("input, textarea, select").forEach(el => {
+      el.addEventListener("input", () => {
+        el.dataset.touched = "1";
+        delete el.dataset.auto;
+        if (el.classList.contains("odemeYapan")) {
+          syncPaymentDefaults(card);
+          rebuildInvoiceBlocks(card);
+        }
+      });
+      el.addEventListener("blur", () => normalizeField(card, el));
+    });
+    field(card, "whatsAppTel").addEventListener("input", () => {
+      syncOwnerToCargo(card);
+      applyCustomerDefaults(card);
+    });
+    field(card, "siparisSahibi").addEventListener("input", () => {
+      mirrorOwnerToCargo(card, false);
+      syncPaymentDefaults(card);
+      rebuildInvoiceBlocks(card);
+    });
+    ["kargoAlicisi", "kargoTel", "il", "ilce", "adres"].forEach(name => field(card, name).addEventListener("input", () => {
+      const el = field(card, name);
+      if (name === "kargoAlicisi" || name === "kargoTel") {
+        el.dataset.manualCargoOverride = "1";
+        delete el.dataset.auto;
+      }
+      syncPaymentDefaults(card);
+      rebuildInvoiceBlocks(card);
+    }));
+  }
+  function normalizeField(card, el) {
+    if (el.dataset.role === "person") el.value = titleCaseTR(el.value);
+    if (el.dataset.field === "siparisSahibi") mirrorOwnerToCargo(card, true);
+    if (el.dataset.role === "phone") {
+      const phone = completePhoneTR(el.value);
+      if (phone) el.value = phone;
+    }
+    if (el.dataset.role === "city") el.value = cityTR(el.value);
+    if (["kargoAlicisi", "kargoTel", "il", "ilce", "adres"].includes(el.dataset.field)) {
+      syncPaymentDefaults(card);
+      rebuildInvoiceBlocks(card);
+    }
+    if (el.classList.contains("odemeYapan")) rebuildInvoiceBlocks(card);
+    if (el.classList.contains("odemeYapan") || el.classList.contains("odemeTutari")) refreshPayerOptions(card);
+  }
+  function applyCustomerDefaults(card) {
+    const owner = titleCaseTR(value(card, "siparisSahibi"));
+    const phone = completePhoneTR(value(card, "whatsAppTel"));
+    mirrorOwnerToCargo(card, false);
+    mirrorPhoneToCargo(card, false);
+    syncPaymentDefaults(card);
+    rebuildInvoiceBlocks(card);
+    if (!phone) return;
+    card.querySelector(".memory-status").textContent = "Müşteri hafızası kontrol ediliyor...";
+    google.script.run.withSuccessHandler(res => {
+      if (!res || !res.ok) return;
+      if (!owner && res.owner) setValue(card, "siparisSahibi", res.owner, false);
+      if (res.cargo) {
+        if (owner) mirrorOwnerToCargo(card, false);
+        else smartMirrorValue(card, "kargoAlicisi", res.cargo.receiver || "");
+        if (phone) mirrorPhoneToCargo(card, false);
+        else smartMirrorValue(card, "kargoTel", completePhoneTR(res.cargo.phone || ""));
+        setValue(card, "il", res.cargo.city || "", false);
+        setValue(card, "ilce", res.cargo.district || "", false);
+        setValue(card, "adres", res.cargo.address || "", false);
+        if (res.cargo.company) {
+          const cargoCompany = field(card, "kargoFirmasi");
+          if (cargoCompany && cargoCompany.dataset.touched !== "1") cargoCompany.value = res.cargo.company;
+        }
+      }
+      renderAddressHistory(card, res.addresses || []);
+      if (res.openOrder && res.openOrder.id && card.dataset.lockOpenId !== "1") {
+        card.dataset.openId = res.openOrder.id;
+      }
+      syncPaymentDefaults(card);
+      rebuildInvoiceBlocks(card);
+      refreshOrderTitles();
+      const lines = [];
+      if (res.openOrder && res.openOrder.id) lines.push("Açık sipariş bulundu: " + res.openOrder.id);
+      if (res.cargo && res.cargo.address) lines.push("Kayıtlı adres önerildi.");
+      if (res.payers && res.payers.length) lines.push("Geçmiş ödeme yapan kişiler: " + res.payers.join(", "));
+      if (res.riskNote) lines.push("Risk notu: " + res.riskNote);
+      card.querySelector(".memory-status").textContent = lines.length ? lines.join("\n") : "Hafıza kaydı bulunmadı; girilen bilgiler kayıtta hafızaya yazılır.";
+    }).getUltraPanelHazirlik(phone);
+  }
+  function renderAddressHistory(card, addresses) {
+    card._addresses = addresses || [];
+    const sel = card.querySelector(".address-history");
+    if (!sel) return;
+    sel.innerHTML = card._addresses.length
+      ? card._addresses.map((a, i) => `<option value="${i}">${esc([a.Kargo_Alıcısı, a.İl, a.İlçe, a.Adres].filter(Boolean).join(" | "))}</option>`).join("")
+      : `<option value="">Kayıtlı adres yok</option>`;
+  }
+  function applySelectedAddress(card) {
+    const idx = Number(card.querySelector(".address-history").value);
+    const a = (card._addresses || [])[idx];
+    if (!a) return;
+    setValue(card, "kargoAlicisi", a.Kargo_Alıcısı || "", true);
+    setValue(card, "kargoTel", a.Kargo_Tel || "", true);
+    setValue(card, "il", a.İl || "", true);
+    setValue(card, "ilce", a.İlçe || "", true);
+    setValue(card, "adres", a.Adres || "", true);
+    if (a.Kargo_Firması) field(card, "kargoFirmasi").value = a.Kargo_Firması;
+    syncPaymentDefaults(card);
+    rebuildInvoiceBlocks(card);
+  }
+  function setAutoInput(row, selector, val) {
+    const el = row.querySelector(selector);
+    const next = String(val == null ? "" : val).trim();
+    if (!el || !next) return;
+    const current = String(el.value || "").trim();
+    const canRepair =
+      !current ||
+      el.dataset.auto === "1" ||
+      asciiKey(current) === asciiKey(next) ||
+      shouldReplacePartial_(current, next);
+    if (canRepair) {
+      el.value = next;
+      el.dataset.auto = "1";
+      delete el.dataset.touched;
+    }
+  }
+  function syncPaymentDefaults(card) {
+    const owner = titleCaseTR(value(card, "siparisSahibi"));
+    const phone = completePhoneTR(value(card, "kargoTel")) || completePhoneTR(value(card, "whatsAppTel"));
+    const city = cityTR(value(card, "il"));
+    const district = cityTR(value(card, "ilce"));
+    const address = String(value(card, "adres") || "").trim();
+    card.querySelectorAll(".payments .line").forEach(row => {
+      if (owner && personReadyTR(owner)) setAutoInput(row, ".odemeYapan", owner);
+      setAutoInput(row, ".odemeYapanTel", phone);
+      setAutoInput(row, ".odemeYapanTcknVkn", "11111111111");
+      setAutoInput(row, ".odemeYapanIl", city);
+      setAutoInput(row, ".odemeYapanIlce", district);
+      setAutoInput(row, ".odemeYapanAdres", address);
+    });
+    refreshPayerOptions(card);
+  }
+  function payerNames(card) {
+    return [...new Set([...card.querySelectorAll(".odemeYapan")].map(x => titleCaseTR(x.value)).filter(Boolean))];
+  }
+  function payerOptions(card, selected) {
+    const names = payerNames(card);
+    return (names.length ? names : [""]).map(n => `<option ${n === selected ? "selected" : ""} value="${esc(n)}">${esc(n || "Ödeme bekliyor")}</option>`).join("");
+  }
+  function refreshPayerOptions(card) {
+    const names = payerNames(card);
+    card.querySelectorAll(".productPayer").forEach(sel => {
+      const current = sel.value;
+      sel.innerHTML = payerOptions(card, current);
+      if (!current && names.length === 1) sel.value = names[0];
+    });
+  }
+  function addProductLine(card, data = {}) {
     const wrap = document.createElement("div");
-    wrap.className = "row";
+    wrap.className = "line";
+    wrap.dataset.urunKalemId = data.urunKalemId || data.itemId || "";
+    wrap.dataset.faturaCariBaglantiId = data.faturaCariBaglantiId || "";
     wrap.innerHTML = `
       <div class="grid">
-        <div class="c2"><label>Ürün</label><select class="urunAdi" onchange="productChanged(this)">${optionList(meta.products, "name", "name")}</select></div>
-        <div class="c3"><label>Ödeme yapan / fatura kişisi</label><select class="productPayer">${payerOptions(data.odemeYapan || "")}</select></div>
-        <div class="c1"><label>Miktar</label><input class="miktar" value="${esc(data.miktar || 1)}" onblur="calcProduct(this)"></div>
+        <div class="c2"><label>Ürün</label><select class="urunAdi">${optionList(meta.products, "name", "name")}</select></div>
+        <div class="c3"><label>Ödeme yapan / fatura kişisi</label><select class="productPayer">${payerOptions(card, data.odemeYapan || "")}</select></div>
+        <div class="c1"><label>Miktar</label><input class="miktar" value="${esc(data.miktar || 1)}"></div>
         <div class="c1"><label>Birim</label><input class="birim" value="${esc(data.birim || "Adet")}"></div>
-        <div class="c2"><label>Birim fiyat</label><input class="birimFiyatKdvDahil" value="${esc(data.birimFiyatKdvDahil || "")}" onblur="calcProduct(this)"></div>
-        <div class="c1"><label>KDV</label><input class="kdvOrani" value="${esc(data.kdvOrani || "0,20")}" onblur="calcProduct(this)"></div>
+        <div class="c2"><label>Birim fiyat</label><input class="birimFiyatKdvDahil" value="${esc(data.birimFiyatKdvDahil || "")}"></div>
+        <div class="c1"><label>KDV</label><input class="kdvOrani" value="${esc(data.kdvOrani || "0,20")}"></div>
+        <div class="c2"><label>KDV Modeli</label><select class="kdvModeli"><option>Standart KDV</option><option>KDV 0</option><option>11 katmanı karar verecek</option></select></div>
         <div class="c1"><label>KDV hariç</label><input class="kdvHaric readonly" readonly></div>
         <div class="c1"><label>KDV tutarı</label><input class="kdvTutari readonly" readonly></div>
         <div class="c2"><label>Toplam</label><input class="toplamKdvDahil readonly" readonly></div>
         <div class="c2"><label>Paraşüt ürün ID</label><input class="parasutUrunId readonly" readonly></div>
-        <div class="c12 silver">
-          <div class="grid">
-            <div class="c2"><label>Gram</label><input class="gumusGram" value="${esc(data.gumusGram || "")}" onblur="calcProduct(this)"></div>
-            <div class="c2"><label>Alış fiyatı</label><input class="gumusAlisBirim" value="${esc(data.gumusAlisBirim || "")}" onblur="calcProduct(this)"></div>
-            <div class="c2"><label>Satış fiyatı</label><input class="gumusSatisBirim" value="${esc(data.gumusSatisBirim || "")}" onblur="calcProduct(this)"></div>
-            <div class="c2"><label>KDV modeli</label><select class="kdvModeli"><option>Standart KDV</option><option>KDV 0</option><option>11 katmanı karar verecek</option></select></div>
-            <div class="c2"><label>Marj</label><input class="gumusMarj readonly" readonly></div>
-          </div>
-        </div>
-        <div class="c1"><button class="danger" onclick="this.closest('.row').remove()">Sil</button></div>
+        <div class="c12 silver"><div class="grid">
+          <div class="c2"><label>Gram</label><input class="gumusGram" value="${esc(data.gumusGram || "")}"></div>
+          <div class="c2"><label>Alış fiyatı</label><input class="gumusAlisBirim" value="${esc(data.gumusAlisBirim || "")}"></div>
+          <div class="c2"><label>Satış fiyatı</label><input class="gumusSatisBirim" value="${esc(data.gumusSatisBirim || "")}"></div>
+          <div class="c2"><label>Gümüş vergi modeli</label><input class="gumusVergiModeli readonly" readonly value="17/4-g kontrolü"></div>
+          <div class="c2"><label>Marj</label><input class="gumusMarj readonly" readonly></div>
+        </div></div>
+        <div class="c1"><button class="danger" onclick="this.closest('.line').remove()">Sil</button></div>
       </div>`;
-    document.getElementById("products").appendChild(wrap);
+    card.querySelector(".products").appendChild(wrap);
     wrap.querySelector(".urunAdi").value = data.urunAdi || "Tesbih";
-    productChanged(wrap.querySelector(".urunAdi"));
+    wrap.querySelector(".productPayer").value = data.odemeYapan || "";
+    if (wrap.querySelector(".kdvModeli")) wrap.querySelector(".kdvModeli").value = data.kdvModeli || "Standart KDV";
+    wrap.querySelector(".urunAdi").addEventListener("change", () => productChanged(wrap));
+    wrap.querySelectorAll("input,select").forEach(el => el.addEventListener("blur", () => calcProduct(wrap)));
+    productChanged(wrap);
+    refreshPayerOptions(card);
   }
-
-  function productChanged(sel) {
-    const row = sel.closest(".row");
-    const cfg = productByName(sel.value);
-    row.classList.toggle("is-silver", sel.value === "Gümüş");
-    row.querySelector(".birim").value = cfg.unit || (sel.value === "Gümüş" ? "Gram" : "Adet");
+  function productChanged(row) {
+    const name = row.querySelector(".urunAdi").value;
+    const cfg = productByName(name);
+    row.classList.toggle("is-silver", name === "Gümüş");
+    row.querySelector(".birim").value = cfg.unit || (name === "Gümüş" ? "Gram" : "Adet");
     row.querySelector(".kdvOrani").value = String(cfg.vatRate == null ? 0.20 : cfg.vatRate).replace(".", ",");
+    if (row.querySelector(".kdvModeli") && row.querySelector(".kdvModeli").dataset.touched !== "1") {
+      row.querySelector(".kdvModeli").value = name === "Gümüş" ? "KDV 0" : "Standart KDV";
+    }
     row.querySelector(".parasutUrunId").value = cfg.productId || "";
-    calcProduct(sel);
+    calcProduct(row);
   }
-
-  function num(v) { return Number(String(v || "").replace(/\./g, "").replace(",", ".")) || 0; }
-  function calcProduct(el) {
-    const row = el.closest(".row");
+  function calcProduct(row) {
     const qty = num(row.querySelector(".miktar").value) || 1;
     const unit = num(row.querySelector(".birimFiyatKdvDahil").value);
     const gross = qty * unit;
     const rate = num(row.querySelector(".kdvOrani").value);
     const net = rate ? gross / (1 + rate) : gross;
-    row.querySelector(".toplamKdvDahil").value = gross ? gross.toFixed(2) : "";
-    row.querySelector(".kdvHaric").value = gross ? net.toFixed(2) : "";
-    row.querySelector(".kdvTutari").value = gross ? (gross - net).toFixed(2) : "";
+    row.querySelector(".toplamKdvDahil").value = fmt(gross);
+    row.querySelector(".kdvHaric").value = fmt(net);
+    row.querySelector(".kdvTutari").value = fmt(gross - net);
     const gram = num(row.querySelector(".gumusGram") && row.querySelector(".gumusGram").value);
     const cost = num(row.querySelector(".gumusAlisBirim") && row.querySelector(".gumusAlisBirim").value);
-    const margin = gross - (gram * cost);
-    if (row.querySelector(".gumusMarj")) row.querySelector(".gumusMarj").value = gram && cost ? margin.toFixed(2) : "";
+    if (row.querySelector(".gumusMarj")) row.querySelector(".gumusMarj").value = gram && cost ? fmt(gross - gram * cost) : "";
   }
-
-  function addPayment(data = {}) {
+  function addPaymentLine(card, data = {}) {
     const wrap = document.createElement("div");
-    wrap.className = "row";
+    wrap.className = "line";
+    wrap.dataset.odemeId = data.odemeId || data.paymentId || "";
+    wrap.dataset.faturaCariBaglantiId = data.faturaCariBaglantiId || "";
     wrap.innerHTML = `
       <div class="grid">
-        <div class="c3"><label>Ödeme_Yapan</label><input class="odemeYapan" value="${esc(data.odemeYapan || "")}" onblur="titleCaseInput(this)"></div>
+        <div class="c3"><label>Ödeme_Yapan</label><input class="odemeYapan" value="${esc(data.odemeYapan || "")}"></div>
         <div class="c2"><label>Tutar</label><input class="odemeTutari" value="${esc(data.odemeTutari || "")}"></div>
         <div class="c2"><label>Tarih</label><input type="date" class="odemeTarihi" value="${esc(data.odemeTarihi || meta.today)}"></div>
         <div class="c2"><label>Kaynak</label><select class="odemeTeyitKaynagi">${optionList(meta.paymentSources)}</select></div>
         <div class="c3"><label>Dekont</label><input class="dekontReferans" value="${esc(data.dekontReferans || "")}"></div>
-        <div class="c2"><label>Ödeme_Yapan_Tel</label><input class="odemeYapanTel" value="${esc(data.odemeYapanTel || "")}" onblur="phoneInput(this)"></div>
-        <div class="c2"><label>Ödeme_Yapan_TCKN_VKN</label><input class="odemeYapanTcknVkn" value="${esc(data.odemeYapanTcknVkn || "")}" onblur="rebuildInvoiceBlocks()"></div>
-        <div class="c3"><label>Ödeme_Yapan_İl</label><input class="odemeYapanIl" value="${esc(data.odemeYapanIl || "")}" onblur="cityInput(this)"></div>
-        <div class="c3"><label>Ödeme_Yapan_İlçe</label><input class="odemeYapanIlce" value="${esc(data.odemeYapanIlce || "")}" onblur="cityInput(this)"></div>
-        <div class="c8"><label>Ödeme_Yapan_Adres</label><input class="odemeYapanAdres" value="${esc(data.odemeYapanAdres || "")}"></div>
-        <div class="c1"><button class="danger" onclick="this.closest('.row').remove(); rebuildInvoiceBlocks(); refreshPayerOptions()">Sil</button></div>
+        <div class="c2"><label>Ödeme_Yapan_Tel</label><input class="odemeYapanTel" value="${esc(data.odemeYapanTel || completePhoneTR(value(card, "whatsAppTel")) || "")}"></div>
+        <div class="c2"><label>Ödeme_Yapan_TCKN_VKN</label><input class="odemeYapanTcknVkn" value="${esc(data.odemeYapanTcknVkn || "11111111111")}"></div>
+        <div class="c2"><label>Ödeme_Yapan_İl</label><input class="odemeYapanIl" value="${esc(data.odemeYapanIl || value(card, "il"))}"></div>
+        <div class="c2"><label>Ödeme_Yapan_İlçe</label><input class="odemeYapanIlce" value="${esc(data.odemeYapanIlce || value(card, "ilce"))}"></div>
+        <div class="c4"><label>Ödeme_Yapan_Adres</label><input class="odemeYapanAdres" value="${esc(data.odemeYapanAdres || value(card, "adres"))}"></div>
+        <div class="c1"><button class="danger" onclick="removePaymentLine(this)">Sil</button></div>
       </div>`;
-    document.getElementById("payments").appendChild(wrap);
+    card.querySelector(".payments").appendChild(wrap);
     wrap.querySelector(".odemeTeyitKaynagi").value = data.odemeTeyitKaynagi || "Manuel";
-    rebuildInvoiceBlocks();
-    refreshPayerOptions();
+    wrap.querySelectorAll("input,select").forEach(el => {
+      el.addEventListener("input", () => {
+        el.dataset.touched = "1";
+        delete el.dataset.auto;
+        syncPaymentDefaults(card);
+        rebuildInvoiceBlocks(card);
+        refreshPayerOptions(card);
+      });
+      el.addEventListener("blur", () => {
+        if (el.classList.contains("odemeYapan")) el.value = titleCaseTR(el.value);
+        if (el.classList.contains("odemeYapanTel")) {
+          const phone = completePhoneTR(el.value);
+          if (phone) el.value = phone;
+        }
+        if (el.classList.contains("odemeYapanIl") || el.classList.contains("odemeYapanIlce")) el.value = cityTR(el.value);
+        rebuildInvoiceBlocks(card);
+        refreshPayerOptions(card);
+      });
+    });
+    syncPaymentDefaults(card);
+    rebuildInvoiceBlocks(card);
+    refreshPayerOptions(card);
+  }
+  function removePaymentLine(btn) {
+    const card = cardOf(btn);
+    btn.closest(".line").remove();
+    rebuildInvoiceBlocks(card);
+    refreshPayerOptions(card);
+  }
+  function existingInvoiceValues(card) {
+    const out = {};
+    card.querySelectorAll(".invoice-line").forEach(line => {
+      const name = line.querySelector(".faturaKisisi") ? line.querySelector(".faturaKisisi").value : "";
+      if (!name) return;
+      out[name] = {};
+      line.querySelectorAll("input,select").forEach(el => {
+        const key = el.className.split(" ")[0];
+        out[name][key] = {
+          value: el.value,
+          touched: el.dataset.touched === "1",
+          auto: el.dataset.auto === "1"
+        };
+      });
+    });
+    return out;
+  }
+  function invRaw_(obj, key) {
+    const v = obj && obj[key];
+    return v && typeof v === "object" && "value" in v ? v.value : (v || "");
+  }
+  function invTouched_(obj, key) {
+    const v = obj && obj[key];
+    return !!(v && typeof v === "object" && v.touched && !v.auto);
+  }
+  function shouldReplacePartial_(current, fallback) {
+    const cur = String(current || "").trim();
+    const full = String(fallback || "").trim();
+    if (!cur || !full) return !cur && !!full;
+    const ck = asciiKey(cur);
+    const fk = asciiKey(full);
+    if (!ck || !fk) return false;
+    return ck !== fk && fk.indexOf(ck) === 0;
+  }
+  function bestAutoValue_(candidate, fallback) {
+    const cand = String(candidate || "").trim();
+    const full = String(fallback || "").trim();
+    if (!cand) return full;
+    if (!full) return cand;
+    return shouldReplacePartial_(cand, full) ? full : cand;
+  }
+  function invoiceValue_(source, prior, key, fallback, formatter) {
+    const fmt = formatter || (x => x || "");
+    const fallbackValue = String(fmt(fallback || "") || "").trim();
+    const sourceValue = String(fmt(invRaw_(source, key)) || "").trim();
+    const priorValue = String(fmt(invRaw_(prior, key)) || "").trim();
+    if (invTouched_(prior, key) && priorValue && !shouldReplacePartial_(priorValue, fallbackValue)) return priorValue;
+    if (fallbackValue && shouldReplacePartial_(sourceValue, fallbackValue)) return fallbackValue;
+    if (fallbackValue && shouldReplacePartial_(priorValue, fallbackValue)) return fallbackValue;
+    if (sourceValue) return sourceValue;
+    if (fallbackValue) return fallbackValue;
+    return priorValue || "";
+  }
+  function markInvoiceAutoFields_(block, autoMap) {
+    Object.keys(autoMap || {}).forEach(cls => {
+      const el = block.querySelector("." + cls);
+      if (!el) return;
+      if (autoMap[cls]) el.dataset.auto = "1";
+    });
   }
 
-  function rebuildInvoiceBlocks() {
-    const area = document.getElementById("invoiceBlocks");
+  function rebuildInvoiceBlocks(card, sourceRows = []) {
+    syncPaymentDefaults(card);
+    const fromSource = {};
+    (sourceRows || []).forEach(row => {
+      const name = titleCaseTR(row.faturaKisisi || row.odemeYapan || "");
+      if (!name) return;
+      fromSource[name] = {
+        faturaGrubuId: row.faturaGrubuId,
+        cariTipi: row.cariTipi,
+        faturaTel: row.faturaTel,
+        faturaEmail: row.faturaEmail,
+        faturaTcknVkn: row.faturaTcknVkn,
+        faturaVergiDairesi: row.faturaVergiDairesi,
+        faturaIl: row.faturaIl,
+        faturaIlce: row.faturaIlce,
+        faturaAdres: row.faturaAdres,
+        eBelgeTipi: row.eBelgeTipi,
+        parasutCariId: row.parasutCariId,
+        cariPuan: row.cariPuan,
+        cariDurum: row.cariDurum,
+        cariAksiyon: row.cariAksiyon
+      };
+    });
+    const prior = existingInvoiceValues(card);
+    const area = card.querySelector(".invoice-blocks");
     area.innerHTML = "";
-    document.querySelectorAll("#payments .row").forEach((row, idx) => {
-      const payer = titleCaseTR(row.querySelector(".odemeYapan").value);
-      if (!payer) return;
-      const tel = row.querySelector(".odemeYapanTel").value || document.getElementById("whatsAppTel").value;
-      const tax = row.querySelector(".odemeYapanTcknVkn").value || "11111111111";
-      const city = row.querySelector(".odemeYapanIl").value || document.getElementById("il").value;
-      const district = row.querySelector(".odemeYapanIlce").value || document.getElementById("ilce").value;
-      const address = row.querySelector(".odemeYapanAdres").value || document.getElementById("adres").value;
+    payerNames(card).forEach((payer, idx) => {
+      const pLine = [...card.querySelectorAll(".payments .line")].find(r => titleCaseTR(r.querySelector(".odemeYapan").value) === payer);
+      const saved = fromSource[payer] || {};
+      const previousInvoice = prior[payer] || {};
+      const fallbackTel = bestAutoValue_(pLine && pLine.querySelector(".odemeYapanTel").value, value(card, "kargoTel")) || value(card, "whatsAppTel");
+      const fallbackCity = bestAutoValue_(pLine && pLine.querySelector(".odemeYapanIl").value, value(card, "il"));
+      const fallbackDistrict = bestAutoValue_(pLine && pLine.querySelector(".odemeYapanIlce").value, value(card, "ilce"));
+      const fallbackAddress = bestAutoValue_(pLine && pLine.querySelector(".odemeYapanAdres").value, value(card, "adres"));
+      const tax = invoiceValue_(saved, previousInvoice, "faturaTcknVkn", (pLine && pLine.querySelector(".odemeYapanTcknVkn").value) || "11111111111");
+      const tel = invoiceValue_(saved, previousInvoice, "faturaTel", fallbackTel, phoneTR);
+      const city = invoiceValue_(saved, previousInvoice, "faturaIl", fallbackCity, cityTR);
+      const district = invoiceValue_(saved, previousInvoice, "faturaIlce", fallbackDistrict, cityTR);
+      const address = invoiceValue_(saved, previousInvoice, "faturaAdres", fallbackAddress);
+      const cariTipi = invoiceValue_(saved, previousInvoice, "cariTipi", "Gerçek Kişi");
+      const faturaEmail = invoiceValue_(saved, previousInvoice, "faturaEmail", "");
+      const faturaVergiDairesi = invoiceValue_(saved, previousInvoice, "faturaVergiDairesi", "");
+      const eBelgeTipi = invoiceValue_(saved, previousInvoice, "eBelgeTipi", tax === "11111111111" ? "e-Arşiv" : "e-Belge mükellef kontrolü gerekli");
+      const parasutCariId = invoiceValue_(saved, previousInvoice, "parasutCariId", "");
+      const cariPuan = invoiceValue_(saved, previousInvoice, "cariPuan", "");
+      const cariDurum = invoiceValue_(saved, previousInvoice, "cariDurum", "Cari çözümü gerekli");
+      const cariAksiyon = invoiceValue_(saved, previousInvoice, "cariAksiyon", "Kaydet sırasında aday aranacak");
       const block = document.createElement("div");
-      block.className = "row";
+      block.className = "line invoice-line";
+      block.dataset.faturaGrubuId = saved.faturaGrubuId || "";
       block.innerHTML = `
         <div><span class="badge">Fatura/Cari ${idx + 1}</span><strong>${esc(payer)}</strong></div>
         <div class="grid">
           <div class="c3"><label>Fatura_Kişisi</label><input class="faturaKisisi readonly" readonly value="${esc(payer)}"></div>
           <div class="c2"><label>Cari_Tipi</label><select class="cariTipi"><option>Gerçek Kişi</option><option>Tüzel Kişi</option></select></div>
-          <div class="c2"><label>Fatura_Tel</label><input class="faturaTel" value="${esc(tel)}" onblur="phoneInput(this)"></div>
-          <div class="c2"><label>Fatura_TCKN_VKN</label><input class="faturaTcknVkn" value="${esc(tax)}"></div>
-          <div class="c3"><label>Fatura_Vergi_Dairesi</label><input class="faturaVergiDairesi"></div>
-          <div class="c2"><label>Fatura_İl</label><input class="faturaIl" value="${esc(city)}" onblur="cityInput(this)"></div>
-          <div class="c2"><label>Fatura_İlçe</label><input class="faturaIlce" value="${esc(district)}" onblur="cityInput(this)"></div>
-          <div class="c4"><label>E_Belge_Tipi</label><input class="eBelgeTipi readonly" readonly value="${tax === "11111111111" ? "e-Arşiv" : "e-Belge Mükellef Kontrol Gerekli"}"></div>
-          <div class="c4"><label>Paraşüt_Cari_ID</label><input class="parasutCariId"></div>
-          <div class="c2"><label>Cari_Eşleşme_Güven_Puanı</label><input class="cariPuan readonly" readonly></div>
-          <div class="c3"><label>Cari_Eşleşme_Durumu</label><input class="cariDurum readonly" readonly value="Cari çözümü gerekli"></div>
-          <div class="c3"><label>Cari_Aksiyon</label><input class="cariAksiyon readonly" readonly value="Kaydet sırasında aday aranacak"></div>
-          <div class="c12"><label>Fatura_Adres</label><input class="faturaAdres" value="${esc(address)}"></div>
+          <div class="c2"><label>Fatura_Tel</label><input class="faturaTel" value="${esc(phoneTR(tel))}"></div>
+          <div class="c2"><label>Fatura_Eposta</label><input class="faturaEmail" value="${esc(faturaEmail)}"></div>
+          <div class="c2"><label>Fatura_TCKN_VKN</label><input class="faturaTcknVkn" value="${esc(tax || "11111111111")}"></div>
+          <div class="c3"><label>Fatura_Vergi_Dairesi</label><input class="faturaVergiDairesi" value="${esc(faturaVergiDairesi)}"></div>
+          <div class="c2"><label>Fatura_İl</label><input class="faturaIl" value="${esc(cityTR(city))}"></div>
+          <div class="c2"><label>Fatura_İlçe</label><input class="faturaIlce" value="${esc(cityTR(district))}"></div>
+          <div class="c3"><label>E_Belge_Tipi</label><input class="eBelgeTipi readonly" readonly value="${esc(eBelgeTipi)}"></div>
+          <div class="c3"><label>Paraşüt_Cari_ID</label><input class="parasutCariId" value="${esc(parasutCariId)}"></div>
+          <div class="c2"><label>Cari_Eşleşme_Güven_Puanı</label><input class="cariPuan readonly" readonly value="${esc(cariPuan)}"></div>
+          <div class="c3"><label>Cari_Eşleşme_Durumu</label><input class="cariDurum readonly" readonly value="${esc(cariDurum)}"></div>
+          <div class="c4"><label>Cari_Aksiyon</label><input class="cariAksiyon readonly" readonly value="${esc(cariAksiyon)}"></div>
+          <div class="c8"><label>Fatura_Adres</label><input class="faturaAdres" value="${esc(address)}"></div>
+          <div class="c2"><button type="button" class="secondary cari-auto">Cari seç / ara</button></div>
+          <div class="c2"><button type="button" class="secondary cari-create">Cari oluştur</button></div>
         </div>`;
+      block.querySelector(".cariTipi").value = cariTipi || "Gerçek Kişi";
+      markInvoiceAutoFields_(block, {
+        faturaTel: !!fallbackTel,
+        faturaIl: !!fallbackCity,
+        faturaIlce: !!fallbackDistrict,
+        faturaAdres: !!fallbackAddress,
+        faturaTcknVkn: true
+      });
+      block.querySelectorAll("input,select").forEach(el => {
+        el.addEventListener("input", () => {
+          el.dataset.touched = "1";
+          delete el.dataset.auto;
+        });
+        el.addEventListener("blur", () => {
+          if (el.classList.contains("faturaTel")) {
+            const phone = completePhoneTR(el.value);
+            if (phone) el.value = phone;
+          }
+          if (el.classList.contains("faturaIl") || el.classList.contains("faturaIlce")) el.value = cityTR(el.value);
+        });
+      });
+      block.querySelector(".cari-auto").addEventListener("click", () => resolveCari(card, block, "auto"));
+      block.querySelector(".cari-create").addEventListener("click", () => resolveCari(card, block, "create"));
       area.appendChild(block);
     });
+    refreshPayerOptions(card);
   }
 
-  function collect() {
-    const products = [...document.querySelectorAll("#products .row")].map(row => ({
-      urunAdi: row.querySelector(".urunAdi").value,
-      odemeYapan: row.querySelector(".productPayer").value,
-      miktar: row.querySelector(".miktar").value,
-      birim: row.querySelector(".birim").value,
-      birimFiyatKdvDahil: row.querySelector(".birimFiyatKdvDahil").value,
-      kdvOrani: row.querySelector(".kdvOrani").value,
-      gumusGram: row.querySelector(".gumusGram") ? row.querySelector(".gumusGram").value : "",
-      gumusAlisBirim: row.querySelector(".gumusAlisBirim") ? row.querySelector(".gumusAlisBirim").value : "",
-      gumusSatisBirim: row.querySelector(".gumusSatisBirim") ? row.querySelector(".gumusSatisBirim").value : "",
-      gumusTutarTipi: "Birim"
-    }));
-    const payments = [...document.querySelectorAll("#payments .row")].map(row => ({
-      odemeYapan: row.querySelector(".odemeYapan").value,
-      odemeTutari: row.querySelector(".odemeTutari").value,
-      odemeTarihi: row.querySelector(".odemeTarihi").value,
-      odemeTeyitKaynagi: row.querySelector(".odemeTeyitKaynagi").value,
-      dekontReferans: row.querySelector(".dekontReferans").value,
-      odemeYapanTel: row.querySelector(".odemeYapanTel").value,
-      odemeYapanTcknVkn: row.querySelector(".odemeYapanTcknVkn").value,
-      odemeYapanAdres: row.querySelector(".odemeYapanAdres").value,
-      odemeYapanIl: row.querySelector(".odemeYapanIl").value,
-      odemeYapanIlce: row.querySelector(".odemeYapanIlce").value
-    }));
+  function collectOrder(card) {
+    syncPaymentDefaults(card);
+    const kargoPaketId = currentCargoPackageId(card);
+    const stableOpenId = card.dataset.editOpenId || card.dataset.openId || "";
     return {
-      whatsAppTel: document.getElementById("whatsAppTel").value,
-      siparisSahibi: document.getElementById("siparisSahibi").value,
-      hamWhatsappMesaji: document.getElementById("hamWhatsappMesaji").value,
-      hizliUrunGirisi: document.getElementById("hizliUrunGirisi").value,
-      hizliOdemeGirisi: document.getElementById("hizliOdemeGirisi").value,
-      hizliKargoGirisi: document.getElementById("hizliKargoGirisi").value,
-      urunler: products,
-      odemeler: payments,
+      openId: stableOpenId,
+      queueId: card.dataset.queueId || "",
+      cargoPackageId: kargoPaketId,
+      kargoPaketId: kargoPaketId,
+      whatsAppTel: phoneTR(value(card, "whatsAppTel")),
+      siparisSahibi: titleCaseTR(value(card, "siparisSahibi")),
+      hamWhatsappMesaji: value(card, "hamWhatsappMesaji"),
+      hizliUrunGirisi: value(card, "hizliUrunGirisi"),
+      hizliOdemeGirisi: value(card, "hizliOdemeGirisi"),
+      hizliKargoGirisi: value(card, "hizliKargoGirisi"),
+      urunler: [...card.querySelectorAll(".products .line")].map(row => ({
+        urunKalemId: row.dataset.urunKalemId || "",
+        faturaCariBaglantiId: row.dataset.faturaCariBaglantiId || "",
+        urunAdi: row.querySelector(".urunAdi").value,
+        odemeYapan: row.querySelector(".productPayer").value,
+        miktar: row.querySelector(".miktar").value,
+        birim: row.querySelector(".birim").value,
+        birimFiyatKdvDahil: row.querySelector(".birimFiyatKdvDahil").value,
+        kdvModeli: row.querySelector(".kdvModeli") ? row.querySelector(".kdvModeli").value : "Standart KDV",
+        kdvOrani: row.querySelector(".kdvOrani").value,
+        gumusGram: row.querySelector(".gumusGram") ? row.querySelector(".gumusGram").value : "",
+        gumusAlisBirim: row.querySelector(".gumusAlisBirim") ? row.querySelector(".gumusAlisBirim").value : "",
+        gumusSatisBirim: row.querySelector(".gumusSatisBirim") ? row.querySelector(".gumusSatisBirim").value : "",
+        gumusTutarTipi: "Birim"
+      })),
+      odemeler: [...card.querySelectorAll(".payments .line")].map(row => ({
+        odemeId: row.dataset.odemeId || "",
+        faturaCariBaglantiId: row.dataset.faturaCariBaglantiId || "",
+        odemeYapan: titleCaseTR(row.querySelector(".odemeYapan").value),
+        odemeTutari: row.querySelector(".odemeTutari").value,
+        odemeTarihi: row.querySelector(".odemeTarihi").value,
+        odemeTeyitKaynagi: row.querySelector(".odemeTeyitKaynagi").value,
+        dekontReferans: row.querySelector(".dekontReferans").value,
+        odemeYapanTel: phoneTR(row.querySelector(".odemeYapanTel").value),
+        odemeYapanTcknVkn: row.querySelector(".odemeYapanTcknVkn").value || "11111111111",
+        odemeYapanAdres: row.querySelector(".odemeYapanAdres").value,
+        odemeYapanIl: row.querySelector(".odemeYapanIl").value,
+        odemeYapanIlce: row.querySelector(".odemeYapanIlce").value
+      })),
+      faturalar: [...card.querySelectorAll(".invoice-line")].map(row => ({
+        faturaGrubuId: row.dataset.faturaGrubuId || "",
+        faturaKisisi: row.querySelector(".faturaKisisi").value,
+        cariTipi: row.querySelector(".cariTipi").value,
+        faturaTel: phoneTR(row.querySelector(".faturaTel").value),
+        faturaEmail: row.querySelector(".faturaEmail").value,
+        faturaTcknVkn: row.querySelector(".faturaTcknVkn").value || "11111111111",
+        faturaVergiDairesi: row.querySelector(".faturaVergiDairesi").value,
+        faturaIl: row.querySelector(".faturaIl").value,
+        faturaIlce: row.querySelector(".faturaIlce").value,
+        faturaAdres: row.querySelector(".faturaAdres").value,
+        eBelgeTipi: row.querySelector(".eBelgeTipi").value,
+        parasutCariId: row.querySelector(".parasutCariId").value
+      })),
       kargo: {
-        kargoAlicisi: document.getElementById("kargoAlicisi").value,
-        kargoTel: document.getElementById("kargoTel").value,
-        il: document.getElementById("il").value,
-        ilce: document.getElementById("ilce").value,
-        adres: document.getElementById("adres").value,
-        kargoFirmasi: document.getElementById("kargoFirmasi").value,
-        paketNotu: document.getElementById("paketNotu").value
+        kargoPaketId: kargoPaketId,
+        cargoPackageId: kargoPaketId,
+        kargoAlicisi: titleCaseTR(value(card, "kargoAlicisi")),
+        kargoTel: phoneTR(value(card, "kargoTel")),
+        il: cityTR(value(card, "il")),
+        ilce: cityTR(value(card, "ilce")),
+        adres: value(card, "adres"),
+        kargoFirmasi: value(card, "kargoFirmasi"),
+        paketNotu: value(card, "paketNotu"),
+        kargoBekletilsinMi: value(card, "kargoBekletilsinMi"),
+        kargoBekletmeNedeni: value(card, "kargoBekletmeNedeni")
       }
     };
   }
-
-  function check() {
-    document.getElementById("status").textContent = "Kontrol ediliyor...";
+  function resolveCari(card, line, mode) {
+    const openId = card.dataset.openId || "";
+    if (!openId) {
+      setCardStatus(card, "Cari çözümü için önce Kaydet ve ERP güncelle çalıştırılmalı.", "warn");
+      return;
+    }
+    const payer = line.querySelector(".faturaKisisi").value;
+    const contactId = line.querySelector(".parasutCariId").value;
+    setCardStatus(card, `${payer} için cari çözümü çalışıyor...`, "info");
     google.script.run.withSuccessHandler(res => {
-      document.getElementById("status").textContent = res.ok ? "OK" : (res.issues || []).join("\n");
-    }).withFailureHandler(err => {
-      document.getElementById("status").textContent = "HATA: " + err.message;
-    }).ultraSiparisKontrolEt(collect());
+      if (res.contactId) line.querySelector(".parasutCariId").value = res.contactId;
+      if (res.score) line.querySelector(".cariPuan").value = res.score;
+      if (res.status) line.querySelector(".cariDurum").value = res.status;
+      line.querySelector(".cariAksiyon").value = res.ok ? "Cari bağlı" : (res.status || "Operatör onayı gerekli");
+      const liveInfo = res.livePost ? `\nCanlı cari POST: ${res.livePost}` : "";
+      setCardStatus(card, `${payer}: ${res.status || "Cari sonucu alındı"}${liveInfo}`, res.ok === false ? "warn" : "info");
+    }).withFailureHandler(err => setCardStatus(card, "HATA: " + (err.message || err), "error"))
+      .parasutCariPanelAksiyonu(openId, payer, mode, contactId);
+  }
+  function cards() { return [...document.querySelectorAll(".order-card")]; }
+  function setCardStatus(card, msg, kind) {
+    const box = card.querySelector(".control-status");
+    box.textContent = msg;
+    box.classList.remove("info", "warn", "error");
+    if (kind) box.classList.add(kind);
+  }
+  function issueText(issue) {
+    if (!issue) return "";
+    if (typeof issue === "string") return issue;
+    const module = issue.sheet || issue.module || "Kontrol";
+    const id = issue.id ? ` / ${issue.id}` : "";
+    const msg = issue.message || issue.status || issue.error || JSON.stringify(issue);
+    const action = issue.action ? ` -> ${issue.action}` : "";
+    return `${module}${id}: ${msg}${action}`;
+  }
+  function groupLines(lines) {
+    const groups = { "Paraşüt": [], "Navlungo": [], "Banka": [], "Operasyon": [], "Bilgilendirme": [] };
+    (lines || []).forEach(line => {
+      const text = issueText(line);
+      const key = asciiKey(text);
+      if (/parasut|cari|fatura/.test(key)) groups["Paraşüt"].push(text);
+      else if (/navlungo|kargo/.test(key)) groups["Navlungo"].push(text);
+      else if (/banka|odeme/.test(key)) groups["Banka"].push(text);
+      else if (/eksik|gecerli|uyari|once kaydet/.test(key)) groups["Bilgilendirme"].push(text);
+      else groups["Operasyon"].push(text);
+    });
+    return Object.keys(groups).filter(k => groups[k].length).map(k => `${k}\n- ${groups[k].join("\n- ")}`).join("\n\n");
+  }
+  function summarize(res) {
+    if (!res) return "Yanıt alınamadı";
+    const profileLine = res.performanceProfileText ? `\n${res.performanceProfileText}` : "";
+    if (res.control && res.control.summary) return `${res.status || ""}\nAçık_Sipariş_ID: ${res.openId || res.control.openId || ""}\nSüre: ${res.elapsedMs || ""} ms\n${groupLines(res.control.summary)}${profileLine}`;
+    if (res.blocks && Array.isArray(res.blocks)) return `${res.status || ""}\n${groupLines(res.blocks)}${profileLine}`;
+    if (res.issues) return groupLines(res.issues) + profileLine;
+    return JSON.stringify(res, null, 2);
+  }
+  function checkAll() {
+    cards().forEach(card => {
+      setCardStatus(card, "Kontrol ediliyor...", "info");
+      google.script.run.withSuccessHandler(res => setCardStatus(card, res.ok ? "12_KONTROL_MERKEZI temiz" : summarize(res), res.ok ? "info" : "warn"))
+        .withFailureHandler(err => setCardStatus(card, "HATA: " + (err.message || err), "error"))
+        .ultraSiparisKontrolEt(collectOrder(card));
+    });
+  }
+  function setSavingState(active) {
+    saveInProgress = !!active;
+    document.querySelectorAll("button").forEach(btn => {
+      if (btn.textContent && btn.textContent.trim() !== "Kapat") btn.disabled = saveInProgress;
+    });
+  }
+  function saveAll() {
+    if (saveInProgress) return;
+    const list = cards().map(collectOrder);
+    const started = Date.now();
+    setSavingState(true);
+    cards().forEach(card => setCardStatus(card, "Kaydediliyor... Lütfen ikinci kez basma. Sadece değişen sipariş gönderiliyor.", "info"));
+    const finishOk = (res, targetCards) => {
+      setSavingState(false);
+      const elapsed = ((Date.now() - started) / 1000).toFixed(1);
+      if (targetCards.length === 1) {
+        const card = targetCards[0];
+        card.dataset.openId = card.dataset.editOpenId || res.openId || card.dataset.openId || "";
+        if (res.queueId) card.dataset.queueId = res.queueId;
+        if (res.kargoPaketId || res.cargoPackageId) card.dataset.kargoPaketId = res.kargoPaketId || res.cargoPackageId;
+        setValue(card, "kargoPaketId", card.dataset.kargoPaketId || "", true);
+        refreshOrderTitles();
+        setCardStatus(card, summarize(res) + "\nKaydetme süresi: " + elapsed + " sn", res.ok === false ? "warn" : "info");
+        return;
+      }
+      targetCards.forEach((card, i) => {
+        const r = (res.results || [])[i] || {};
+        card.dataset.openId = card.dataset.editOpenId || r.openId || card.dataset.openId || "";
+        if (r.queueId) card.dataset.queueId = r.queueId;
+        if (r.kargoPaketId || r.cargoPackageId) card.dataset.kargoPaketId = r.kargoPaketId || r.cargoPackageId;
+        setValue(card, "kargoPaketId", card.dataset.kargoPaketId || "", true);
+        setCardStatus(card, summarize(r), r.ok === false ? "warn" : "info");
+      });
+      refreshOrderTitles();
+    };
+    const finishErr = (err, targetCards) => {
+      setSavingState(false);
+      targetCards.forEach(card => setCardStatus(card, "HATA: " + (err.message || err), "error"));
+    };
+    if (list.length === 1) {
+      google.script.run.withSuccessHandler(res => finishOk(res, cards()))
+        .withFailureHandler(err => finishErr(err, cards()))
+        .ultraSiparisKaydet(list[0]);
+      return;
+    }
+    google.script.run.withSuccessHandler(res => finishOk(res, cards()))
+      .withFailureHandler(err => finishErr(err, cards()))
+      .topluUltraSiparisKaydet(list);
   }
 
-  function save() {
-    document.getElementById("status").textContent = "Kaydediliyor...";
-    google.script.run.withSuccessHandler(res => {
-      document.getElementById("status").textContent = `${res.status}\nAçık_Sipariş_ID: ${res.openId}\nSüre: ${res.elapsedMs} ms`;
-    }).withFailureHandler(err => {
-      document.getElementById("status").textContent = "HATA: " + err.message;
-    }).ultraSiparisKaydet(collect());
+  function applyServerResult(card, res) {
+    const saved = (res && res.saved) || res || {};
+    card.dataset.openId = card.dataset.editOpenId || res && res.openId || saved.openId || card.dataset.openId || "";
+    if (saved.queueId || (res && res.queueId)) card.dataset.queueId = saved.queueId || res.queueId;
+    const cargoId = saved.kargoPaketId || saved.cargoPackageId || res && (res.kargoPaketId || res.cargoPackageId) || "";
+    if (cargoId) {
+      card.dataset.kargoPaketId = cargoId;
+      setValue(card, "kargoPaketId", cargoId, true);
+    }
+    const cargoLines = [];
+    (res && res.cargo || []).forEach(row => {
+      if (!row) return;
+      cargoLines.push(row.status || row.postNumber || row.kargoPaketId || JSON.stringify(row));
+    });
+    if (cargoLines.length) card.querySelector(".cargo-status").textContent = cargoLines.join("\n");
+    const topCargoLines = [
+      res && res.Navlungo_Status,
+      res && res.Navlungo_Post_Number ? "Post: " + res.Navlungo_Post_Number : "",
+      res && res.Navlungo_Tracking_URL ? "Takip: " + res.Navlungo_Tracking_URL : "",
+      res && res.Navlungo_Barcode_URL ? "Barkod: " + res.Navlungo_Barcode_URL : ""
+    ].filter(Boolean);
+    if (topCargoLines.length) card.querySelector(".cargo-status").textContent = topCargoLines.join("\n");
+    refreshOrderTitles();
+  }
+
+  function responsePathValue(obj, path) {
+    return path.reduce((node, key) => node && node[key] !== undefined ? node[key] : "", obj);
+  }
+
+  function barcodeUrlFromResponse(res) {
+    const candidates = [
+      responsePathValue(res, ["Navlungo_Barcode_URL"]),
+      responsePathValue(res, ["navlungoBarcodeUrl"]),
+      responsePathValue(res, ["barcodeUrl"]),
+      responsePathValue(res, ["barcode_url"]),
+      responsePathValue(res, ["kargo", "Navlungo_Barcode_URL"]),
+      responsePathValue(res, ["result", "Navlungo_Barcode_URL"]),
+      responsePathValue(res, ["data", "Navlungo_Barcode_URL"])
+    ];
+    if (res && Array.isArray(res.cargo)) {
+      res.cargo.forEach(row => {
+        candidates.push(row && row.Navlungo_Barcode_URL);
+        candidates.push(row && row.navlungoBarcodeUrl);
+        candidates.push(row && row.barcodeUrl);
+        candidates.push(row && row.barcode_url);
+        candidates.push(row && row.barcode && row.barcode.barcodeUrl);
+        candidates.push(row && row.barcode && row.barcode.Navlungo_Barcode_URL);
+      });
+    }
+    return String(candidates.find(v => v) || "").trim();
+  }
+
+  function qzLibraryReady() {
+    return typeof qz !== "undefined" && qz.websocket && qz.printers && qz.configs && qz.print;
+  }
+
+  function qzConnect() {
+    if (!qzLibraryReady()) return Promise.reject(new Error("QZ Tray kütüphanesi yüklenmedi."));
+    if (qz.websocket.isActive()) return Promise.resolve();
+    return qz.websocket.connect();
+  }
+
+  function qzFindPrinter(name) {
+    const printerName = String(name || meta.qzPrinterName || "RP4xx Series 200DPI TSC").trim();
+    if (!printerName) return Promise.reject(new Error("QZ yazıcı adı boş."));
+    return qz.printers.find(printerName);
+  }
+
+  function qzPrintBarcodeUrl(barcodeUrl, options) {
+    const url = String(barcodeUrl || "").trim();
+    if (!url) return Promise.reject(new Error("Barkod URL boş."));
+    const opts = options || {};
+    const printerName = String(opts.printerName || meta.qzPrinterName || "RP4xx Series 200DPI TSC").trim();
+    const copies = Number(opts.copies || meta.qzPrintCopies || 1) || 1;
+    const mode = String(opts.mode || meta.qzPrintMode || "pdf").toLowerCase();
+    return qzConnect().then(() => qzFindPrinter(printerName)).then(printer => {
+      const config = qz.configs.create(printer, { copies: copies });
+      const data = [{ type: "pixel", format: mode, flavor: "file", data: url }];
+      return qz.print(config, data).then(() => ({
+        ok: true,
+        printerName: printerName,
+        status: "Barkod yazdırıldı"
+      }));
+    });
+  }
+
+  function saveQzPrintResult(kargoPaketId, ok, result, error) {
+    if (!kargoPaketId) return;
+    google.script.run
+      .withFailureHandler(err => console.warn("QZ sonucu 08'e yazılamadı", err))
+      .qzBarkodYazdirmaSonucuKaydet(kargoPaketId, !!ok, result || "", error || "");
+  }
+
+  function qzPrintIfAvailable(res, card, manual) {
+    console.log("Ultra operation response", res);
+    const barcodeUrl = barcodeUrlFromResponse(res);
+    const kargoPaketId = String((res && (res.kargoPaketId || res.cargoPackageId)) || "").trim();
+    if (!barcodeUrl) return Promise.resolve({ skipped: true, status: "Barkod URL yok" });
+    if (!manual && !res.autoPrintRequested) return Promise.resolve({ skipped: true, status: "Otomatik yazdırma kapalı" });
+    if (!manual && res.barcodeAlreadyPrinted) return Promise.resolve({ skipped: true, status: "Barkod daha önce yazdırılmış" });
+    const options = {
+      printerName: res.qzPrinterName || meta.qzPrinterName || "RP4xx Series 200DPI TSC",
+      copies: res.qzPrintCopies || meta.qzPrintCopies || 1,
+      mode: res.qzPrintMode || meta.qzPrintMode || "pdf"
+    };
+    return qzPrintBarcodeUrl(barcodeUrl, options).then(printRes => {
+      saveQzPrintResult(kargoPaketId, true, printRes.status + " / " + printRes.printerName, "");
+      if (card) setCardStatus(card, (card.querySelector(".control-status").textContent || "") + "\nBarkod yazdırıldı: " + printRes.printerName, "info");
+      return printRes;
+    }).catch(err => {
+      const message = "Barkod URL oluşturuldu ancak QZ Tray bağlantısı kurulamadı. Manuel yazdırabilirsiniz.";
+      saveQzPrintResult(kargoPaketId, false, message, err && err.message ? err.message : String(err));
+      if (card) setCardStatus(card, (card.querySelector(".control-status").textContent || "") + "\n" + message, "warn");
+      return { ok: false, status: message, error: err && err.message ? err.message : String(err) };
+    });
+  }
+
+  function runOperation(action, label) {
+    if (saveInProgress) return;
+    const targetCards = cards();
+    let index = 0;
+    const started = Date.now();
+    setSavingState(true);
+    targetCards.forEach(card => setCardStatus(card, `${label} çalışıyor...`, "info"));
+    const next = () => {
+      if (index >= targetCards.length) {
+        setSavingState(false);
+        return;
+      }
+      const card = targetCards[index++];
+      google.script.run
+        .withSuccessHandler(res => {
+          applyServerResult(card, res);
+          console.log("Ultra operation response", res);
+          const elapsed = ((Date.now() - started) / 1000).toFixed(1);
+          setCardStatus(card, summarize(res) + "\nİşlem süresi: " + elapsed + " sn", res && res.ok === false ? "warn" : "info");
+          qzPrintIfAvailable(res, card, false);
+          next();
+        })
+        .withFailureHandler(err => {
+          setCardStatus(card, "HATA: " + (err.message || err), "error");
+          next();
+        })
+        .ultraPanelOperasyonCalistir(action, collectOrder(card));
+    };
+    next();
   }
 
   function invoiceCargo() {
-    document.getElementById("status").textContent = "Son aşama kontrol ediliyor...";
-    google.script.run.withSuccessHandler(res => {
-      document.getElementById("status").textContent = res.ok ? "Fatura/kargo adımı tamamlandı" : (res.status || "Kontrol gerekli");
-    }).withFailureHandler(err => {
-      document.getElementById("status").textContent = "HATA: " + err.message;
-    }).faturaVeKargoOlustur();
+    runOperation("faturaKargo", "Fatura ve kargo oluştur");
+  }
+  function currentCargoPackageId(card) {
+    const explicit = card.dataset.kargoPaketId || value(card, "kargoPaketId") || "";
+    return String(explicit || "").trim();
+  }
+  function printBarcodeForActive() {
+    const card = cards().find(c => currentCargoPackageId(c)) || cards().find(c => c.dataset.openId) || cards()[0];
+    if (!card) return;
+    const key = currentCargoPackageId(card) || card.dataset.openId || "";
+    if (!key) {
+      setCardStatus(card, "Barkod yazdırmak için önce siparişi kaydedin ve kargo paketini oluşturun.", "warn");
+      return;
+    }
+    setCardStatus(card, "Barkod yazdırma bilgisi alınıyor...", "info");
+    google.script.run
+      .withSuccessHandler(res => qzPrintIfAvailable(res, card, true))
+      .withFailureHandler(err => setCardStatus(card, "HATA: " + (err.message || err), "error"))
+      .qzBarkodBilgisi(key);
+  }
+  function navlungoAction(card, action) {
+    const kargoPaketId = currentCargoPackageId(card);
+    if (!kargoPaketId) {
+      setCardStatus(card, "Navlungo işlemi için Kargo_Paket_ID bulunamadı. Önce Fatura ve Kargo oluştur adımını çalıştırın; sonra paneli yeniden açın.", "warn");
+      return;
+    }
+    setCardStatus(card, "Navlungo işlemi çalışıyor...", "info");
+    const runner = google.script.run
+      .withSuccessHandler(res => {
+        console.log("Ultra operation response", res);
+        applyServerResult(card, res);
+        setCardStatus(card, summarize(res), res.ok === false ? "warn" : "info");
+      })
+      .withFailureHandler(err => setCardStatus(card, "HATA: " + (err.message || err), "error"));
+    if (action === "dry") runner.navlungoKargoTaslakTestEt(kargoPaketId);
+    else if (action === "create") runner.navlungoKargoOlusturOnayli(kargoPaketId);
+    else if (action === "barcode") runner.navlungoBarkodAl(kargoPaketId);
+    else if (action === "check") runner.navlungoGonderiSorgula(kargoPaketId);
+    else if (action === "cancel") runner.navlungoGonderiIptalEt(kargoPaketId);
+    else setCardStatus(card, "Bilinmeyen Navlungo işlemi.", "warn");
   }
 
-  function normalizeAndLoad() {
-    const tel = document.getElementById("whatsAppTel");
-    tel.value = phoneTR(tel.value);
-    const owner = document.getElementById("siparisSahibi");
-    owner.value = titleCaseTR(owner.value);
-    if (!tel.value) return;
-    google.script.run.withSuccessHandler(res => {
-      if (!res || !res.ok) return;
-      if (!owner.value && res.owner) owner.value = res.owner;
-      if (!document.getElementById("kargoAlicisi").value && res.cargo && res.cargo.receiver) document.getElementById("kargoAlicisi").value = res.cargo.receiver;
-      if (!document.getElementById("kargoTel").value && res.cargo && res.cargo.phone) document.getElementById("kargoTel").value = res.cargo.phone;
-      if (!document.getElementById("il").value && res.cargo && res.cargo.city) document.getElementById("il").value = res.cargo.city;
-      if (!document.getElementById("ilce").value && res.cargo && res.cargo.district) document.getElementById("ilce").value = res.cargo.district;
-      if (!document.getElementById("adres").value && res.cargo && res.cargo.address) document.getElementById("adres").value = res.cargo.address;
-      document.getElementById("status").textContent = res.openOrder ? `Açık sipariş bulundu: ${res.openOrder.id}` : (res.riskNote || "Müşteri hafızası kontrol edildi.");
-    }).getUltraPanelHazirlik(tel.value);
+  function resizeDialogFull() {
+    try {
+      const w = Math.max(1500, Math.floor((window.screen && window.screen.availWidth ? window.screen.availWidth : 1700) * 0.995));
+      const h = Math.max(900, Math.floor((window.screen && window.screen.availHeight ? window.screen.availHeight : 980) * 0.965));
+      if (google && google.script && google.script.host) {
+        google.script.host.setWidth(w);
+        google.script.host.setHeight(h);
+      }
+    } catch (e) {}
   }
+  resizeDialogFull();
+  window.addEventListener("resize", resizeDialogFull);
 
-  google.script.run.withSuccessHandler(data => {
-    meta = data || meta;
-    document.getElementById("kargoFirmasi").innerHTML = optionList(meta.cargoCompanies);
-    document.getElementById("kargoFirmasi").value = "Aras Kargo";
-    addPayment();
-    addProduct();
-  }).getDialogData();
+  google.script.run
+    .withSuccessHandler(data => {
+      meta = data || meta;
+      const editOrders = meta.editOrders || [];
+      if (editOrders.length) {
+        editOrders.forEach(order => addOrder(order));
+      } else {
+        const card = addOrder();
+        if (meta.panelError) setCardStatus(card, meta.panelError, "warn");
+      }
+    })
+    .withFailureHandler(err => {
+      addOrder();
+      const card = cards()[0];
+      if (card) setCardStatus(card, "Panel verisi alınamadı: " + (err && err.message ? err.message : err), "error");
+    })
+    .getDialogData();
 </script>
 </body>
 </html>
